@@ -1,6 +1,6 @@
 from playwright.sync_api import sync_playwright
 
-URL = 'http://localhost:5173'
+URL = 'http://localhost:5173/?debug'
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
@@ -13,39 +13,52 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1200)
     page.click('#btn-start')
+    page.wait_for_timeout(500)
 
-    # 持续游走，让经验积累到升级
-    moves = ['KeyW', 'KeyD', 'KeyS', 'KeyA']
-    upgraded = False
-    for round_i in range(30):
-        key = moves[round_i % 4]
-        page.keyboard.down(key)
-        page.wait_for_timeout(700)
-        page.keyboard.up(key)
-        lv_visible = page.evaluate("() => !document.getElementById('levelup-screen').classList.contains('hidden')")
-        if lv_visible and not upgraded:
-            upgraded = True
-            page.screenshot(path='/tmp/ns_levelup.png')
-            cards = page.locator('.upgrade-card').count()
-            print(f'升级弹窗出现，卡牌数: {cards}')
-            page.click('.upgrade-card')
-            page.wait_for_timeout(400)
-        # 游戏是否死亡
+    # 等待 60 秒看自然死亡（加强密度后应该能死）
+    dead = False
+    for i in range(75):
+        page.wait_for_timeout(1000)
         go_visible = page.evaluate("() => !document.getElementById('gameover-screen').classList.contains('hidden')")
         if go_visible:
-            print('游戏结束界面出现')
-            page.screenshot(path='/tmp/ns_gameover.png')
+            dead = True
+            print(f'自然死亡于第 {i+1} 秒')
             break
+        # 每 15 秒打印一次存活状态
+        if (i + 1) % 15 == 0:
+            st = page.evaluate("() => ({hp: window.__game.player.hp, t: Math.floor(window.__game.time), enemies: window.__game.enemies.enemies.length})")
+            print(f'第{i+1}秒: 时间={st["t"]}s HP={st["hp"]:.0f} 敌人数={st["enemies"]}')
 
-    state = page.evaluate("""() => ({
-      t: document.getElementById('timer').textContent,
-      hp: document.getElementById('hp-text').textContent,
-      lv: document.getElementById('level-text').textContent,
-      kills: document.getElementById('kill-count').textContent,
-      loadout: document.getElementById('loadout').children.length,
-    })""")
-    print('最终 HUD:', state)
-    print('升级流程触发:', upgraded)
-    page.screenshot(path='/tmp/ns_late.png')
+    if not dead:
+        print('75秒内未自然死亡，调试钩子直接扣血验证结算流程')
+        page.evaluate("() => { window.__game.player.hp = 1; }")
+        for _ in range(15):
+            page.wait_for_timeout(500)
+            go_visible = page.evaluate("() => !document.getElementById('gameover-screen').classList.contains('hidden')")
+            if go_visible:
+                dead = True
+                break
+
+    print('死亡结算触发:', dead)
+    page.screenshot(path='/tmp/ns_gameover.png')
+    stats = page.evaluate("""() => [...document.querySelectorAll('.stat-line')].map(el => el.textContent)""")
+    print('结算数据:', stats)
+
+    # 重开
+    page.click('#btn-retry')
+    page.wait_for_timeout(800)
+    hud_visible = page.evaluate("() => !document.getElementById('hud').classList.contains('hidden')")
+    print('重开后 HUD 恢复:', hud_visible)
+    st = page.evaluate("() => ({hp: window.__game.player.hp, t: Math.floor(window.__game.time), lv: window.__game.player.level})")
+    print('重开后状态:', st)
+
+    # 返回主界面，验证最高纪录持久化
+    page.reload()
+    page.wait_for_load_state('networkidle')
+    page.wait_for_timeout(1000)
+    best = page.evaluate("() => document.getElementById('best-record').textContent")
+    print('主界面最高纪录:', best)
+    page.screenshot(path='/tmp/ns_title2.png')
+
     print('控制台错误:', errors if errors else '无')
     browser.close()

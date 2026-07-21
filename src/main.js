@@ -8,3 +8,8 @@ document.getElementById('btn-retry').addEventListener('click', () => game.startR
 document.getElementById('btn-home').addEventListener('click', () => game.showTitle());
 
 game.showTitle();
+
+// 自动化测试调试钩子
+if (new URLSearchParams(window.location.search).has('debug')) {
+  window.__game = game;
+}

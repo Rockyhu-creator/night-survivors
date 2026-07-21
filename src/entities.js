@@ -146,12 +146,17 @@ export class EnemyManager {
   update(dt) {
     const scale = this.statScale();
     const t = this.game.time;
-    const interval = Math.max(0.22, 1.15 - t / 150);
+    const interval = Math.max(0.18, 0.9 - t / 160);
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer += interval;
       if (this.enemies.length < CONFIG.ENEMY_CAP) {
         this.spawnAt(this.pickType(), scale);
+        // 1 分钟后每波刷 2 只,2 分钟后 3 只,形成密度成长
+        const extra = t > 120 ? 2 : (t > 60 ? 1 : 0);
+        for (let i = 0; i < extra && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
+          this.spawnAt(this.pickType(), scale);
+        }
       }
     }
     if (t >= ENEMY_TYPES.elite.unlockAt) {
