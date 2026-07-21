@@ -1,4 +1,5 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection } from './data.js';
+import { buildCollectionData } from './evolution.js';
 import { sprite } from './assets.js';
 
 export class UIManager {
@@ -155,5 +156,54 @@ export class UIManager {
       this.finalStatsEl.appendChild(div);
     }
     this.gameoverScreen.classList.remove('hidden');
+  }
+
+  showCodex() {
+    const { unlocked } = loadCollection();
+    const data = buildCollectionData(unlocked);
+    const root = document.getElementById('codex-content');
+    root.innerHTML = '';
+    const sections = [['武器', data.weapons], ['被动道具', data.passives], ['神器', data.artifacts]];
+    for (const [title, items] of sections) {
+      const sec = document.createElement('div');
+      sec.className = 'codex-section';
+      const h = document.createElement('h3');
+      h.textContent = title;
+      sec.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'codex-grid';
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = `codex-card ${item.unlocked ? '' : 'locked'} ${item.rarity === 'hidden' ? 'hidden-item' : ''}`;
+        const img = document.createElement('img');
+        img.src = this.iconURL(item.icon);
+        img.alt = item.name;
+        const name = document.createElement('p');
+        name.className = 'cc-name';
+        name.textContent = item.name;
+        card.append(img, name);
+        if (item.hint) {
+          const hint = document.createElement('p');
+          hint.className = 'cc-hint';
+          hint.textContent = item.hint;
+          card.appendChild(hint);
+        } else if (item.desc && item.unlocked) {
+          const desc = document.createElement('p');
+          desc.className = 'cc-hint';
+          desc.textContent = item.desc;
+          card.appendChild(desc);
+        }
+        grid.appendChild(card);
+      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
+    document.getElementById('codex-screen').classList.remove('hidden');
+    document.getElementById('title-screen').classList.add('hidden');
+  }
+
+  hideCodex() {
+    document.getElementById('codex-screen').classList.add('hidden');
+    document.getElementById('title-screen').classList.remove('hidden');
   }
 }

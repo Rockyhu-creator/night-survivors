@@ -1,4 +1,4 @@
-import { CONFIG, expForLevel } from './data.js';
+import { CONFIG, expForLevel, unlockInCollection } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -112,6 +112,7 @@ export class Game {
     this.camera.y = -CONFIG.LOGICAL_HEIGHT / 2;
     this.camera.trauma = 0;
     this.weapons.addWeapon('blade');
+    unlockInCollection('blade');
     this.ui.startGame();
     this.state = 'playing';
   }

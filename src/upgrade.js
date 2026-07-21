@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, unlockInCollection } from './data.js';
 import { sprite } from './assets.js';
 
 export class UpgradeSystem {
@@ -96,5 +96,6 @@ export class UpgradeSystem {
       option.def.apply(player);
     }
     this.game.ui.refreshLoadout();
+    unlockInCollection(option.id);
   }
 }
