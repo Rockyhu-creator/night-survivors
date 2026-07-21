@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, expForLevel, loadBest, saveBest, formatTime } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime } from './data.js';
 import { sprite } from './assets.js';
 
 export class UIManager {
@@ -81,11 +81,28 @@ export class UIManager {
     this.vignette.style.opacity = '0.95';
   }
 
+  showEvolutionBanner(artifact) {
+    const el = document.getElementById('evolution-banner');
+    document.getElementById('evo-name').textContent = artifact.name;
+    document.getElementById('evo-desc').textContent = artifact.desc;
+    el.classList.remove('hidden');
+    clearTimeout(this._evoTimer);
+    this._evoTimer = setTimeout(() => el.classList.add('hidden'), 2600);
+  }
+
+  showToast(text) {
+    const el = document.getElementById('toast');
+    el.textContent = text;
+    el.classList.remove('hidden');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 1800);
+  }
+
   refreshLoadout() {
     const player = this.game.player;
     this.loadoutEl.innerHTML = '';
     for (const w of player.weapons) {
-      const def = WEAPONS[w.id];
+      const def = WEAPONS[w.id] || ARTIFACTS[w.id];
       const div = document.createElement('div');
       div.className = 'loadout-icon';
       const img = document.createElement('img');

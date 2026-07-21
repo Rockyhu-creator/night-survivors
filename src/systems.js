@@ -33,6 +33,16 @@ export class PickupSystem {
     }
   }
 
+  dropChest(x, y) {
+    this.gems.push({
+      chest: true,
+      x, y,
+      value: 0,
+      def: { key: 'gemLarge', min: 0, size: 34, color: '#d4af37' },
+      magnet: false, vx: 0, vy: 0, bob: 0,
+    });
+  }
+
   update(dt) {
     const player = this.game.player;
     const magnetR = player.magnetRange;
@@ -50,7 +60,12 @@ export class PickupSystem {
         g.x += g.vx * dt;
         g.y += g.vy * dt;
       }
-      if (d < player.radius + 8) {
+      if (d < player.radius + (g.chest ? 18 : 8)) {
+        if (g.chest) {
+          this.game.onChestOpened(g);
+          this.gems.splice(i, 1);
+          continue;
+        }
         this.game.gainExp(g.value);
         this.game.fx.spawnSparks(player.x, player.y, g.def.color, 3);
         this.gems.splice(i, 1);
@@ -64,10 +79,16 @@ export class PickupSystem {
       const sy = g.y - cam.oy + Math.sin(g.bob) * 2.5;
       const img = sprite(g.def.key);
       const pulse = 1 + Math.sin(g.bob * 1.4) * 0.12;
-      const size = g.def.size * pulse;
+      const size = (g.chest ? 40 : g.def.size) * pulse;
       ctx.save();
-      ctx.shadowColor = g.def.color;
-      ctx.shadowBlur = 8;
+      if (g.chest) {
+        ctx.fillStyle = 'rgba(212,175,55,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 10, 18, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowColor = g.chest ? '#d4af37' : g.def.color;
+      ctx.shadowBlur = g.chest ? 18 : 8;
       if (img) ctx.drawImage(img, sx - size / 2, sy - size / 2, size, size);
       else {
         ctx.fillStyle = g.def.color;

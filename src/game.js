@@ -6,6 +6,7 @@ import { WeaponSystem } from './weapons.js';
 import { PickupSystem, FXSystem } from './systems.js';
 import { UpgradeSystem } from './upgrade.js';
 import { UIManager } from './ui.js';
+import { findEvolvableRecipe, performEvolution } from './evolution.js';
 
 const STEP = 1 / 60;
 
@@ -183,6 +184,19 @@ export class Game {
     this.kills += 1;
     this.pickups.drop(enemy.x, enemy.y, enemy.expValue);
     this.fx.spawnSparks(enemy.x, enemy.y, '#e74c3c', 6);
+  }
+
+  onChestOpened() {
+    const recipe = findEvolvableRecipe(this.player, this.weapons);
+    if (recipe) {
+      const artifact = performEvolution(this.player, this.weapons, recipe);
+      this.ui.showEvolutionBanner(artifact);
+      this.ui.refreshLoadout();
+      this.fx.spawnSparks(this.player.x, this.player.y, '#d4af37', 30);
+    } else {
+      this.gainExp(25);
+      this.ui.showToast('宝箱: +25 经验');
+    }
   }
 
   onPlayerHit() {

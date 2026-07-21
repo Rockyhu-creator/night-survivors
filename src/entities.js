@@ -213,6 +213,9 @@ export class EnemyManager {
       const e = this.enemies[i];
       if (e.hp <= 0) {
         this.game.onEnemyKilled(e);
+        if (e.type === ENEMY_TYPES.elite) {
+          this.game.pickups.dropChest(e.x, e.y);
+        }
         this.enemies.splice(i, 1);
         continue;
       }
