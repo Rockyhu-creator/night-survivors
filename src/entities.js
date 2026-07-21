@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES } from './data.js';
 import { sprite } from './assets.js';
 
 export class Player {
@@ -83,12 +83,18 @@ export class EnemyManager {
     this.enemies = [];
     this.spawnTimer = 0;
     this.eliteTimer = 0;
+    this.bossSpawned = new Set();
+    this.activeBoss = null;
+    this.enemyProjectiles = [];
   }
 
   reset() {
     this.enemies.length = 0;
     this.spawnTimer = 0.5;
     this.eliteTimer = 180;
+    this.bossSpawned = new Set();
+    this.activeBoss = null;
+    this.enemyProjectiles = [];
   }
 
   statScale() {
@@ -124,7 +130,11 @@ export class EnemyManager {
     else if (side === 1) { x = cam.ox + w + margin; y = cam.oy + Math.random() * h; }
     else if (side === 2) { x = cam.ox + Math.random() * w; y = cam.oy - margin; }
     else { x = cam.ox + Math.random() * w; y = cam.oy + h + margin; }
-    this.enemies.push({
+    this.enemies.push(this.createEnemy(type, scale, x, y));
+  }
+
+  createEnemy(type, scale, x, y) {
+    return {
       type,
       x, y,
       hp: type.hp * scale.hp,
@@ -140,12 +150,109 @@ export class EnemyManager {
       hitCooldown: 0,
       wobble: Math.random() * Math.PI * 2,
       dotAccumulator: 0,
-    });
+    };
+  }
+
+  spawnBoss(def) {
+    const cam = this.game.camera;
+    const w = CONFIG.LOGICAL_WIDTH;
+    const h = CONFIG.LOGICAL_HEIGHT;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.hypot(w, h) / 2 + 80;
+    const boss = {
+      type: def,
+      x: cam.ox + w / 2 + Math.cos(angle) * dist,
+      y: cam.oy + h / 2 + Math.sin(angle) * dist,
+      hp: def.hp,
+      maxHp: def.hp,
+      speed: def.speed,
+      damage: def.damage,
+      radius: def.radius,
+      spriteSize: def.spriteSize,
+      knockResist: def.knockResist,
+      expValue: def.exp,
+      flash: 0,
+      kx: 0, ky: 0,
+      hitCooldown: 0,
+      wobble: Math.random() * Math.PI * 2,
+      dotAccumulator: 0,
+      isBoss: true,
+      bossDef: def,
+      skillIndex: 0,
+      dashing: 0,
+      dashVx: 0,
+      dashVy: 0,
+      dashBonusDamage: 0,
+      enraged: false,
+    };
+    this.enemies.push(boss);
+    return boss;
+  }
+
+  triggerBossSkill(e, skill) {
+    const player = this.game.player;
+    if (skill.type === 'summon' || skill.type === 'summon_barrage') {
+      this.bossSummon(e, skill.enemyType, skill.count);
+    }
+    if (skill.type === 'barrage' || skill.type === 'summon_barrage' || skill.type === 'dash_barrage') {
+      this.bossBarrage(e, skill.barrageCount || skill.count, skill.speed, skill.damage);
+    }
+    if (skill.type === 'dash' || skill.type === 'dash_barrage') {
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      e.dashVx = (dx / dist) * e.speed * skill.speedMul;
+      e.dashVy = (dy / dist) * e.speed * skill.speedMul;
+      e.dashing = skill.duration;
+      e.dashBonusDamage = skill.damage || 0;
+    }
+    if (skill.type === 'enrage') {
+      e.speed *= skill.speedMul;
+      e.enraged = true;
+    }
+  }
+
+  bossSummon(e, enemyType, count) {
+    const type = ENEMY_TYPES[enemyType];
+    if (!type) return;
+    const scale = this.statScale();
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
+      const x = e.x + Math.cos(angle) * 60;
+      const y = e.y + Math.sin(angle) * 60;
+      this.enemies.push(this.createEnemy(type, scale, x, y));
+    }
+  }
+
+  bossBarrage(e, count, speed, damage) {
+    const player = this.game.player;
+    const base = Math.atan2(player.y - e.y, player.x - e.x);
+    const spread = (40 * Math.PI) / 180;
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+      const angle = base + t * spread;
+      this.enemyProjectiles.push({
+        x: e.x,
+        y: e.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        damage,
+        life: 4,
+        radius: 5,
+      });
+    }
   }
 
   update(dt) {
     const scale = this.statScale();
     const t = this.game.time;
+    for (const def of BOSSES) {
+      if (t >= def.unlockAt && !this.bossSpawned.has(def.id)) {
+        this.bossSpawned.add(def.id);
+        this.activeBoss = this.spawnBoss(def);
+        this.game.onBossSpawn?.(def);
+      }
+    }
     const interval = Math.max(0.18, 0.9 - t / 160);
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
@@ -175,8 +282,19 @@ export class EnemyManager {
       const dx = player.x - e.x;
       const dy = player.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
-      e.x += (dx / dist) * e.speed * dt + e.kx * dt;
-      e.y += (dy / dist) * e.speed * dt + e.ky * dt;
+      if (e.isBoss && e.dashing > 0) {
+        e.x += e.dashVx * dt;
+        e.y += e.dashVy * dt;
+        e.dashing -= dt;
+      } else {
+        e.x += (dx / dist) * e.speed * dt + e.kx * dt;
+        e.y += (dy / dist) * e.speed * dt + e.ky * dt;
+      }
+      if (e.isBoss && e.skillIndex < e.bossDef.skills.length
+        && e.hp / e.maxHp <= e.bossDef.skills[e.skillIndex].at) {
+        this.triggerBossSkill(e, e.bossDef.skills[e.skillIndex]);
+        e.skillIndex += 1;
+      }
       const decay = Math.pow(0.0001, dt);
       e.kx *= decay;
       e.ky *= decay;
@@ -201,7 +319,10 @@ export class EnemyManager {
 
       // 触碰玩家
       if (dist < e.radius + player.radius && e.hitCooldown <= 0) {
-        if (player.takeDamage(e.damage)) {
+        const touchDamage = e.isBoss && e.dashing > 0
+          ? e.damage + (e.dashBonusDamage || 0)
+          : e.damage;
+        if (player.takeDamage(touchDamage)) {
           this.game.onPlayerHit();
         }
         e.hitCooldown = 0.8;
@@ -213,18 +334,40 @@ export class EnemyManager {
       const e = this.enemies[i];
       if (e.hp <= 0) {
         this.game.onEnemyKilled(e);
-        if (e.type === ENEMY_TYPES.elite) {
+        if (e.isBoss) {
+          if (this.activeBoss === e) this.activeBoss = null;
+          this.game.onBossKilled?.(e);
+        } else if (e.type === ENEMY_TYPES.elite) {
           this.game.pickups.dropChest(e.x, e.y);
         }
         this.enemies.splice(i, 1);
         continue;
       }
       const far = Math.hypot(e.x - player.x, e.y - player.y);
-      if (far > CONFIG.LOGICAL_WIDTH * 1.6 && e.type !== ENEMY_TYPES.elite) {
+      if (far > CONFIG.LOGICAL_WIDTH * 1.6 && e.type !== ENEMY_TYPES.elite && !e.isBoss) {
         // 传送到玩家前方视野边缘,避免白走
         const angle = Math.random() * Math.PI * 2;
         e.x = player.x + Math.cos(angle) * (CONFIG.LOGICAL_WIDTH / 2 + 80);
         e.y = player.y + Math.sin(angle) * (CONFIG.LOGICAL_HEIGHT / 2 + 80);
+      }
+    }
+
+    // 敌方弹幕
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i -= 1) {
+      const p = this.enemyProjectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      const distP = Math.hypot(p.x - player.x, p.y - player.y);
+      if (distP < p.radius + player.radius) {
+        if (player.takeDamage(p.damage)) {
+          this.game.onPlayerHit();
+        }
+        this.enemyProjectiles.splice(i, 1);
+        continue;
+      }
+      if (p.life <= 0 || distP > 800) {
+        this.enemyProjectiles.splice(i, 1);
       }
     }
   }
@@ -315,6 +458,26 @@ export class EnemyManager {
         ctx.arc(0, 0, e.radius * 1.1, 0, Math.PI * 2);
         ctx.fill();
       }
+      if (e.isBoss && e.enraged) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.arc(0, 0, e.radius * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    for (const p of this.enemyProjectiles) {
+      const sx = p.x - cam.ox;
+      const sy = p.y - cam.oy;
+      ctx.save();
+      ctx.fillStyle = '#e74c3c';
+      ctx.shadowColor = '#ff6b6b';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.radius, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
   }

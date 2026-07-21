@@ -187,6 +187,15 @@ export class Game {
     this.fx.spawnSparks(enemy.x, enemy.y, '#e74c3c', 6);
   }
 
+  onBossSpawn(def) {
+    this.ui.showToast(`${def.name} 降临!`);
+    this.camera.addShake(0.8);
+  }
+
+  onBossKilled(enemy) {
+    // Task 4: Boss 宝箱与结算
+  }
+
   onChestOpened() {
     const recipe = findEvolvableRecipe(this.player, this.weapons);
     if (recipe) {
