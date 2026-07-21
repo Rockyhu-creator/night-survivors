@@ -7,12 +7,16 @@ export class WeaponSystem {
     this.projectiles = [];
     this.pools = [];
     this.bolts = [];
+    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
+    this.devourPool = null;
   }
 
   reset() {
     this.projectiles.length = 0;
     this.pools.length = 0;
     this.bolts.length = 0;
+    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
+    this.devourPool = null;
   }
 
   addWeapon(id) {
@@ -33,6 +37,14 @@ export class WeaponSystem {
     return w ? w.level : 0;
   }
 
+  addArtifact(id) {
+    this.game.player.weapons.push({ id, artifact: true, level: 1, timer: 0 });
+  }
+
+  hasArtifact(id) {
+    return this.game.player.weapons.some((w) => w.artifact && w.id === id);
+  }
+
   stats(weapon) {
     return WEAPONS[weapon.id].levels[weapon.level - 1];
   }
@@ -40,6 +52,7 @@ export class WeaponSystem {
   update(dt) {
     const player = this.game.player;
     for (const weapon of player.weapons) {
+      if (weapon.artifact) { this.updateArtifact(weapon, dt); continue; }
       weapon.timer -= dt;
       if (weapon.timer <= 0) {
         const s = this.stats(weapon);
@@ -50,6 +63,98 @@ export class WeaponSystem {
     this.updateProjectiles(dt);
     this.updatePools(dt);
     this.updateBolts(dt);
+  }
+
+  updateArtifact(weapon, dt) {
+    const game = this.game;
+    const player = game.player;
+    const enemies = game.enemies.enemies;
+    const st = this.artifactState;
+    if (weapon.id === 'storm') {
+      st.stormTimer -= dt;
+      if (st.stormTimer <= 0 && enemies.length > 0) {
+        st.stormTimer = 0.12;
+        for (let i = 0; i < 3; i += 1) {
+          const target = this.pickTarget(i);
+          if (!target) break;
+          const dx = target.x - player.x;
+          const dy = target.y - player.y;
+          const d = Math.hypot(dx, dy) || 1;
+          this.projectiles.push({
+            kind: 'blade', x: player.x, y: player.y,
+            vx: (dx / d) * 420, vy: (dy / d) * 420,
+            damage: 18 * player.damageMul, pierce: 2, life: 1.4, spin: 0, hitSet: new Set(),
+          });
+        }
+      }
+    } else if (weapon.id === 'devour') {
+      st.devourAngle += dt;
+      if (!this.devourPool) this.devourPool = { radius: 110, tick: 0.4, tickTimer: 0 };
+      const pool = this.devourPool;
+      pool.x = player.x;
+      pool.y = player.y;
+      pool.tickTimer -= dt;
+      if (pool.tickTimer <= 0) {
+        pool.tickTimer = pool.tick;
+        for (const e of game.enemies.enemiesNear(player.x, player.y, pool.radius + 30)) {
+          if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < pool.radius) {
+            game.enemies.damageEnemy(e, 16 * player.damageMul);
+            game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(16 * player.damageMul), '#a8d8ff');
+          }
+        }
+      }
+    } else if (weapon.id === 'spiral') {
+      st.devourAngle += dt * 2.2;
+      for (let i = 0; i < 6; i += 1) {
+        const ang = st.devourAngle + (i * Math.PI * 2) / 6;
+        const bx = player.x + Math.cos(ang) * 130;
+        const by = player.y + Math.sin(ang) * 130;
+        for (const e of game.enemies.enemiesNear(bx, by, 40)) {
+          if (e.hp > 0 && !e._spiralHit) {
+            e._spiralHit = true;
+            game.enemies.damageEnemy(e, 24 * player.damageMul, Math.cos(ang), Math.sin(ang));
+            game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(24 * player.damageMul));
+            setTimeout(() => { e._spiralHit = false; }, 400);
+          }
+        }
+      }
+    } else if (weapon.id === 'stormcall') {
+      st.stormcallTimer -= dt;
+      if (st.stormcallTimer <= 0 && enemies.length > 0) {
+        st.stormcallTimer = 1.2;
+        for (let i = 0; i < 6; i += 1) {
+          const target = enemies[Math.floor(Math.random() * enemies.length)];
+          this.strikeLightning(target, { damage: 40 * player.damageMul, chains: 6, chainRange: 220 }, new Set());
+        }
+      }
+    } else if (weapon.id === 'crimson') {
+      st.stormTimer -= dt;
+      if (st.stormTimer <= 0 && enemies.length > 0) {
+        st.stormTimer = 0.5;
+        for (let i = 0; i < 2; i += 1) {
+          const target = this.pickTarget(i);
+          if (!target) break;
+          const dx = target.x - player.x;
+          const dy = target.y - player.y;
+          const d = Math.hypot(dx, dy) || 1;
+          this.projectiles.push({
+            kind: 'blade', x: player.x, y: player.y,
+            vx: (dx / d) * 400, vy: (dy / d) * 400,
+            damage: 32 * player.damageMul, pierce: 2, life: 1.5, spin: 0, hitSet: new Set(), lifeSteal: true,
+          });
+        }
+      }
+    } else if (weapon.id === 'tempest') {
+      const moved = Math.hypot(player.x - (st.lastX || player.x), player.y - (st.lastY || player.y));
+      st.tempestDistance += moved;
+      st.lastX = player.x;
+      st.lastY = player.y;
+      if (st.tempestDistance > 60 && enemies.length > 0) {
+        st.tempestDistance = 0;
+        const target = game.enemies.nearestTo(player.x, player.y, 320);
+        if (target) this.strikeLightning(target, { damage: 30 * player.damageMul, chains: 2, chainRange: 160 }, new Set());
+      }
+    }
   }
 
   fire(weapon, s) {
@@ -181,6 +286,9 @@ export class WeaponSystem {
           game.enemies.damageEnemy(e, p.damage, p.vx / kd, p.vy / kd);
           game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(p.damage));
           game.fx.spawnSparks(e.x, e.y, p.kind === 'blade' ? '#e74c3c' : '#9fc5ff', 4);
+          if (p.lifeSteal) {
+            game.player.hp = Math.min(game.player.maxHp, game.player.hp + 1);
+          }
           p.pierce -= 1;
           if (p.pierce <= 0) { p.life = 0; break; }
         }
@@ -237,6 +345,43 @@ export class WeaponSystem {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sx, sy, pool.radius * (0.85 + Math.sin(pool.age * 6) * 0.08), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 神器：死亡螺旋环绕斧刃
+    if (this.hasArtifact('spiral')) {
+      const st = this.artifactState;
+      const player = this.game.player;
+      const img = sprite('axe');
+      for (let i = 0; i < 6; i += 1) {
+        const ang = st.devourAngle + (i * Math.PI * 2) / 6;
+        const bx = player.x + Math.cos(ang) * 130 - cam.ox;
+        const by = player.y + Math.sin(ang) * 130 - cam.oy;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(st.devourAngle * 3);
+        if (img) ctx.drawImage(img, -17, -17, 34, 34);
+        ctx.restore();
+      }
+    }
+    // 神器：圣洁吞噬跟随领域
+    if (this.hasArtifact('devour') && this.devourPool) {
+      const player = this.game.player;
+      const sx = player.x - cam.ox;
+      const sy = player.y - cam.oy;
+      const r = this.devourPool.radius;
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#4aa3df';
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = '#a8d8ff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * (0.9 + Math.sin(this.artifactState.devourAngle * 5) * 0.06), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
