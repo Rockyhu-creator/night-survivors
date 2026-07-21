@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/assets/icon_skull.png" />
+  <title>夜裔幸存者 · Night Survivors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="exp-bar-wrap"><div id="exp-bar"></div><span id="level-text">LV.1</span></div>
+      <div id="hud-top">
+        <div id="hp-wrap"><div id="hp-bar"></div><span id="hp-text">100</span></div>
+        <div id="timer">00:00</div>
+        <div id="kill-count">☠ 0</div>
+      </div>
+      <div id="loadout"></div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div id="title-screen" class="screen">
+      <div id="bat-layer"></div>
+      <div class="title-inner">
+        <p class="title-sub">DARK GOTHIC SURVIVAL</p>
+        <h1 class="game-title">夜裔<br/>幸存者</h1>
+        <p class="title-tagline">在无尽的暗夜中,活到黎明</p>
+        <button id="btn-start" class="gothic-btn">开始狩猎</button>
+        <div id="best-record" class="best-record hidden"></div>
+        <div class="how-to">
+          <div class="how-item"><span class="how-key">WASD / 方向键</span><span>移动</span></div>
+          <div class="how-item"><span class="how-key">自动攻击</span><span>武器自动索敌</span></div>
+          <div class="how-item"><span class="how-key">拾取宝石</span><span>升级并三选一强化</span></div>
+        </div>
+        <button id="btn-codex" class="gothic-btn ghost">合成图鉴</button>
+      </div>
+    </div>
+
+    <!-- 升级界面 -->
+    <div id="levelup-screen" class="screen hidden">
+      <p class="levelup-title">强化选择</p>
+      <p class="levelup-sub">夜幕低垂,选择你的力量</p>
+      <div id="upgrade-cards"></div>
+    </div>
+
+    <!-- 结算界面 -->
+    <div id="gameover-screen" class="screen hidden">
+      <div class="gameover-inner">
+        <h2 class="gameover-title">你倒在了黎明前</h2>
+        <div id="new-record" class="new-record hidden">✦ NEW RECORD ✦</div>
+        <div id="final-stats"></div>
+        <div class="gameover-btns">
+          <button id="btn-retry" class="gothic-btn">再战一夜</button>
+          <button id="btn-home" class="gothic-btn ghost">返回主界</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图鉴界面 -->
+    <div id="codex-screen" class="screen hidden">
+      <p class="codex-title">合成图鉴</p>
+      <p class="codex-sub">集齐神器,对抗永夜</p>
+      <div id="codex-content"></div>
+      <button id="btn-codex-back" class="gothic-btn">返回</button>
+    </div>
+
+    <div id="evolution-banner" class="hidden">
+      <p class="evo-label">神器觉醒</p>
+      <p id="evo-name"></p>
+      <p id="evo-desc"></p>
+    </div>
+    <div id="toast" class="hidden"></div>
+    <div id="damage-vignette"></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
