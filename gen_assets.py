@@ -385,6 +385,131 @@ def gen_icon_skull():
 
 import os
 os.makedirs(OUT, exist_ok=True)
+
+
+# ---------- 神器图标 ----------
+def gen_art_storm():  # 千刃风暴：三把猩红飞刃 120° 风轮
+    S = 20
+    img, d = new_canvas(S)
+    body, tip, core = (220, 60, 60, 255), (255, 160, 160, 255), (255, 220, 220, 255)
+    cx, cy = 10, 10
+    for k in range(3):
+        a = math.radians(k * 120)  # 0°/120°/240° 三个方向
+        pa = a + math.pi / 2  # 垂直方向，单侧加厚呈旋翼感
+        for i in range(2, 8):  # 从中心向外 6px 斜线刃
+            x, y = cx + math.cos(a) * i, cy - math.sin(a) * i
+            px(d, round(x), round(y), tip if i >= 6 else body)
+            if i < 6:
+                px(d, round(x + math.cos(pa)), round(y - math.sin(pa)), body)
+    px(d, cx, cy, core)
+    px(d, cx - 1, cy, body); px(d, cx + 1, cy, body)
+    px(d, cx, cy - 1, body); px(d, cx, cy + 1, body)
+    save(img, "art_storm.png", 4)
+
+def gen_art_devour():  # 圣洁吞噬：圣杯涌出蓝色圣焰
+    S = 20
+    img, d = new_canvas(S)
+    metal, metal_l, base = (200, 200, 220, 255), (240, 240, 255, 255), (140, 140, 170, 255)
+    flame, flame_l = (74, 163, 223, 255), (168, 216, 255, 255)
+    # 圣焰（杯中向上涌出）
+    flame_rows = {2: (10,), 3: (10,), 4: (9, 10), 5: (10, 11), 6: (9, 10, 11), 7: (8, 9, 10, 11, 12)}
+    for y, xs in flame_rows.items():
+        for x in xs:
+            px(d, x, y, flame)
+    for (x, y) in ((10, 4), (10, 5), (10, 6), (9, 7), (10, 7)):
+        px(d, x, y, flame_l)  # 内焰
+    # 杯身（碗状，上宽下窄）
+    rect(d, 5, 8, 14, 9, metal)  # 杯口沿
+    for y in range(10, 14):
+        w = 4 - (y - 9) // 2
+        for x in range(10 - w, 10 + w + 1):
+            px(d, x, y, metal)
+    rect(d, 6, 9, 7, 11, metal_l)  # 杯身高光
+    px(d, 11, 8, flame_l)  # 杯口火光
+    # 杯柄 + 杯底
+    rect(d, 9, 14, 10, 15, metal)
+    rect(d, 6, 16, 13, 17, base)
+    save(img, "art_devour.png", 4)
+
+def gen_art_spiral():  # 死亡螺旋：6 把小斧刃绕中心环列
+    S = 20
+    img, d = new_canvas(S)
+    metal, metal_l, grip = (170, 180, 210, 255), (220, 230, 250, 255), (90, 60, 30, 255)
+    cx, cy, r = 10, 10, 7
+    for k in range(6):
+        a = math.radians(k * 60 + 90)
+        x = round(cx + math.cos(a) * r)
+        y = round(cy - math.sin(a) * r)
+        px(d, x, y, metal); px(d, x + 1, y, metal)  # 2×2 斧刃块
+        px(d, x, y + 1, metal); px(d, x + 1, y + 1, metal)
+        hx = round(cx + math.cos(a) * (r + 1))  # 外侧刃口高光
+        hy = round(cy - math.sin(a) * (r + 1))
+        px(d, hx, hy, metal_l); px(d, hx + 1, hy, metal_l)
+    rect(d, 9, 9, 10, 10, grip)  # 中心握点
+    save(img, "art_spiral.png", 4)
+
+def gen_art_stormcall():  # 雷霆循环：首尾相接的锯齿闪电环
+    S = 20
+    img, d = new_canvas(S)
+    bolt, bolt_l = (245, 215, 110, 255), (255, 245, 180, 255)
+    cx, cy = 10, 10
+    pts = []
+    for k in range(12):
+        a = math.radians(k * 30)
+        r = 8 if k % 2 == 0 else 5  # 奇偶点内外交错半径 5/8
+        pts.append((cx + math.cos(a) * r, cy - math.sin(a) * r))
+    for k in range(12):  # 连线成环
+        (x0, y0), (x1, y1) = pts[k], pts[(k + 1) % 12]
+        steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
+        for i in range(steps):
+            x = x0 + (x1 - x0) * i / steps
+            y = y0 + (y1 - y0) * i / steps
+            px(d, round(x), round(y), bolt_l if i % 3 == 0 else bolt)
+    save(img, "art_stormcall.png", 4)
+
+def gen_art_crimson():  # 猩红之拥（隐藏）：血珠包裹心脏，上半圆下尖
+    S = 20
+    img, d = new_canvas(S)
+    edge, body = (120, 15, 25, 255), (180, 30, 45, 255)
+    heart, glint = (220, 70, 90, 255), (255, 150, 160, 255)
+    rows = [(3, 9, 10), (4, 8, 11), (5, 7, 12), (6, 6, 13), (7, 6, 13), (8, 7, 12),
+            (9, 7, 12), (10, 8, 11), (11, 8, 11), (12, 9, 10), (13, 9, 10), (14, 10, 10)]
+    for y, x0, x1 in rows:
+        for x in range(x0, x1 + 1):
+            px(d, x, y, edge if x in (x0, x1) else body)
+    # 包裹的心脏
+    for (x, y) in ((8, 6), (9, 6), (11, 6), (12, 6),
+                   (8, 7), (9, 7), (10, 7), (11, 7), (12, 7),
+                   (9, 8), (10, 8), (11, 8), (10, 9)):
+        px(d, x, y, heart)
+    px(d, 8, 4, glint)  # 顶部反光
+    save(img, "art_crimson.png", 4)
+
+def gen_art_tempest():  # 雷劫（隐藏）：粗壮紫雷劈落裂纹地面
+    S = 20
+    img, d = new_canvas(S)
+    bolt, core = (180, 120, 230, 255), (230, 200, 255, 255)
+    ground, crack = (40, 30, 55, 255), (15, 10, 25, 255)
+    # 折线雷身（顶部劈到底部）
+    pts = [(12, 0), (9, 5), (12, 8), (7, 12), (10, 15), (8, 17)]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        steps = max(abs(x1 - x0), abs(y1 - y0)) * 2 + 1
+        for i in range(steps):
+            x = x0 + (x1 - x0) * i / steps
+            y = y0 + (y1 - y0) * i / steps
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, core)  # 高光芯
+            px(d, xi - 1, yi, bolt); px(d, xi + 1, yi, bolt)
+    # 落雷迸溅
+    px(d, 6, 16, bolt); px(d, 11, 16, bolt); px(d, 9, 16, core)
+    # 地面 2 行 + 3 条裂纹
+    rect(d, 0, 18, 19, 19, ground)
+    px(d, 4, 18, crack); px(d, 5, 19, crack)
+    px(d, 12, 19, crack); px(d, 13, 18, crack); px(d, 14, 19, crack)
+    px(d, 16, 18, crack); px(d, 17, 19, crack)
+    save(img, "art_tempest.png", 4)
+
+
 gen_player()
 gen_bat()
 gen_skeleton()
@@ -400,4 +525,10 @@ gen_gem("gem_large.png", (142, 68, 173, 255), (220, 160, 255, 255), (80, 30, 110
 gen_ground()
 gen_bg()
 gen_icon_skull()
+gen_art_storm()
+gen_art_devour()
+gen_art_spiral()
+gen_art_stormcall()
+gen_art_crimson()
+gen_art_tempest()
 print("---- 全部素材生成完成 ----")

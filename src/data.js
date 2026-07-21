@@ -109,12 +109,12 @@ export function formatTime(seconds) {
 
 // ---------- 神器（Artifact）----------
 export const ARTIFACTS = {
-  storm: { id: 'storm', name: '千刃风暴', icon: 'blade', baseWeapon: 'blade', rarity: 'normal', desc: '无冷却,持续向最近的 3 个敌人倾泻飞刃' },
-  devour: { id: 'devour', name: '圣洁吞噬', icon: 'holywater', baseWeapon: 'holywater', rarity: 'normal', desc: '环绕你的圣域,持续灼烧踏入的一切' },
-  spiral: { id: 'spiral', name: '死亡螺旋', icon: 'axe', baseWeapon: 'axe', rarity: 'normal', desc: '六把战斧环绕你全屏旋转,绞碎靠近之敌' },
-  stormcall: { id: 'stormcall', name: '雷霆循环', icon: 'lightning', baseWeapon: 'lightning', rarity: 'normal', desc: '每 1.2 秒轰击 6 个目标,雷电跳跃 6 次' },
-  crimson: { id: 'crimson', name: '猩红之拥', icon: 'blade', baseWeapon: 'blade', rarity: 'hidden', desc: '飞刃命中回复 1 点生命,伤害翻倍' },
-  tempest: { id: 'tempest', name: '雷劫', icon: 'lightning', baseWeapon: 'lightning', rarity: 'hidden', desc: '你行经之处,落雷不绝' },
+  storm: { id: 'storm', name: '千刃风暴', icon: 'art_storm', baseWeapon: 'blade', rarity: 'normal', desc: '无冷却,持续向最近的 3 个敌人倾泻飞刃' },
+  devour: { id: 'devour', name: '圣洁吞噬', icon: 'art_devour', baseWeapon: 'holywater', rarity: 'normal', desc: '环绕你的圣域,持续灼烧踏入的一切' },
+  spiral: { id: 'spiral', name: '死亡螺旋', icon: 'art_spiral', baseWeapon: 'axe', rarity: 'normal', desc: '六把战斧环绕你全屏旋转,绞碎靠近之敌' },
+  stormcall: { id: 'stormcall', name: '雷霆循环', icon: 'art_stormcall', baseWeapon: 'lightning', rarity: 'normal', desc: '每 1.2 秒轰击 6 个目标,雷电跳跃 6 次' },
+  crimson: { id: 'crimson', name: '猩红之拥', icon: 'art_crimson', baseWeapon: 'blade', rarity: 'hidden', desc: '飞刃命中回复 1 点生命,伤害翻倍' },
+  tempest: { id: 'tempest', name: '雷劫', icon: 'art_tempest', baseWeapon: 'lightning', rarity: 'hidden', desc: '你行经之处,落雷不绝' },
 };
 
 // ---------- 合成配方 ----------
