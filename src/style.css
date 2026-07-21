@@ -267,3 +267,41 @@ html, body {
 .codex-card.locked { opacity: .38; filter: grayscale(1); }
 .codex-card.hidden-item { border-color: rgba(142,68,173,.5); }
 #codex-screen .gothic-btn { margin-top: 28px; }
+
+#boss-bar-wrap {
+  position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+  width: min(520px, 70vw); text-align: center; z-index: 11;
+}
+#boss-name {
+  font-family: var(--body-font); font-weight: 900; font-size: 18px;
+  letter-spacing: 6px; color: var(--blood-bright);
+  text-shadow: 0 0 12px rgba(231,76,60,.8); margin-bottom: 4px;
+}
+#boss-bar {
+  height: 14px; background: rgba(0,0,0,.75);
+  border: 2px solid var(--blood); outline: 1px solid #000;
+}
+#boss-bar-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #5d0f08, var(--blood-bright));
+  box-shadow: 0 0 12px rgba(192,57,43,.8);
+  transition: width .12s linear;
+}
+
+#boss-warning {
+  position: absolute; top: 34%; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 19; pointer-events: none;
+  animation: warnIn .4s cubic-bezier(.2,1.6,.4,1) both;
+}
+@keyframes warnIn { from { opacity: 0; transform: translateX(-50%) scale(.5); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+.warn-icon {
+  font-size: 60px; color: var(--blood-bright);
+  text-shadow: 0 0 30px rgba(231,76,60,1);
+  animation: blink .6s steps(2) infinite;
+}
+#warn-name {
+  font-family: var(--body-font); font-weight: 900; font-size: 54px;
+  letter-spacing: 10px; color: var(--blood-bright);
+  text-shadow: 0 0 34px rgba(192,57,43,.95); margin: 6px 0 2px;
+}
+.warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }

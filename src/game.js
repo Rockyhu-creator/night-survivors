@@ -188,12 +188,14 @@ export class Game {
   }
 
   onBossSpawn(def) {
-    this.ui.showToast(`${def.name} 降临!`);
+    this.ui.showBossWarning(def.name);
     this.camera.addShake(0.8);
   }
 
-  onBossKilled(enemy) {
-    // Task 4: Boss 宝箱与结算
+  onBossKilled(e) {
+    this.ui.hideBossBar();
+    this.fx.spawnSparks(e.x, e.y, '#d4af37', 40);
+    this.camera.addShake(1);
   }
 
   onChestOpened() {

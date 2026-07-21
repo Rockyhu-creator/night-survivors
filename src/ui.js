@@ -19,6 +19,11 @@ export class UIManager {
     this.newRecordEl = document.getElementById('new-record');
     this.finalStatsEl = document.getElementById('final-stats');
     this.vignette = document.getElementById('damage-vignette');
+    this.bossBarWrap = document.getElementById('boss-bar-wrap');
+    this.bossName = document.getElementById('boss-name');
+    this.bossBarFill = document.getElementById('boss-bar-fill');
+    this.bossWarning = document.getElementById('boss-warning');
+    this.warnName = document.getElementById('warn-name');
     this.vignetteAlpha = 0;
     this.spawnTitleBats();
   }
@@ -75,11 +80,39 @@ export class UIManager {
       this.vignetteAlpha = Math.max(0, this.vignetteAlpha - dt * 2.4);
       this.vignette.style.opacity = this.vignetteAlpha.toFixed(2);
     }
+    this.updateBossBar();
   }
 
   flashVignette() {
     this.vignetteAlpha = 0.95;
     this.vignette.style.opacity = '0.95';
+  }
+
+  showBossWarning(name) {
+    this.warnName.textContent = name;
+    this.bossWarning.classList.remove('hidden');
+    clearTimeout(this._warnTimer);
+    this._warnTimer = setTimeout(() => {
+      this.bossWarning.classList.add('hidden');
+      this.showBossBar(name);
+    }, 2200);
+  }
+
+  showBossBar(name) {
+    this.bossName.textContent = name;
+    this.bossBarWrap.classList.remove('hidden');
+    this.bossBarFill.style.width = '100%';
+  }
+
+  updateBossBar() {
+    const boss = this.game.enemies.activeBoss;
+    if (!boss) return;
+    const pct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+    this.bossBarFill.style.width = `${pct}%`;
+  }
+
+  hideBossBar() {
+    this.bossBarWrap.classList.add('hidden');
   }
 
   showEvolutionBanner(artifact) {
