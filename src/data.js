@@ -149,3 +149,35 @@ export function unlockInCollection(id) {
     saveCollection(c);
   }
 }
+
+// ---------- Boss ----------
+export const BOSSES = [
+  {
+    id: 'baron', name: '血色男爵', sprite: 'elite', unlockAt: 180,
+    hp: 1800, speed: 38, damage: 40, exp: 120,
+    radius: 34, spriteSize: 128, knockResist: 0.98,
+    skills: [
+      { at: 0.7, type: 'summon', enemyType: 'bat', count: 4 },
+      { at: 0.4, type: 'barrage', count: 8, speed: 130, damage: 15 },
+    ],
+  },
+  {
+    id: 'queen', name: '苍白女王', sprite: 'elite', unlockAt: 360,
+    hp: 4500, speed: 42, damage: 55, exp: 300,
+    radius: 36, spriteSize: 140, knockResist: 0.98,
+    skills: [
+      { at: 0.6, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
+      { at: 0.3, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 140, damage: 18 },
+    ],
+  },
+  {
+    id: 'overlord', name: '永夜君王', sprite: 'elite', unlockAt: 540,
+    hp: 9000, speed: 46, damage: 70, exp: 600,
+    radius: 40, spriteSize: 156, knockResist: 0.99,
+    skills: [
+      { at: 0.75, type: 'summon', enemyType: 'bat', count: 5 },
+      { at: 0.5, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
+      { at: 0.25, type: 'enrage', speedMul: 1.6 },
+    ],
+  },
+];
