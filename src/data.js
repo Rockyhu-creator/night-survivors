@@ -106,3 +106,46 @@ export function formatTime(seconds) {
   const s = Math.floor(seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
+
+// ---------- 神器（Artifact）----------
+export const ARTIFACTS = {
+  storm: { id: 'storm', name: '千刃风暴', icon: 'blade', baseWeapon: 'blade', rarity: 'normal', desc: '无冷却,持续向最近的 3 个敌人倾泻飞刃' },
+  devour: { id: 'devour', name: '圣洁吞噬', icon: 'holywater', baseWeapon: 'holywater', rarity: 'normal', desc: '环绕你的圣域,持续灼烧踏入的一切' },
+  spiral: { id: 'spiral', name: '死亡螺旋', icon: 'axe', baseWeapon: 'axe', rarity: 'normal', desc: '六把战斧环绕你全屏旋转,绞碎靠近之敌' },
+  stormcall: { id: 'stormcall', name: '雷霆循环', icon: 'lightning', baseWeapon: 'lightning', rarity: 'normal', desc: '每 1.2 秒轰击 6 个目标,雷电跳跃 6 次' },
+  crimson: { id: 'crimson', name: '猩红之拥', icon: 'blade', baseWeapon: 'blade', rarity: 'hidden', desc: '飞刃命中回复 1 点生命,伤害翻倍' },
+  tempest: { id: 'tempest', name: '雷劫', icon: 'lightning', baseWeapon: 'lightning', rarity: 'hidden', desc: '你行经之处,落雷不绝' },
+};
+
+// ---------- 合成配方 ----------
+export const RECIPES = [
+  { weapon: 'blade', passive: 'boots', artifact: 'storm' },
+  { weapon: 'holywater', passive: 'magnet', artifact: 'devour' },
+  { weapon: 'axe', passive: 'heart', artifact: 'spiral' },
+  { weapon: 'lightning', passive: 'tome', artifact: 'stormcall' },
+  { weapon: 'blade', passive: 'tome', artifact: 'crimson' },
+  { weapon: 'lightning', passive: 'boots', artifact: 'tempest' },
+];
+
+const COLLECTION_KEY = 'night_survivors_collection';
+
+export function loadCollection() {
+  try {
+    const raw = localStorage.getItem(COLLECTION_KEY);
+    return raw ? JSON.parse(raw) : { unlocked: [] };
+  } catch {
+    return { unlocked: [] };
+  }
+}
+
+export function saveCollection(c) {
+  try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(c)); } catch { /* ignore */ }
+}
+
+export function unlockInCollection(id) {
+  const c = loadCollection();
+  if (!c.unlocked.includes(id)) {
+    c.unlocked.push(id);
+    saveCollection(c);
+  }
+}
