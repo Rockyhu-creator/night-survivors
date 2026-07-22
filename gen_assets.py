@@ -14,7 +14,11 @@ def new_canvas(size):
     return img, ImageDraw.Draw(img)
 
 def px(draw, x, y, color):
-    draw.point((x, y), fill=color)
+    # 边界保护：椭圆/近边绘制越界时静默跳过，避免 PIL 报错
+    try:
+        draw.point((x, y), fill=color)
+    except Exception:
+        pass
 
 def rect(draw, x0, y0, x1, y1, color):
     draw.rectangle([x0, y0, x1, y1], fill=color)
@@ -47,159 +51,275 @@ def save(img, name, scale=1):
     print("OK", name)
 
 
+# ---------- 公共：带光照的椭圆填充（像素体积感） ----------
+def _clamp(v, a, b):
+    return max(a, min(b, v))
+
+
+def fill_ellipse_shaded(d, cx, cy, rx, ry, pal, lx=-0.35, ly=-0.9):
+    """pal=(dark, mid, light)；用伪法线做上左打光，营造像素体积。"""
+    dark, mid, light = pal
+    for y in range(int(cy - ry) - 1, int(cy + ry) + 2):
+        for x in range(int(cx - rx) - 1, int(cx + rx) + 2):
+            dx = (x - cx) / rx
+            dy = (y - cy) / ry
+            dd = dx * dx + dy * dy
+            if dd > 1.0:
+                continue
+            z = (1 - dd) ** 0.5
+            ll = dx * lx + dy * ly + z * 0.25
+            b = _clamp(0.6 + 0.55 * ll, 0, 1)
+            col = light if b > 0.66 else (mid if b > 0.36 else dark)
+            px(d, x, y, col)
+
+
 # ---------- 主角：夜裔猎人（戴兜帽斗篷） ----------
 def gen_player():
-    S = 24
+    S = 46
+    cx = 23
     img, d = new_canvas(S)
-    cloak_d, cloak, cloak_l = (60,10,20,255), (140,24,40,255), (200,60,70,255)
-    armor, armor_l = (90,90,110,255), (170,170,190,255)
-    skin, eye = (230,200,170,255), (255,40,40,255)
-    # 斗篷主体（梯形下摆）
-    for y in range(8, 22):
-        w = 3 + (y - 8) // 2
-        for x in range(12 - w, 12 + w + 1):
-            px(d, x, y, cloak_d if x in (12-w, 12+w) else (cloak if random.random() > 0.12 else cloak_l))
+    cloak = ((38, 6, 14), (120, 20, 38), (192, 56, 72))
+    armor = ((60, 62, 88), (150, 150, 180), (205, 205, 230))
+    eye, gem = (255, 45, 45), (46, 204, 113)
+    # 斗篷（下摆梯形，左上来光）
+    for y in range(14, 43):
+        half = int(3 + (y - 14) * 0.52)
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = cloak[2] if t < 0.22 else (cloak[1] if t < 0.72 else cloak[0])
+            px(d, x, y, col)
+    # 斗篷竖向褶皱（明暗）
+    for y in range(16, 42, 3):
+        px(d, cx - 6, y, cloak[0]); px(d, cx + 7, y, cloak[0])
+        px(d, cx, y, cloak[2])
+    # 靴子
+    for x in range(cx - 9, cx - 3):
+        px(d, x, 41, (30, 18, 26)); px(d, x, 42, (20, 12, 18))
+    for x in range(cx + 3, cx + 9):
+        px(d, x, 41, (30, 18, 26)); px(d, x, 42, (20, 12, 18))
+    # 肩甲
+    fill_ellipse_shaded(d, cx - 12, 17, 6, 5, armor)
+    fill_ellipse_shaded(d, cx + 12, 17, 6, 5, armor)
     # 兜帽
-    for y in range(2, 9):
-        w = 4 - abs(y - 5)
-        for x in range(12 - w, 12 + w + 1):
-            px(d, x, y, cloak)
-    # 脸部阴影区
-    for y in range(4, 8):
-        for x in range(10, 15):
-            px(d, x, y, (20, 8, 16, 255))
-    # 眼睛
-    px(d, 10, 5, eye); px(d, 13, 5, eye)
-    px(d, 11, 6, skin)
+    fill_ellipse_shaded(d, cx, 11, 11, 12, cloak)
+    # 面部阴影
+    for y in range(7, 18):
+        for x in range(cx - 7, cx + 7):
+            dx = (x - cx) / 7.0
+            dy = (y - 13) / 9.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (18, 6, 14, 255))
+    # 兜帽顶部高光
+    for y in range(2, 6):
+        px(d, cx - 4 + y, y, cloak[2])
+    # 眼睛 + 微光
+    px(d, cx - 5, 13, (120, 20, 20, 170)); px(d, cx + 4, 13, (120, 20, 20, 170))
+    px(d, cx - 4, 13, eye); px(d, cx + 3, 13, eye)
     # 胸甲
-    for y in range(9, 14):
-        for x in range(10, 15):
-            px(d, x, y, armor if (x+y) % 3 else armor_l)
-    rect(d, 11, 10, 13, 12, armor_l)  # 胸甲高光
-    save(img, "player.png", 4)
+    fill_ellipse_shaded(d, cx, 24, 7, 9, armor)
+    px(d, cx, 22, armor[2]); px(d, cx - 2, 24, armor[2])
+    # 腰带 + 灵魂宝石
+    for x in range(cx - 9, cx + 10):
+        px(d, x, 30, (40, 22, 34)); px(d, x, 31, (26, 14, 24))
+    px(d, cx, 30, gem); px(d, cx - 1, 30, gem); px(d, cx, 29, (120, 255, 180))
+    # 侧边短刃（暗示武器）
+    for i in range(11):
+        x = cx + 12 + i // 3
+        y = 19 + i
+        px(d, x, y, (200, 60, 60) if i % 2 == 0 else (255, 150, 150))
+    px(d, cx + 12, 19, (255, 200, 200))
+    save(img, "player.png", 1)
 
 
 # ---------- 蝙蝠 ----------
 def gen_bat():
-    S = 22
+    S = 34
+    cx = 17
     img, d = new_canvas(S)
-    body, wing, wing_l, eye = (40,20,60,255), (80,40,120,255), (130,80,180,255), (255,50,50,255)
-    # 翅膀（对称扇形）
-    for i in range(9):
-        y0 = 8 - i // 2
-        for x in range(2, 2 + i):
-            px(d, 11 - 1 - x, y0 + x // 2, wing_l if x == i - 1 else wing)
-            px(d, 11 + x, y0 + x // 2, wing_l if x == i - 1 else wing)
+    wing = ((60, 28, 95), (110, 55, 160), (165, 100, 210))
+    body_pal = ((35, 16, 55), (70, 34, 105), (120, 60, 165))
+    eye = (255, 55, 55)
+    # 膜翼（左右）
+    for side in (-1, 1):
+        fill_ellipse_shaded(d, cx + side * 9, 16, 9, 7, wing)
+        for k in range(1, 9):  # 翅脉
+            px(d, cx + side * k, 16 - abs(k) // 3, wing[0])
+        for k in range(2, 16, 3):  # 扇贝下缘
+            px(d, cx + side * k, 21 - abs(k) // 4, TRANSPARENT)
     # 身体
-    for y in range(7, 14):
-        w = 2 if y < 11 else 1
-        for x in range(11 - w, 11 + w + 1):
-            px(d, x, y, body)
+    fill_ellipse_shaded(d, cx, 18, 4, 6, body_pal)
     # 耳朵
-    px(d, 9, 6, body); px(d, 12, 6, body)
-    # 眼睛
-    px(d, 9, 9, eye); px(d, 12, 9, eye)
-    save(img, "enemy_bat.png", 4)
+    px(d, cx - 4, 10, body_pal[1]); px(d, cx + 3, 10, body_pal[1])
+    px(d, cx - 4, 9, body_pal[0]); px(d, cx + 3, 9, body_pal[0])
+    # 眼睛 + 獠牙
+    px(d, cx - 3, 17, eye); px(d, cx + 2, 17, eye)
+    px(d, cx - 3, 18, (255, 200, 200)); px(d, cx + 2, 18, (255, 200, 200))
+    px(d, cx - 2, 20, (245, 245, 245)); px(d, cx + 1, 20, (245, 245, 245))
+    save(img, "enemy_bat.png", 1)
 
 
 # ---------- 骷髅 ----------
 def gen_skeleton():
-    S = 24
+    S = 42
+    cx = 21
     img, d = new_canvas(S)
-    bone, bone_d, bone_l = (220, 212, 190, 255), (150, 140, 120, 255), (245, 240, 225, 255)
-    eye = (80, 255, 120, 255)
+    bone = ((150, 140, 118), (220, 212, 190), (245, 242, 228))
+    eye = (90, 255, 120)
     # 颅骨
-    for y in range(2, 10):
-        w = 4 if y < 8 else 3
-        for x in range(12 - w, 12 + w + 1):
-            px(d, x, y, bone if random.random() > 0.15 else bone_l)
-    # 眼窝
-    rect(d, 9, 5, 10, 7, bone_d); rect(d, 14, 5, 15, 7, bone_d)
-    px(d, 9, 6, eye); px(d, 15, 6, eye)
+    fill_ellipse_shaded(d, cx, 12, 9, 9, bone)
+    # 下颌
+    for y in range(19, 22):
+        for x in range(cx - 5, cx + 6):
+            px(d, x, y, bone[1])
+    for x in range(cx - 5, cx + 6, 2):  # 牙缝
+        px(d, x, 20, bone[0]); px(d, x, 21, bone[0])
+    # 眼窝 + 绿眼
+    for side in (-1, 1):
+        for y in range(9, 14):
+            for x in range(cx + side * 3 - 2, cx + side * 3 + 2):
+                dx = (x - (cx + side * 3)) / 2.2
+                dy = (y - 11) / 2.6
+                if dx * dx + dy * dy <= 1:
+                    px(d, x, y, (40, 50, 35, 255))
+        px(d, cx + side * 3, 11, eye); px(d, cx + side * 3 - 1, 11, eye)
+        px(d, cx + side * 3, 10, (180, 255, 180, 160))
     # 鼻腔
-    rect(d, 12, 8, 12, 9, bone_d)
-    # 牙齿
-    for x in range(10, 15):
-        px(d, x, 10, bone_l)
-    # 肋骨
-    for y in range(12, 20):
-        if y % 2 == 0:
-            for x in range(9, 16):
-                px(d, x, y, bone)
-        else:
-            px(d, 12, y, bone_d)
-    # 手臂 + 剑
-    for i in range(6):
-        px(d, 7 - i // 2, 13 + i, bone)
-        px(d, 17 + i // 2, 13 + i, bone)
-    for i in range(7):  # 剑
-        px(d, 19 + i // 2, 10 + i, (180, 180, 200, 255))
-    px(d, 18, 15, (120, 80, 40, 255))
-    save(img, "enemy_skeleton.png", 4)
+    for y in range(14, 17):
+        px(d, cx, y, bone[0])
+    # 脊柱
+    for y in range(22, 35):
+        px(d, cx, y, bone[0])
+    # 肋骨（每对留中缝）
+    for y in (25, 28, 31):
+        for x in range(cx - 9, cx - 1):
+            px(d, x, y, bone[1])
+        for x in range(cx + 2, cx + 10):
+            px(d, x, y, bone[1])
+        px(d, cx - 1, y, bone[0]); px(d, cx + 1, y, bone[0])
+    # 手臂 + 手
+    for i in range(8):
+        px(d, cx - 9 - i // 2, 24 + i, bone[1])
+        px(d, cx + 9 + i // 2, 24 + i, bone[1])
+    fill_ellipse_shaded(d, cx - 13, 33, 2, 2, bone)
+    fill_ellipse_shaded(d, cx + 13, 33, 2, 2, bone)
+    # 右手持剑
+    metal = (180, 180, 200)
+    for i in range(10):
+        px(d, cx + 14 + i // 2, 24 + i, metal)
+    px(d, cx + 13, 24, metal); px(d, cx + 17, 24, metal)  # 护手
+    save(img, "enemy_skeleton.png", 1)
 
 
 # ---------- 史莱姆 ----------
 def gen_slime():
-    S = 26
+    S = 54
+    cx = 27
     img, d = new_canvas(S)
-    goo_d, goo, goo_l = (20, 90, 50, 255), (40, 170, 90, 255), (120, 230, 150, 255)
-    eye = (255, 255, 255, 255)
-    pupil = (10, 40, 20, 255)
-    # 半球形身体
-    cx, cy, r = 13, 16, 10
-    for y in range(S):
-        for x in range(S):
-            dx, dy = x - cx, y - cy
-            if dy > 6: continue
-            dist = math.hypot(dx, dy * 1.3)
-            if dist < r:
-                edge = dist > r - 1.5
-                px(d, x, y, goo_d if edge else (goo if random.random() > 0.08 else goo_l))
+    goo = ((20, 90, 50), (40, 170, 90), (120, 230, 150))
+    eye_w, pupil = (245, 245, 245), (10, 40, 20)
+    def _half(y):
+        if y <= 32:
+            v = 22 * (1 - ((y - 32) / 20.0) ** 2) ** 0.5
+            return int(max(0, v))
+        return 21
+    # 身体：圆顶 + 扁平底
+    for y in range(14, 50):
+        half = _half(y)
+        for x in range(cx - half, cx + half + 1):
+            px(d, x, y, goo[1])
+    # 体积光照（上左亮、边缘暗）
+    for y in range(14, 50):
+        half = _half(y)
+        for x in range(cx - half, cx + half + 1):
+            dx = (x - cx) / (half + 1)
+            dy = (y - 32) / 20.0
+            dd = (dx * dx + dy * dy) ** 0.5
+            if dd > 0.78:
+                px(d, x, y, goo[0])
+            elif dx < -0.3 and dy < -0.2:
+                px(d, x, y, goo[2])
+    # 内核辉光（半透明亮）
+    for y in range(26, 42):
+        for x in range(cx - 8, cx + 9):
+            dx = (x - cx) / 9.0
+            dy = (y - 34) / 9.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (90, 240, 150, 150))
     # 高光
-    for i in range(4):
-        px(d, 8 + i, 10 - i // 2, goo_l)
-    # 内部骨头点缀
-    rect(d, 16, 14, 18, 15, (230, 230, 220, 200))
-    rect(d, 9, 18, 11, 19, (230, 230, 220, 200))
+    for i in range(5):
+        px(d, cx - 8 + i, 18 - i // 3, goo[2])
+    # 嵌骨
+    px(d, cx + 6, 40, (235, 230, 215)); px(d, cx + 7, 41, (235, 230, 215))
+    px(d, cx - 9, 44, (235, 230, 215))
     # 眼睛
-    rect(d, 9, 12, 11, 14, eye); rect(d, 15, 12, 17, 14, eye)
-    px(d, 10, 13, pupil); px(d, 16, 13, pupil)
-    save(img, "enemy_slime.png", 4)
+    for side in (-1, 1):
+        for y in range(28, 33):
+            for x in range(cx + side * 6 - 3, cx + side * 6 + 3):
+                dx = (x - (cx + side * 6)) / 3.0
+                dy = (y - 30) / 3.0
+                if dx * dx + dy * dy <= 1:
+                    px(d, x, y, eye_w)
+        px(d, cx + side * 6 - 1, 30, pupil); px(d, cx + side * 6, 30, pupil)
+        px(d, cx + side * 6 - 1, 29, (200, 235, 255))  # 眼神光
+    # 滴落
+    px(d, cx + 10, 48, goo[2]); px(d, cx + 10, 49, goo[1])
+    save(img, "enemy_slime.png", 1)
 
 
 # ---------- 精英吸血鬼领主 ----------
 def gen_elite():
-    S = 32
+    S = 96
+    cx = 48
     img, d = new_canvas(S)
-    armor, armor_l = (30, 24, 40, 255), (90, 70, 120, 255)
-    gold, wing, aura, eye = (212, 175, 55, 255), (70, 30, 100, 255), (200, 40, 60, 255), (255, 60, 60, 255)
-    # 大翅膀
-    for i in range(12):
-        y0 = 8 - i // 3
-        for x in range(2, 2 + i):
-            if (x + i) % 2:
-                px(d, 16 - 1 - x, y0 + x // 2, wing)
-                px(d, 16 + x, y0 + x // 2, wing)
-    # 身体铠甲
-    for y in range(10, 26):
-        w = 5 - (y - 10) // 6
-        for x in range(16 - w, 16 + w + 1):
-            px(d, x, y, armor if random.random() > 0.1 else armor_l)
-    # 金饰
-    rect(d, 14, 12, 17, 13, gold)
-    rect(d, 15, 16, 16, 20, gold)
+    armor = ((28, 22, 42), (90, 70, 125), (150, 120, 190))
+    gold = (212, 175, 55)
+    wing = ((55, 24, 90), (110, 55, 160), (160, 95, 205))
+    eye, aura = (255, 60, 60), (200, 40, 60)
+    # 披风（身后暗色）
+    for y in range(30, 86):
+        half = int(10 + (y - 30) * 0.6)
+        for x in range(cx - half, cx + half + 1):
+            px(d, x, y, (22, 14, 34, 255))
+    # 翅膀（左右大膜翼）
+    for side in (-1, 1):
+        fill_ellipse_shaded(d, cx + side * 30, 44, 27, 34, wing)
+        for k in range(1, 22):  # 翅脉
+            px(d, cx + side * k, 44 - abs(k) // 3, wing[0])
+        for k in range(4, 56, 6):  # 扇贝下缘
+            px(d, cx + side * k, 70 - abs(k) // 6, TRANSPARENT)
+    # 身体铠甲（倒梯形 + 椭圆）
+    fill_ellipse_shaded(d, cx, 54, 15, 30, armor)
+    for y in range(40, 80):
+        half = int(14 - (y - 54) * 0.18) if y < 54 else int(14 + (y - 54) * 0.12)
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = armor[2] if t < 0.2 else (armor[1] if t < 0.75 else armor[0])
+            px(d, x, y, col)
+    # 胸口金纹
+    for y in range(46, 64):
+        px(d, cx, y, gold)
+    px(d, cx - 2, 50, gold); px(d, cx + 2, 50, gold)
     # 头盔
-    for y in range(4, 11):
-        w = 4 - abs(y - 7) // 2
-        for x in range(16 - w, 16 + w + 1):
-            px(d, x, y, armor)
-    # 角
-    px(d, 12, 3, gold); px(d, 19, 3, gold)
-    px(d, 13, 4, gold); px(d, 18, 4, gold)
-    # 脸 + 眼
-    rect(d, 14, 7, 17, 9, (16, 8, 20, 255))
-    px(d, 14, 8, eye); px(d, 17, 8, eye)
-    save(img, "enemy_elite.png", 4)
+    fill_ellipse_shaded(d, cx, 30, 12, 12, armor)
+    # 金冠 + 犄角
+    for y in range(16, 22):
+        for x in range(cx - 10, cx + 11):
+            if x % 4 != 0:
+                px(d, x, y, gold)
+    px(d, cx - 9, 16, gold); px(d, cx + 9, 16, gold)
+    px(d, cx - 11, 12, gold); px(d, cx + 11, 12, gold)  # 犄角尖
+    px(d, cx - 10, 14, gold); px(d, cx + 10, 14, gold)
+    # 面部阴影
+    for y in range(24, 36):
+        for x in range(cx - 7, cx + 7):
+            dx = (x - cx) / 7.0
+            dy = (y - 30) / 8.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (14, 8, 22, 255))
+    # 眼睛 + 红芒
+    px(d, cx - 6, 29, (120, 20, 20, 160)); px(d, cx + 5, 29, (120, 20, 20, 160))
+    px(d, cx - 4, 30, eye); px(d, cx + 3, 30, eye)
+    save(img, "enemy_elite.png", 1)
 
 
 # ---------- 武器图标 ----------
