@@ -443,3 +443,75 @@ html, body {
 @media (pointer: fine) {
   #joystick-base, #touch-pause-btn { display: none !important; }
 }
+
+/* ---------- 手机端响应式适配 ---------- */
+@media (max-width: 720px) and (pointer: coarse) {
+  /* 升级卡片纵向堆叠 */
+  #upgrade-cards {
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 70vh;
+    padding: 0 12px;
+  }
+  .upgrade-card {
+    width: min(420px, 88vw);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+  }
+  .upgrade-card img { width: 56px; height: 56px; flex-shrink: 0; }
+  .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
+  .upgrade-card h3 { margin: 4px 0 4px; font-size: 16px; }
+  .upgrade-card p { font-size: 12px; line-height: 1.5; }
+  .upgrade-card .uc-pick { flex-shrink: 0; }
+
+  .levelup-title { font-size: 32px; letter-spacing: 8px; }
+  .levelup-sub { margin: 8px 0 18px; letter-spacing: 3px; font-size: 13px; }
+
+  /* 升级操作条触控友好 */
+  #upgrade-actions { gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+  .ua-btn { padding: 10px 16px; font-size: 9px; }
+  .ua-hint { font-size: 10px; width: 100%; text-align: center; opacity: 0.6; }
+
+  /* HUD 缩放 */
+  #hud-top { top: 28px; gap: 20px; }
+  #hp-wrap { width: 160px; height: 16px; }
+  #timer { font-size: 20px; letter-spacing: 2px; }
+  #kill-count { width: 140px; font-size: 12px; }
+
+  /* 装备图标缩小 */
+  #loadout { left: 10px; bottom: 10px; gap: 6px; }
+  .loadout-icon { width: 36px; height: 36px; }
+  .loadout-lv { font-size: 7px; padding: 1px 2px; }
+
+  /* Boss 血条 */
+  #boss-bar-wrap { top: 56px; width: min(420px, 80vw); }
+  #boss-name { font-size: 14px; letter-spacing: 4px; }
+
+  /* 图鉴界面 */
+  #codex-screen { padding: 20px 12px; }
+  .codex-title { font-size: 30px; letter-spacing: 8px; }
+  .codex-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .codex-card { padding: 10px 6px; }
+  .codex-card img { width: 42px; height: 42px; }
+  .codex-card .cc-name { font-size: 12px; }
+  .codex-card .cc-hint { font-size: 10px; }
+
+  /* 暂停提示文案适配 */
+  .pause-hint { font-size: 12px; letter-spacing: 2px; }
+
+  /* 结算界面 */
+  .gameover-title { font-size: 36px; letter-spacing: 6px; }
+  .stat-line { font-size: 11px; gap: 14px; }
+  .stat-line b { min-width: 90px; }
+  .gameover-btns { gap: 14px; flex-wrap: wrap; }
+
+  /* 标题界面 */
+  .game-title { font-size: clamp(42px, 12vw, 72px); letter-spacing: 6px; }
+  .title-tagline { margin: 12px 0 22px; font-size: 13px; letter-spacing: 4px; }
+  .how-to { gap: 18px; margin-top: 24px; flex-wrap: wrap; }
+  .how-key { font-size: 8px; padding: 5px 7px; }
+}
