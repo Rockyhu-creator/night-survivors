@@ -321,36 +321,44 @@ export class Game {
   renderDecals(ctx, cam) {
     const w = CONFIG.LOGICAL_WIDTH;
     const h = CONFIG.LOGICAL_HEIGHT;
+    // 各装饰以底部为锚点的绘制高度（像素），乘以随机缩放 d.s
+    const BASE_H = [30, 34, 16];
+    const KEYS = ['tomb', 'wood', 'rubble'];
     ctx.save();
     for (const d of this.decals) {
       const sx = d.x - cam.ox;
       const sy = d.y - cam.oy;
       if (sx < -60 || sy < -60 || sx > w + 60 || sy > h + 60) continue;
-      const s = d.s;
+      const img = sprite(KEYS[d.kind]);
       ctx.save();
       ctx.translate(sx, sy);
       if (d.flip) ctx.scale(-1, 1);
-      ctx.scale(s, s);
-      ctx.fillStyle = 'rgba(16, 11, 28, 0.9)';
-      if (d.kind === 0) {
-        // 墓碑
-        ctx.fillRect(-7, -16, 14, 18);
-        ctx.beginPath();
-        ctx.arc(0, -16, 7, Math.PI, 0);
-        ctx.fill();
-        ctx.fillRect(-2, -22, 4, 6);
-      } else if (d.kind === 1) {
-        // 枯木
-        ctx.fillRect(-2, -22, 4, 24);
-        ctx.fillRect(-9, -18, 8, 3);
-        ctx.fillRect(1, -26, 9, 3);
+      if (img) {
+        // 带体积光的 PNG 精灵：底部锚定、按 d.s 缩放
+        const dh = BASE_H[d.kind] * d.s;
+        const dw = dh * img.width / img.height;
+        ctx.drawImage(img, -dw / 2, -dh, dw, dh);
       } else {
-        // 碎石堆
-        ctx.beginPath();
-        ctx.arc(-5, 0, 4, 0, Math.PI * 2);
-        ctx.arc(3, -2, 5, 0, Math.PI * 2);
-        ctx.arc(8, 1, 3, 0, Math.PI * 2);
-        ctx.fill();
+        // 素材未加载时的兜底（保持旧纯色程序化绘制，避免空白）
+        ctx.scale(d.s, d.s);
+        ctx.fillStyle = 'rgba(16, 11, 28, 0.9)';
+        if (d.kind === 0) {
+          ctx.fillRect(-7, -16, 14, 18);
+          ctx.beginPath();
+          ctx.arc(0, -16, 7, Math.PI, 0);
+          ctx.fill();
+          ctx.fillRect(-2, -22, 4, 6);
+        } else if (d.kind === 1) {
+          ctx.fillRect(-2, -22, 4, 24);
+          ctx.fillRect(-9, -18, 8, 3);
+          ctx.fillRect(1, -26, 9, 3);
+        } else {
+          ctx.beginPath();
+          ctx.arc(-5, 0, 4, 0, Math.PI * 2);
+          ctx.arc(3, -2, 5, 0, Math.PI * 2);
+          ctx.arc(8, 1, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.restore();
     }

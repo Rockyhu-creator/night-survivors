@@ -18,6 +18,9 @@ const files = {
   gemMedium: 'gem_medium.png',
   gemLarge: 'gem_large.png',
   ground: 'ground.png',
+  tomb: 'decal_tomb.png',
+  wood: 'decal_wood.png',
+  rubble: 'decal_rubble.png',
 };
 
 const images = {};

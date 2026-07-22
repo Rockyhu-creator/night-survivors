@@ -9,8 +9,10 @@ OUT = "public/assets"
 
 TRANSPARENT = (0, 0, 0, 0)
 
-def new_canvas(size):
-    img = Image.new("RGBA", (size, size), TRANSPARENT)
+def new_canvas(w, h=None):
+    if h is None:
+        h = w
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
     return img, ImageDraw.Draw(img)
 
 def px(draw, x, y, color):
@@ -431,29 +433,115 @@ def gen_gem(name, base, light, dark):
 
 # ---------- 地面纹理（无缝平铺） ----------
 def gen_ground():
-    S = 64
-    img = Image.new("RGBA", (S, S), (26, 20, 40, 255))
+    # 哥特石砖墓园地面：256×256 无缝平铺，直接生成（不再放大避免模糊）
+    S = 256
+    img = Image.new("RGBA", (S, S), (38, 32, 52, 255))
     d = ImageDraw.Draw(img)
-    palette = [(22, 17, 35, 255), (30, 24, 46, 255), (26, 20, 40, 255), (34, 27, 50, 255)]
-    for y in range(S):
-        for x in range(S):
-            if random.random() < 0.5:
-                px(d, x, y, random.choice(palette))
-    # 裂纹
-    for _ in range(5):
-        x, y = random.randint(4, S-4), random.randint(4, S-4)
-        for _ in range(random.randint(4, 10)):
-            px(d, x, y, (14, 10, 24, 255))
-            x += random.choice((-1, 0, 1)); y += random.choice((0, 1))
-            x = max(0, min(S-1, x)); y = max(0, min(S-1, y))
-    # 枯草
-    for _ in range(8):
-        x, y = random.randint(1, S-2), random.randint(1, S-3)
-        c = (60, 50, 40, 255)
-        px(d, x, y, c); px(d, x, y-1, c); px(d, x+1, y-2, c)
-    img = img.resize((256, 256), Image.NEAREST)
+    # 颗粒噪点（石板色微扰，形成地面颗粒质感）
+    stones = [(32, 27, 45), (40, 34, 56), (36, 30, 50), (44, 38, 62), (30, 25, 42)]
+    for _ in range(34000):
+        x = random.randint(0, S - 1)
+        y = random.randint(0, S - 1)
+        px(d, x, y, stones[random.randrange(len(stones))])
+    # 周期石板网格（32px 一格, 8×8, 跨边界无缝）
+    GRID = 32
+    seam = (15, 11, 24, 255)
+    seam_hi = (56, 48, 72, 255)
+    for g in range(0, S + 1, GRID):
+        d.line([(g, 0), (g, S)], fill=seam)
+        if g + 1 < S:
+            d.line([(g + 1, 0), (g + 1, S)], fill=seam_hi)
+        d.line([(0, g), (S, g)], fill=seam)
+        if g + 1 < S:
+            d.line([(0, g + 1), (S, g + 1)], fill=seam_hi)
+    # 裂纹（自由分支, wrap 保证无缝）
+    def crack(x, y, n):
+        for _ in range(n):
+            px(d, x % S, y % S, (18, 13, 28, 255))
+            px(d, (x + S) % S, (y + S) % S, (18, 13, 28, 255))
+            x += random.choice((-1, 0, 1))
+            y += random.choice((0, 1, -1))
+    for _ in range(12):
+        crack(random.randint(0, S - 1), random.randint(0, S - 1), random.randint(6, 18))
+    # 苔斑（暗绿, wrap）
+    moss = (46, 66, 46, 255)
+    for _ in range(46):
+        cx, cy = random.randint(0, S - 1), random.randint(0, S - 1)
+        for _ in range(random.randint(3, 9)):
+            px(d, (cx + random.randint(-2, 2)) % S, (cy + random.randint(-2, 2)) % S, moss)
+    # 暗红血渍（半透明晕染, wrap）—— 呼应夜裔/战斗主题
+    for _ in range(16):
+        cx, cy = random.randint(0, S - 1), random.randint(0, S - 1)
+        r = random.randint(2, 5)
+        for yy in range(-r, r + 1):
+            for xx in range(-r, r + 1):
+                if xx * xx + yy * yy <= r * r:
+                    a = 150 if (xx * xx + yy * yy) < r * r * 0.4 else 70
+                    px(d, (cx + xx) % S, (cy + yy) % S, (95, 22, 28, a))
+    # 零散小碎石高光
+    for _ in range(40):
+        px(d, random.randint(0, S - 1), random.randint(0, S - 1), (62, 54, 78, 255))
     img.save(f"{OUT}/ground.png")
     print("OK ground.png")
+
+
+# ---------- 环境装饰：墓碑 / 枯木 / 碎石（带体积光 + 投影，随精灵描边） ----------
+def gen_decal_tomb():
+    W, H = 16, 30
+    img, d = new_canvas(W, H)
+    d.ellipse([2, 26, 14, 30], fill=(22, 16, 30, 255))  # 底部投影
+    for y in range(8, 27):                               # 碑身（左亮右暗）
+        for x in range(5, 12):
+            t = (x - 5) / 6
+            col = (150, 145, 165) if t < 0.34 else ((118, 113, 136) if t < 0.67 else (80, 76, 96))
+            px(d, x, y, col)
+    fill_ellipse_shaded(d, 8, 8, 5, 5, ((80, 76, 96), (118, 113, 136), (160, 155, 175)))  # 拱顶
+    for y in range(13, 23):                              # 十字铭文（暗刻）
+        for x in range(7, 10):
+            px(d, x, y, (40, 36, 52, 255))
+    for x in range(5, 12):
+        for y in range(16, 19):
+            px(d, x, y, (40, 36, 52, 255))
+    for y in range(26, 29):                              # 底座
+        for x in range(3, 14):
+            px(d, x, y, (68, 64, 82, 255))
+    save(img, "decal_tomb.png", 1)
+
+
+def gen_decal_wood():
+    W, H = 20, 34
+    img, d = new_canvas(W, H)
+    d.ellipse([3, 30, 17, 34], fill=(22, 16, 30, 255))   # 投影
+    for y in range(6, 33):                               # 主干（左亮右暗）
+        for x in range(9, 14):
+            t = (x - 9) / 5
+            col = (120, 104, 84) if t < 0.4 else ((92, 80, 64) if t < 0.7 else (60, 50, 40))
+            px(d, x, y, col)
+    for y in range(8, 31):                               # 树皮竖纹
+        if random.random() < 0.3:
+            px(d, random.randint(10, 12), y, (48, 40, 32, 255))
+    for i in range(7):                                   # 左枝
+        px(d, 9 - i // 2, 20 + i // 2, (84, 72, 58, 255))
+    for i in range(5):
+        px(d, 4 + i, 17 - i // 2, (84, 72, 58, 255))
+    for i in range(7):                                   # 右枝
+        px(d, 13 + i // 2, 14 + i // 2, (84, 72, 58, 255))
+    for i in range(4):
+        px(d, 15 + i, 11 - i // 2, (84, 72, 58, 255))
+    px(d, 10, 6, (60, 50, 40)); px(d, 11, 6, (60, 50, 40))  # 顶部断尖
+    px(d, 10, 5, (84, 72, 58)); px(d, 11, 5, (84, 72, 58))
+    save(img, "decal_wood.png", 1)
+
+
+def gen_decal_rubble():
+    W, H = 28, 16
+    img, d = new_canvas(W, H)
+    d.ellipse([2, 11, 26, 16], fill=(22, 16, 30, 255))   # 投影
+    fill_ellipse_shaded(d, 10, 9, 6, 3, ((70, 66, 84), (112, 107, 128), (156, 150, 172)))
+    fill_ellipse_shaded(d, 18, 10, 4, 3, ((66, 62, 80), (108, 103, 124), (148, 143, 164)))
+    fill_ellipse_shaded(d, 22, 9, 3, 2, ((64, 60, 78), (104, 99, 120), (140, 135, 158)))
+    fill_ellipse_shaded(d, 6, 10, 3, 2, ((70, 66, 84), (110, 105, 126), (150, 145, 166)))
+    save(img, "decal_rubble.png", 1)
 
 
 # ---------- 标题背景 ----------
@@ -686,6 +774,9 @@ gen_gem("gem_small.png", (46, 204, 113, 255), (160, 255, 200, 255), (20, 120, 60
 gen_gem("gem_medium.png", (74, 163, 223, 255), (170, 220, 255, 255), (25, 80, 140, 255))
 gen_gem("gem_large.png", (142, 68, 173, 255), (220, 160, 255, 255), (80, 30, 110, 255))
 gen_ground()
+gen_decal_tomb()
+gen_decal_wood()
+gen_decal_rubble()
 gen_bg()
 gen_icon_skull()
 gen_art_storm()
