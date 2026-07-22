@@ -45,6 +45,10 @@ document.getElementById('btn-retry').addEventListener('click', () => game.startR
 document.getElementById('btn-home').addEventListener('click', () => game.showTitle());
 document.getElementById('btn-codex').addEventListener('click', () => game.ui.showCodex());
 document.getElementById('btn-codex-back').addEventListener('click', () => game.ui.hideCodex());
+// 暂停界面的"继续"按钮（桌面/移动端通用，移动端主要恢复路径）
+document.getElementById('btn-resume').addEventListener('click', () => {
+  if (game.state === 'paused') game.togglePause();
+});
 
 game.showTitle();
 

@@ -123,6 +123,12 @@ html, body {
   background: rgba(0,0,0,.45);
 }
 
+/* 首页说明：桌面端/触屏端切换显示 */
+/* 默认（桌面）显示 desktop-only，隐藏 touch-only */
+.touch-device .desktop-only { display: none !important; }
+.touch-only { display: none !important; }
+.touch-device .touch-only { display: flex !important; }
+
 /* 标题界面蝙蝠粒子 */
 #bat-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .bat {
@@ -325,6 +331,12 @@ html, body {
 .pause-hint {
   margin-top: 18px; font-size: 14px; letter-spacing: 4px; opacity: 0.65;
 }
+/* 暂停提示文案：桌面端/触屏端切换显示（复用首页的 desktop-only/touch-only 规则） */
+.pause-resume-btn {
+  margin-top: 32px;
+  /* 触屏端按钮放大，方便点击 */
+}
+.touch-device .pause-resume-btn { padding: 14px 40px; font-size: 16px; }
 
 /* 升级界面操作条（重掷/放逐） */
 #upgrade-actions {
@@ -428,7 +440,7 @@ html, body {
   color: var(--bone);
   font-size: 20px;
   border-radius: 6px;
-  z-index: 13;
+  z-index: 50; /* 高于 pause-overlay(40)，暂停后仍可点击恢复 */
   cursor: pointer;
   display: none; align-items: center; justify-content: center;
   touch-action: manipulation;

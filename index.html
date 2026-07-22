@@ -48,7 +48,8 @@
         <button id="btn-start" class="gothic-btn">开始狩猎</button>
         <div id="best-record" class="best-record hidden"></div>
         <div class="how-to">
-          <div class="how-item"><span class="how-key">WASD / 方向键</span><span>移动</span></div>
+          <div class="how-item desktop-only"><span class="how-key">WASD / 方向键</span><span>移动</span></div>
+          <div class="how-item touch-only"><span class="how-key">触屏拖动</span><span>移动</span></div>
           <div class="how-item"><span class="how-key">自动攻击</span><span>武器自动索敌</span></div>
           <div class="how-item"><span class="how-key">拾取宝石</span><span>升级并三选一强化</span></div>
         </div>
@@ -99,7 +100,9 @@
     <!-- 暂停覆盖层 -->
     <div id="pause-overlay" class="hidden">
       <p class="pause-title">已 暂 停</p>
-      <p class="pause-hint">按 ESC 或 P 继续</p>
+      <p class="pause-hint desktop-only">按 ESC 或 P 继续</p>
+      <p class="pause-hint touch-only">点击下方继续</p>
+      <button id="btn-resume" class="gothic-btn pause-resume-btn">继 续</button>
     </div>
   </div>
   <script type="module" src="/src/main.js"></script>
