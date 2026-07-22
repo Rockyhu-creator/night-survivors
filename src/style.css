@@ -376,3 +376,24 @@ html, body {
   text-shadow: 0 0 34px rgba(192,57,43,.95); margin: 6px 0 2px;
 }
 .warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
+
+/* ---------- 手机端竖屏旋转提示 ---------- */
+#rotate-hint {
+  position: absolute; inset: 0; z-index: 100;
+  background: rgba(6, 3, 12, 0.92);
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px;
+}
+.rotate-icon { font-size: 64px; animation: rotateHint 2s ease-in-out infinite; }
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+.rotate-text {
+  font-family: var(--pixel-font); font-size: 14px;
+  letter-spacing: 4px; color: var(--bone); opacity: 0.85;
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate-hint { display: flex; }
+}
