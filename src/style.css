@@ -397,3 +397,49 @@ html, body {
 @media (orientation: portrait) and (pointer: coarse) {
   #rotate-hint { display: flex; }
 }
+
+/* ---------- 手机端虚拟摇杆 + 触屏暂停按钮 ---------- */
+#joystick-base {
+  position: absolute;
+  left: calc(30px + env(safe-area-inset-left));
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: rgba(20, 14, 32, 0.5);
+  border: 3px solid rgba(212, 175, 55, 0.5);
+  z-index: 12;
+  touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+}
+#joystick-thumb {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  transition: transform 0.08s ease-out;
+}
+#joystick-base.hidden { display: none; }
+
+#touch-pause-btn {
+  position: absolute;
+  top: calc(32px + env(safe-area-inset-top));
+  right: calc(14px + env(safe-area-inset-right));
+  width: 44px; height: 44px;
+  background: rgba(20, 14, 32, 0.8);
+  border: 2px solid rgba(212, 175, 55, 0.5);
+  color: var(--bone);
+  font-size: 20px;
+  border-radius: 6px;
+  z-index: 13;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
+}
+#touch-pause-btn.hidden { display: none; }
+#touch-pause-btn:active { background: rgba(212, 175, 55, 0.3); }
+
+/* 仅触屏设备显示控件 */
+@media (pointer: fine) {
+  #joystick-base, #touch-pause-btn { display: none !important; }
+}
