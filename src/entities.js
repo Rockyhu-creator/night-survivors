@@ -14,6 +14,8 @@ export class Player {
     this.speedMul = 1;
     this.damageMul = 1;
     this.magnetMul = 1;
+    this.expMul = 1;
+    this.damageTakenMul = 1;
     this.baseMagnet = 95;
     this.level = 1;
     this.exp = 0;
@@ -42,7 +44,7 @@ export class Player {
 
   takeDamage(amount) {
     if (this.iframes > 0) return false;
-    this.hp -= amount;
+    this.hp -= amount * (this.damageTakenMul || 1);
     this.iframes = 0.5;
     return true;
   }

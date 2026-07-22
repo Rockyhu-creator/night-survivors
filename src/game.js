@@ -20,6 +20,8 @@ export class Game {
     this.expQueue = 0;
     this.accumulator = 0;
     this.lastTs = 0;
+    this.rerollsLeft = 3;
+    this.banishesLeft = 3;
     this.difficulty = DIFFICULTIES.normal;
     this.groundPattern = null;
     this.decals = [];
@@ -60,6 +62,7 @@ export class Game {
     this.ui = new UIManager(this);
 
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('keydown', (e) => this.onKey(e));
     this.resize();
 
     loadAssets().then(() => {
@@ -108,11 +111,14 @@ export class Game {
     this.kills = 0;
     this.expQueue = 0;
     this.accumulator = 0;
+    this.rerollsLeft = 3;
+    this.banishesLeft = 3;
     this.player.reset();
     this.enemies.reset();
     this.weapons.reset();
     this.pickups.reset();
     this.fx.reset();
+    this.upgrade.reset();
     this.camera.x = -CONFIG.LOGICAL_WIDTH / 2;
     this.camera.y = -CONFIG.LOGICAL_HEIGHT / 2;
     this.camera.trauma = 0;
@@ -139,8 +145,25 @@ export class Game {
       this.ui.update(dt);
     } else if (this.state === 'title' || this.state === 'gameover') {
       this.renderBackdropOnly(dt);
-    } else if (this.state === 'upgrading') {
+    } else if (this.state === 'upgrading' || this.state === 'paused') {
       this.render();
+    }
+  }
+
+  onKey(e) {
+    if (e.code === 'Escape' || e.code === 'KeyP') {
+      this.togglePause();
+    }
+  }
+
+  togglePause() {
+    if (this.state === 'playing') {
+      this.state = 'paused';
+      document.getElementById('pause-overlay').classList.remove('hidden');
+    } else if (this.state === 'paused') {
+      this.state = 'playing';
+      this.lastTs = 0;
+      document.getElementById('pause-overlay').classList.add('hidden');
     }
   }
 
@@ -187,7 +210,7 @@ export class Game {
   }
 
   gainExp(amount) {
-    this.player.exp += amount;
+    this.player.exp += amount * (this.player.expMul || 1);
   }
 
   onEnemyKilled(enemy) {

@@ -6,12 +6,50 @@ export class UpgradeSystem {
     this.game = game;
     this.screen = document.getElementById('levelup-screen');
     this.cardsEl = document.getElementById('upgrade-cards');
+    this.banned = new Set(); // 本局被放逐的选项 id，Banish 会写入
+    this.currentOptions = [];
+    this.buildActionBar();
+  }
+
+  buildActionBar() {
+    // 升级界面顶部操作条：Reroll 重掷 / Banish 放逐
+    const bar = document.createElement('div');
+    bar.id = 'upgrade-actions';
+    bar.innerHTML = `
+      <button id="btn-reroll" class="ua-btn">重掷 <span id="reroll-count">3</span></button>
+      <button id="btn-banish" class="ua-btn">放逐 <span id="banish-count">3</span></button>
+      <p class="ua-hint">重掷:换一组三选一;放逐:选中一项后点放逐,本局不再出现</p>
+    `;
+    this.screen.insertBefore(bar, this.cardsEl);
+    this.rerollBtn = bar.querySelector('#btn-reroll');
+    this.banishBtn = bar.querySelector('#btn-banish');
+    this.rerollCountEl = bar.querySelector('#reroll-count');
+    this.banishCountEl = bar.querySelector('#banish-count');
+    this.rerollBtn.addEventListener('click', () => this.reroll());
+    this.banishBtn.addEventListener('click', () => this.banish());
+  }
+
+  reset() {
+    // 每局重置计数与放逐表
+    this.banned.clear();
+    this.selectedIdx = -1;
+    this.game.rerollsLeft = 3;
+    this.game.banishesLeft = 3;
+    this.updateActionBar();
+  }
+
+  updateActionBar() {
+    this.rerollCountEl.textContent = this.game.rerollsLeft;
+    this.banishCountEl.textContent = this.game.banishesLeft;
+    this.rerollBtn.disabled = this.game.rerollsLeft <= 0;
+    this.banishBtn.disabled = this.game.banishesLeft <= 0 || this.selectedIdx < 0;
   }
 
   buildPool() {
     const player = this.game.player;
     const pool = [];
     for (const def of Object.values(WEAPONS)) {
+      if (this.banned.has(def.id)) continue;
       if (this.game.weapons.hasWeapon(def.id)) {
         if (this.game.weapons.weaponLevel(def.id) < def.maxLevel) {
           pool.push({ kind: 'weapon-up', id: def.id, def });
@@ -21,6 +59,7 @@ export class UpgradeSystem {
       }
     }
     for (const def of Object.values(PASSIVES)) {
+      if (this.banned.has(def.id)) continue;
       const lv = player.passives.get(def.id) || 0;
       if (lv < def.maxLevel) pool.push({ kind: 'passive', id: def.id, def });
     }
@@ -34,7 +73,28 @@ export class UpgradeSystem {
       const idx = Math.floor(Math.random() * pool.length);
       options.push(pool.splice(idx, 1)[0]);
     }
+    this.currentOptions = options;
+    this.selectedIdx = -1;
+    this.updateActionBar();
     return options;
+  }
+
+  reroll() {
+    if (this.game.rerollsLeft <= 0) return;
+    this.game.rerollsLeft -= 1;
+    const options = this.rollOptions();
+    if (options.length === 0) return;
+    this.open(options);
+  }
+
+  banish() {
+    if (this.game.banishesLeft <= 0 || this.selectedIdx < 0) return;
+    const opt = this.currentOptions[this.selectedIdx];
+    this.banned.add(opt.id);
+    this.game.banishesLeft -= 1;
+    const options = this.rollOptions();
+    if (options.length === 0) return;
+    this.open(options);
   }
 
   describe(option) {
@@ -58,7 +118,7 @@ export class UpgradeSystem {
 
   open(options) {
     this.cardsEl.innerHTML = '';
-    for (const option of options) {
+    options.forEach((option, idx) => {
       const info = this.describe(option);
       const card = document.createElement('div');
       card.className = 'upgrade-card';
@@ -73,14 +133,25 @@ export class UpgradeSystem {
       h3.textContent = info.title;
       const p = document.createElement('p');
       p.textContent = info.desc;
-      card.append(img, tag, h3, p);
+      const pickBtn = document.createElement('button');
+      pickBtn.className = 'uc-pick';
+      pickBtn.textContent = '选择';
+      card.append(img, tag, h3, p, pickBtn);
+      // 卡片本体点击=标记为放逐目标；按钮点击=选择该项
       card.addEventListener('click', () => {
+        this.cardsEl.querySelectorAll('.upgrade-card').forEach((c) => c.classList.remove('selected'));
+        card.classList.add('selected');
+        this.selectedIdx = idx;
+        this.updateActionBar();
+      });
+      pickBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.apply(option);
         this.screen.classList.add('hidden');
         this.game.resumeFromUpgrade();
       }, { once: true });
       this.cardsEl.appendChild(card);
-    }
+    });
     this.screen.classList.remove('hidden');
   }
 

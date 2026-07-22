@@ -312,6 +312,53 @@ html, body {
   transition: width .12s linear;
 }
 
+/* 暂停覆盖层 */
+#pause-overlay {
+  position: absolute; inset: 0; z-index: 40;
+  background: rgba(6, 3, 12, 0.78);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.pause-title {
+  font-family: var(--pixel-font); font-size: 32px; letter-spacing: 12px;
+  color: var(--bone); text-shadow: 0 0 20px rgba(232, 224, 208, 0.5);
+}
+.pause-hint {
+  margin-top: 18px; font-size: 14px; letter-spacing: 4px; opacity: 0.65;
+}
+
+/* 升级界面操作条（重掷/放逐） */
+#upgrade-actions {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
+}
+.ua-btn {
+  font-family: var(--pixel-font); font-size: 10px; letter-spacing: 2px;
+  background: rgba(20, 14, 32, 0.9); color: var(--bone);
+  border: 2px solid rgba(212, 175, 55, 0.5); padding: 10px 18px;
+  cursor: pointer; transition: all 0.15s;
+}
+.ua-btn:hover:not(:disabled) {
+  border-color: var(--gold); color: var(--gold);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+}
+.ua-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ua-btn span { color: var(--gold); margin-left: 4px; }
+.ua-hint { font-size: 11px; opacity: 0.55; letter-spacing: 1px; }
+
+/* 升级卡片选中态与选择按钮 */
+.upgrade-card.selected {
+  border-color: var(--blood-bright) !important;
+  box-shadow: 0 0 18px rgba(231, 76, 60, 0.5) !important;
+}
+.uc-pick {
+  margin-top: 14px; font-family: var(--pixel-font); font-size: 9px;
+  letter-spacing: 2px; background: var(--blood); color: var(--bone);
+  border: none; padding: 8px 18px; cursor: pointer; transition: all 0.15s;
+}
+.uc-pick:hover {
+  background: var(--blood-bright);
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.5);
+}
+
 #boss-warning {
   position: absolute; top: 34%; left: 50%; transform: translateX(-50%);
   text-align: center; z-index: 19; pointer-events: none;

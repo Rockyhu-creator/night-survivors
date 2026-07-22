@@ -97,6 +97,11 @@ export const PASSIVES = {
   heart: { id: 'heart', name: '巨人之心', icon: 'gemLarge', maxLevel: 5, desc: '生命上限 +20,并回复 20', apply: (p) => { p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20); } },
   tome: { id: 'tome', name: '秘法魔典', icon: 'lightning', maxLevel: 5, desc: '所有伤害 +10%', apply: (p) => { p.damageMul += 0.1; } },
   magnet: { id: 'magnet', name: '引力宝珠', icon: 'gemMedium', maxLevel: 5, desc: '拾取范围 +25%', apply: (p) => { p.magnetMul += 0.25; } },
+  // 无限成长被动：20+ 级后期每次升级依然有意义
+  rage: { id: 'rage', name: '战斗狂热', icon: 'blade', maxLevel: 99, desc: '所有伤害 +3%', apply: (p) => { p.damageMul += 0.03; } },
+  swift: { id: 'swift', name: '极速猎手', icon: 'player', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
+  greed: { id: 'greed', name: '财富之魂', icon: 'gemMedium', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
+  guard: { id: 'guard', name: '钢铁意志', icon: 'gemLarge', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
 };
 
 export function expForLevel(level) {
