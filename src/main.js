@@ -2,14 +2,9 @@ import { Game } from './game.js';
 import { DIFFICULTIES } from './data.js';
 import { MobileControls } from './mobile-controls.js';
 
-const game = new Game();
-game.init();
-
-// 触屏设备检测：激活手机端控件
+// 触屏设备检测：必须在 game.init() 之前完成，
+// 因为 game.init() 内部会调用 resize()，resize() 依赖 .touch-device class 判断是否走竖屏动态分辨率
 // 多重检测，任一命中即认为触屏设备（兼容微信 WebView 等特殊环境）
-// - ontouchstart：最基础 API，兼容性好
-// - maxTouchPoints：标准 API，能区分触屏/非触屏设备
-// - pointer: coarse：CSS 媒体查询，部分 WebView 不支持
 const isTouchDevice =
   'ontouchstart' in window ||
   (navigator.maxTouchPoints || 0) > 0 ||
@@ -17,6 +12,12 @@ const isTouchDevice =
   window.matchMedia('(pointer: coarse)').matches;
 if (isTouchDevice) {
   document.documentElement.classList.add('touch-device');
+}
+
+const game = new Game();
+game.init();
+
+if (isTouchDevice) {
   const mobileControls = new MobileControls(game);
   mobileControls.enable();
 
