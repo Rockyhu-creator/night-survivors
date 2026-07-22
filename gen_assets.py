@@ -324,80 +324,109 @@ def gen_elite():
 
 # ---------- 武器图标 ----------
 def gen_blade():
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    # 斜向血刃
-    for i in range(12):
-        x, y = 4 + i, 15 - i
-        for w in range(-1, 2):
-            px(d, x + w, y, (220, 60, 60, 255) if w == 0 else (150, 20, 30, 255))
-    for i in range(4):  # 刀尖高光
-        px(d, 14 + i // 2, 5 - i // 2, (255, 160, 160, 255))
-    rect(d, 2, 16, 5, 18, (60, 30, 20, 255))  # 柄
-    save(img, "weapon_blade.png", 4)
+    body, edge, hi = (205, 58, 64, 255), (138, 20, 30, 255), (255, 158, 158, 255)
+    hilt, guard = (74, 42, 26, 255), (206, 172, 78, 255)
+    # 刀身：主对角线带，宽 6
+    for i in range(24):
+        t = i / 23
+        x = 9 + t * 22; y = 31 - t * 22
+        for w in range(-3, 4):
+            col = edge if abs(w) >= 3 else body
+            px(d, round(x) + w, round(y), col)
+    # 刀尖高光三角
+    for i in range(7):
+        px(d, 26 + i, 14 - i, hi); px(d, 27 + i, 14 - i, hi)
+    # 刀脊高光（中线偏上）
+    for i in range(18):
+        t = i / 17
+        px(d, round(12 + t * 17), round(28 - t * 17) - 1, hi)
+    # 护手 + 握柄
+    rect(d, 6, 29, 14, 32, guard)
+    rect(d, 9, 32, 12, 38, hilt)
+    save(img, "weapon_blade.png", 2)
 
 def gen_holywater():
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    glass, water, cross = (180, 200, 220, 180), (60, 140, 220, 230), (230, 200, 90, 255)
-    for y in range(8, 18):
-        w = 3 + (18 - y) // 5
-        for x in range(10 - w, 10 + w + 1):
+    glass, water, cross, cork = (182, 206, 226, 200), (58, 140, 222, 235), (236, 200, 92, 255), (122, 80, 40, 255)
+    # 瓶身（下宽上窄）
+    for y in range(15, 33):
+        w = 7 + (32 - y) // 3
+        for x in range(20 - w, 20 + w + 1):
             px(d, x, y, glass)
-    for y in range(11, 17):
-        for x in range(8, 13):
+    # 圣水
+    for y in range(18, 31):
+        for x in range(16, 25):
             px(d, x, y, water)
-    rect(d, 9, 3, 10, 8, glass)  # 瓶颈
-    rect(d, 8, 2, 11, 3, (120, 80, 40, 255))  # 木塞
-    rect(d, 9, 12, 10, 15, cross); rect(d, 8, 13, 11, 14, cross)  # 十字
-    save(img, "weapon_holywater.png", 4)
+    # 瓶颈 + 木塞
+    rect(d, 17, 9, 22, 15, glass)
+    rect(d, 16, 6, 23, 9, cork)
+    # 十字
+    rect(d, 19, 19, 20, 28, cross); rect(d, 16, 22, 23, 24, cross)
+    # 玻璃高光
+    px(d, 15, 18, (220, 240, 255, 220)); px(d, 15, 20, (220, 240, 255, 220))
+    save(img, "weapon_holywater.png", 2)
 
 def gen_axe():
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    metal, metal_l, handle = (170, 180, 210, 255), (220, 230, 250, 255), (90, 60, 30, 255)
-    # 双刃斧头
-    for i in range(6):
-        px(d, 4 + i, 4 + i // 2, metal_l)
-        px(d, 15 - i, 4 + i // 2, metal_l)
-        px(d, 4 + i, 6 + i // 2, metal)
-        px(d, 15 - i, 6 + i // 2, metal)
-    # 柄
-    for y in range(5, 18):
-        px(d, 9, y, handle); px(d, 10, y, handle)
-    rect(d, 8, 4, 11, 6, (140, 60, 60, 255))  # 缠绳
-    save(img, "weapon_axe.png", 4)
+    metal, metal_hi, handle, wrap = (176, 186, 216, 255), (226, 236, 255, 255), (96, 60, 32, 255), (150, 60, 60, 255)
+    # 双刃斧头（顶部，左右弯刃）
+    for i in range(12):
+        px(d, 8 + i, 6 + i // 3, metal_hi)
+        px(d, 8 + i, 8 + i // 3, metal)
+        px(d, 8 + i, 10 + i // 3, (120, 128, 150, 255))
+        px(d, 31 - i, 6 + i // 3, metal_hi)
+        px(d, 31 - i, 8 + i // 3, metal)
+        px(d, 31 - i, 10 + i // 3, (120, 128, 150, 255))
+    for i in range(6):  # 刃尖高光
+        px(d, 9 + i, 6 + i // 3, metal_hi); px(d, 30 - i, 6 + i // 3, metal_hi)
+    # 柄 + 缠绳
+    rect(d, 18, 8, 21, 34, handle)
+    rect(d, 16, 14, 23, 17, wrap)
+    save(img, "weapon_axe.png", 2)
 
 def gen_lightning():
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    bolt, bolt_l = (245, 215, 110, 255), (255, 245, 180, 255)
-    pts = [(11,2),(8,7),(11,8),(7,13),(10,14),(6,18)]
-    for (x0,y0),(x1,y1) in zip(pts, pts[1:]):
-        steps = max(abs(x1-x0), abs(y1-y0)) * 2 + 1
+    bolt, bolt_hi = (245, 215, 110, 255), (255, 246, 192, 255)
+    pts = [(22, 4), (15, 16), (23, 17), (14, 28), (22, 29), (12, 36)]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
         for i in range(steps):
-            x = x0 + (x1-x0)*i/steps
-            y = y0 + (y1-y0)*i/steps
+            x = x0 + (x1 - x0) * i / steps
+            y = y0 + (y1 - y0) * i / steps
             xi, yi = round(x), round(y)
-            px(d, xi, yi, bolt_l if i % 3 == 0 else bolt)
-            px(d, xi+1, yi, bolt)
-    save(img, "weapon_lightning.png", 4)
+            px(d, xi, yi, bolt_hi if i % 3 == 0 else bolt)
+            px(d, xi + 1, yi, bolt); px(d, xi, yi + 1, bolt)
+    save(img, "weapon_lightning.png", 2)
 
 
 # ---------- 经验宝石 ----------
 def gen_gem(name, base, light, dark):
-    S = 18
+    S = 36
     img, d = new_canvas(S)
-    cx, cy = 9, 9
-    # 菱形刻面
-    for y in range(2, 17):
-        half = 7 - abs(y - 9) if y < 9 else 7 - (y - 9)
+    cx, cy = 18, 18
+    # 菱形刻面宝石（对角线分 3 面）
+    for y in range(4, 33):
+        half = 14 - abs(y - 18) if y < 18 else 14 - (y - 18)
+        if half < 0:
+            half = 0
         for x in range(cx - half, cx + half + 1):
-            facet = (x + y) % 3
-            color = light if facet == 0 else (dark if facet == 2 else base)
+            f = (x - cx) + (y - cy)
+            color = light if f > 6 else (dark if f < -6 else base)
             px(d, x, y, color)
-    rect(d, 6, 5, 8, 6, light)  # 顶部高光
-    save(img, name, 4)
+    # 内核辉光
+    for y in range(13, 24):
+        for x in range(14, 23):
+            if (x - 18) ** 2 + (y - 18) ** 2 < 16:
+                px(d, x, y, light)
+    # 顶部高光
+    rect(d, 14, 9, 17, 11, light)
+    px(d, 13, 10, light); px(d, 18, 10, light)
+    save(img, name, 2)
 
 
 # ---------- 地面纹理（无缝平铺） ----------
@@ -488,19 +517,31 @@ def gen_bg():
 
 # ---------- 骷髅图标 ----------
 def gen_icon_skull():
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    bone, bone_d, eye = (230, 224, 205, 255), (150, 145, 130, 255), (255, 50, 50, 255)
-    for y in range(3, 14):
-        w = 6 if y < 11 else 4
-        for x in range(10 - w, 10 + w + 1):
+    bone, bone_d, eye = (233, 227, 206, 255), (150, 145, 130, 255), (255, 50, 50, 255)
+    # 颅骨（上宽下窄）
+    for y in range(6, 28):
+        w = 13 if y < 22 else 13 - (y - 22) * 2
+        for x in range(20 - w, 20 + w + 1):
             px(d, x, y, bone)
-    rect(d, 6, 8, 8, 11, bone_d); rect(d, 12, 8, 14, 11, bone_d)
-    px(d, 7, 9, eye); px(d, 13, 9, eye)
-    rect(d, 9, 12, 10, 13, bone_d)
-    for x in range(7, 13):
-        px(d, x, 15, bone if x % 2 else bone_d)
-    save(img, "icon_skull.png", 4)
+    # 眼窝
+    for y in range(13, 22):
+        for x in range(11, 16):
+            px(d, x, y, bone_d)
+        for x in range(24, 29):
+            px(d, x, y, bone_d)
+    # 发光眼
+    for (x, y) in ((13, 17), (14, 17), (13, 18), (14, 18), (26, 17), (27, 17), (26, 18), (27, 18)):
+        px(d, x, y, eye)
+    # 鼻腔
+    rect(d, 19, 22, 20, 25, bone_d)
+    # 牙齿行
+    for x in range(13, 28):
+        if x % 3 != 0:
+            px(d, x, 26, bone); px(d, x, 27, bone_d)
+    rect(d, 12, 27, 28, 28, bone_d)
+    save(img, "icon_skull.png", 2)
 
 
 import os
@@ -509,125 +550,127 @@ os.makedirs(OUT, exist_ok=True)
 
 # ---------- 神器图标 ----------
 def gen_art_storm():  # 千刃风暴：三把猩红飞刃 120° 风轮
-    S = 20
+    S = 40
     img, d = new_canvas(S)
     body, tip, core = (220, 60, 60, 255), (255, 160, 160, 255), (255, 220, 220, 255)
-    cx, cy = 10, 10
+    cx, cy = 20, 20
     for k in range(3):
-        a = math.radians(k * 120)  # 0°/120°/240° 三个方向
-        pa = a + math.pi / 2  # 垂直方向，单侧加厚呈旋翼感
-        for i in range(2, 8):  # 从中心向外 6px 斜线刃
+        a = math.radians(k * 120)
+        for i in range(5, 17):
             x, y = cx + math.cos(a) * i, cy - math.sin(a) * i
-            px(d, round(x), round(y), tip if i >= 6 else body)
-            if i < 6:
-                px(d, round(x + math.cos(pa)), round(y - math.sin(pa)), body)
-    px(d, cx, cy, core)
-    px(d, cx - 1, cy, body); px(d, cx + 1, cy, body)
-    px(d, cx, cy - 1, body); px(d, cx, cy + 1, body)
-    save(img, "art_storm.png", 4)
+            px(d, round(x), round(y), tip if i >= 15 else body)
+            px(d, round(x) + 1, round(y), body); px(d, round(x), round(y) + 1, body)
+    for y in range(17, 24):
+        for x in range(17, 24):
+            if (x - 20) ** 2 + (y - 20) ** 2 < 12:
+                px(d, x, y, core)
+    save(img, "art_storm.png", 2)
 
 def gen_art_devour():  # 圣洁吞噬：圣杯涌出蓝色圣焰
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    metal, metal_l, base = (200, 200, 220, 255), (240, 240, 255, 255), (140, 140, 170, 255)
-    flame, flame_l = (74, 163, 223, 255), (168, 216, 255, 255)
-    # 圣焰（杯中向上涌出）
-    flame_rows = {2: (10,), 3: (10,), 4: (9, 10), 5: (10, 11), 6: (9, 10, 11), 7: (8, 9, 10, 11, 12)}
+    metal, metal_hi, base_c, flame, flame_hi = (200, 200, 220, 255), (240, 240, 255, 255), (140, 140, 170, 255), (74, 163, 223, 255), (170, 216, 255, 255)
+    # 圣焰（杯口向上）
+    flame_rows = {6: (18,), 7: (18,), 8: (17, 18), 9: (18, 19), 10: (17, 18, 19), 11: (16, 17, 18, 19, 20), 12: (16, 17, 18, 19, 20)}
     for y, xs in flame_rows.items():
         for x in xs:
             px(d, x, y, flame)
-    for (x, y) in ((10, 4), (10, 5), (10, 6), (9, 7), (10, 7)):
-        px(d, x, y, flame_l)  # 内焰
-    # 杯身（碗状，上宽下窄）
-    rect(d, 5, 8, 14, 9, metal)  # 杯口沿
-    for y in range(10, 14):
-        w = 4 - (y - 9) // 2
-        for x in range(10 - w, 10 + w + 1):
+    for (x, y) in ((18, 7), (18, 8), (18, 9), (17, 10), (18, 10), (19, 10)):
+        px(d, x, y, flame_hi)
+    # 杯身
+    rect(d, 11, 14, 29, 16, metal)
+    for y in range(16, 26):
+        w = 8 - (y - 16) // 2
+        for x in range(20 - w, 20 + w + 1):
             px(d, x, y, metal)
-    rect(d, 6, 9, 7, 11, metal_l)  # 杯身高光
-    px(d, 11, 8, flame_l)  # 杯口火光
-    # 杯柄 + 杯底
-    rect(d, 9, 14, 10, 15, metal)
-    rect(d, 6, 16, 13, 17, base)
-    save(img, "art_devour.png", 4)
+    rect(d, 13, 15, 16, 19, metal_hi)
+    px(d, 22, 14, flame_hi)
+    rect(d, 18, 26, 21, 28, metal)
+    rect(d, 12, 28, 28, 30, base_c)
+    save(img, "art_devour.png", 2)
 
 def gen_art_spiral():  # 死亡螺旋：6 把小斧刃绕中心环列
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    metal, metal_l, grip = (170, 180, 210, 255), (220, 230, 250, 255), (90, 60, 30, 255)
-    cx, cy, r = 10, 10, 7
+    metal, metal_hi, grip = (175, 185, 215, 255), (226, 236, 255, 255), (96, 60, 32, 255)
+    cx, cy, r = 20, 20, 14
     for k in range(6):
         a = math.radians(k * 60 + 90)
         x = round(cx + math.cos(a) * r)
         y = round(cy - math.sin(a) * r)
-        px(d, x, y, metal); px(d, x + 1, y, metal)  # 2×2 斧刃块
-        px(d, x, y + 1, metal); px(d, x + 1, y + 1, metal)
-        hx = round(cx + math.cos(a) * (r + 1))  # 外侧刃口高光
-        hy = round(cy - math.sin(a) * (r + 1))
-        px(d, hx, hy, metal_l); px(d, hx + 1, hy, metal_l)
-    rect(d, 9, 9, 10, 10, grip)  # 中心握点
-    save(img, "art_spiral.png", 4)
+        for dx in range(3):
+            for dy in range(3):
+                px(d, x + dx, y + dy, metal)
+        hx = round(cx + math.cos(a) * (r + 2))
+        hy = round(cy - math.sin(a) * (r + 2))
+        px(d, hx, hy, metal_hi); px(d, hx + 1, hy, metal_hi)
+    rect(d, 18, 18, 21, 21, grip)
+    save(img, "art_spiral.png", 2)
 
 def gen_art_stormcall():  # 雷霆循环：首尾相接的锯齿闪电环
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    bolt, bolt_l = (245, 215, 110, 255), (255, 245, 180, 255)
-    cx, cy = 10, 10
+    bolt, bolt_hi = (245, 215, 110, 255), (255, 246, 192, 255)
+    cx, cy = 20, 20
     pts = []
     for k in range(12):
         a = math.radians(k * 30)
-        r = 8 if k % 2 == 0 else 5  # 奇偶点内外交错半径 5/8
+        r = 16 if k % 2 == 0 else 10
         pts.append((cx + math.cos(a) * r, cy - math.sin(a) * r))
-    for k in range(12):  # 连线成环
+    for k in range(12):
         (x0, y0), (x1, y1) = pts[k], pts[(k + 1) % 12]
         steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
         for i in range(steps):
             x = x0 + (x1 - x0) * i / steps
             y = y0 + (y1 - y0) * i / steps
-            px(d, round(x), round(y), bolt_l if i % 3 == 0 else bolt)
-    save(img, "art_stormcall.png", 4)
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, bolt_hi if i % 3 == 0 else bolt)
+            px(d, xi + 1, yi, bolt); px(d, xi, yi + 1, bolt)
+    save(img, "art_stormcall.png", 2)
 
-def gen_art_crimson():  # 猩红之拥（隐藏）：血珠包裹心脏，上半圆下尖
-    S = 20
+def gen_art_crimson():  # 猩红之拥（隐藏）：血滴包裹心脏
+    S = 40
     img, d = new_canvas(S)
-    edge, body = (120, 15, 25, 255), (180, 30, 45, 255)
-    heart, glint = (220, 70, 90, 255), (255, 150, 160, 255)
-    rows = [(3, 9, 10), (4, 8, 11), (5, 7, 12), (6, 6, 13), (7, 6, 13), (8, 7, 12),
-            (9, 7, 12), (10, 8, 11), (11, 8, 11), (12, 9, 10), (13, 9, 10), (14, 10, 10)]
-    for y, x0, x1 in rows:
-        for x in range(x0, x1 + 1):
-            px(d, x, y, edge if x in (x0, x1) else body)
-    # 包裹的心脏
-    for (x, y) in ((8, 6), (9, 6), (11, 6), (12, 6),
-                   (8, 7), (9, 7), (10, 7), (11, 7), (12, 7),
-                   (9, 8), (10, 8), (11, 8), (10, 9)):
+    edge, body, heart, glint = (120, 15, 25, 255), (182, 32, 46, 255), (222, 72, 92, 255), (255, 150, 160, 255)
+    cx = 20
+    for y in range(6, 34):
+        if y <= 14:
+            dd = (14 - y) * (14 - y)
+            half = int((121 - dd) ** 0.5) if dd < 121 else 0
+        else:
+            half = int((33 - y) * 0.75)
+            if half < 0:
+                half = 0
+        for x in range(cx - half, cx + half + 1):
+            px(d, x, y, edge if x in (cx - half, cx + half) else body)
+    heart_pts = [(15, 13), (16, 13), (18, 13), (19, 13),
+                 (15, 14), (16, 14), (17, 14), (18, 14), (19, 14),
+                 (16, 15), (17, 15), (18, 15), (17, 16)]
+    for (x, y) in heart_pts:
         px(d, x, y, heart)
-    px(d, 8, 4, glint)  # 顶部反光
-    save(img, "art_crimson.png", 4)
+    px(d, 14, 9, glint)
+    save(img, "art_crimson.png", 2)
 
 def gen_art_tempest():  # 雷劫（隐藏）：粗壮紫雷劈落裂纹地面
-    S = 20
+    S = 40
     img, d = new_canvas(S)
-    bolt, core = (180, 120, 230, 255), (230, 200, 255, 255)
-    ground, crack = (40, 30, 55, 255), (15, 10, 25, 255)
-    # 折线雷身（顶部劈到底部）
-    pts = [(12, 0), (9, 5), (12, 8), (7, 12), (10, 15), (8, 17)]
+    bolt, core, ground, crack = (180, 120, 230, 255), (230, 200, 255, 255), (40, 30, 55, 255), (15, 10, 25, 255)
+    pts = [(24, 2), (18, 12), (24, 18), (14, 26), (20, 32), (16, 36)]
     for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-        steps = max(abs(x1 - x0), abs(y1 - y0)) * 2 + 1
+        steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
         for i in range(steps):
             x = x0 + (x1 - x0) * i / steps
             y = y0 + (y1 - y0) * i / steps
             xi, yi = round(x), round(y)
-            px(d, xi, yi, core)  # 高光芯
+            px(d, xi, yi, core)
             px(d, xi - 1, yi, bolt); px(d, xi + 1, yi, bolt)
-    # 落雷迸溅
-    px(d, 6, 16, bolt); px(d, 11, 16, bolt); px(d, 9, 16, core)
-    # 地面 2 行 + 3 条裂纹
-    rect(d, 0, 18, 19, 19, ground)
-    px(d, 4, 18, crack); px(d, 5, 19, crack)
-    px(d, 12, 19, crack); px(d, 13, 18, crack); px(d, 14, 19, crack)
-    px(d, 16, 18, crack); px(d, 17, 19, crack)
-    save(img, "art_tempest.png", 4)
+    for fx in (12, 21, 28):
+        px(d, fx, 35, bolt)
+    rect(d, 0, 36, 39, 39, ground)
+    px(d, 8, 36, crack); px(d, 9, 37, crack)
+    px(d, 24, 37, crack); px(d, 25, 36, crack)
+    px(d, 30, 37, crack); px(d, 31, 36, crack)
+    save(img, "art_tempest.png", 2)
 
 
 gen_player()
