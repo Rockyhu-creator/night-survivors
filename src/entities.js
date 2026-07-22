@@ -46,6 +46,7 @@ export class Player {
     if (this.iframes > 0) return false;
     this.hp -= amount * (this.damageTakenMul || 1);
     this.iframes = 0.5;
+    if (navigator.vibrate) navigator.vibrate(50);
     return true;
   }
 
