@@ -92,10 +92,12 @@ export class Game {
     const isTouchDevice = document.documentElement.classList.contains('touch-device');
     // 竖屏判定：高明显大于宽（避免边缘 case 误判，如 browser automation 时尺寸为 0）
     const isPortrait = isTouchDevice && window.innerHeight > window.innerWidth * 1.2;
-    // 动态切换逻辑分辨率
+    // 动态逻辑分辨率：竖屏下保持宽 540，高度按屏幕实际比例计算，铺满全屏无黑边
+    // 高度范围 [960, 1400]：下限保证至少和原来一样的视野，上限避免极端狭长手机看到过多内容
     if (isPortrait) {
+      const ratio = window.innerHeight / window.innerWidth;
       CONFIG.LOGICAL_WIDTH = 540;
-      CONFIG.LOGICAL_HEIGHT = 960;
+      CONFIG.LOGICAL_HEIGHT = Math.max(960, Math.min(1400, Math.round(540 * ratio)));
       document.documentElement.classList.add('portrait');
     } else {
       CONFIG.LOGICAL_WIDTH = 960;

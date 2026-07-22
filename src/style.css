@@ -377,28 +377,45 @@ html, body {
 }
 .warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
 
-/* ---------- 手机端虚拟摇杆 + 触屏暂停按钮 ---------- */
-/* 默认隐藏，仅 .touch-device 且非 .hidden 时显示 */
+/* ---------- 手机端浮动摇杆 + 触屏暂停按钮 ---------- */
+/* 借鉴吸血鬼幸存者手游：左半屏全域触摸，按下位置即摇杆起点，松手隐藏 */
+
+/* 触摸层：覆盖左半屏，接收 pointerdown 触发浮动摇杆 */
+/* 横屏时覆盖左半屏，竖屏时也覆盖左半屏（避免误触右侧暂停按钮） */
+#touch-zone {
+  position: absolute;
+  left: 0; top: 0;
+  width: 50%; height: 100%;
+  z-index: 11;
+  touch-action: none;
+  display: none;
+  /* 透明背景，仅用于接收触摸事件 */
+}
+.touch-device #touch-zone:not(.hidden) { display: block; }
+
+/* 浮动摇杆 base：由 JS 设置 left/top（按下位置），CSS 用 translate(-50%, -50%) 居中 */
+/* 默认 display:none，由 JS 在 pointerdown 时设为 flex */
 #joystick-base {
   position: absolute;
-  left: calc(30px + env(safe-area-inset-left));
-  bottom: calc(30px + env(safe-area-inset-bottom));
+  /* left/top 由 JS 动态设置 */
   width: 120px; height: 120px;
   border-radius: 50%;
-  background: rgba(20, 14, 32, 0.5);
-  border: 3px solid rgba(212, 175, 55, 0.5);
+  background: rgba(20, 14, 32, 0.35);
+  border: 2px solid rgba(212, 175, 55, 0.4);
   z-index: 12;
   touch-action: none;
+  pointer-events: none; /* 不拦截事件，触摸由 touch-zone 统一处理 */
+  transform: translate(-50%, -50%);
   display: none; align-items: center; justify-content: center;
 }
-.touch-device #joystick-base:not(.hidden) { display: flex; }
 #joystick-thumb {
-  width: 60px; height: 60px;
+  width: 56px; height: 56px;
   border-radius: 50%;
-  background: rgba(212, 175, 55, 0.7);
+  background: rgba(212, 175, 55, 0.6);
   border: 2px solid rgba(255, 255, 255, 0.4);
   pointer-events: none;
-  transition: transform 0.08s ease-out;
+  transition: transform 0.06s ease-out;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
 }
 
 #touch-pause-btn {
@@ -503,18 +520,14 @@ html, body {
 
 .portrait #loadout {
   left: 10px;
-  bottom: 170px; /* 避开左下角虚拟摇杆 */
+  bottom: 20px;
   flex-direction: column;
   max-height: 40vh;
   overflow-y: auto;
 }
 .portrait .loadout-icon { width: 32px; height: 32px; }
 
-/* 竖屏下虚拟摇杆位置微调（更靠左下） */
-.portrait #joystick-base {
-  left: calc(20px + env(safe-area-inset-left));
-  bottom: calc(20px + env(safe-area-inset-bottom));
-}
+/* 竖屏下暂停按钮位置微调（摇杆已改为浮动，无需固定位置覆盖） */
 .portrait #touch-pause-btn {
   top: calc(10px + env(safe-area-inset-top));
   right: calc(10px + env(safe-area-inset-right));
