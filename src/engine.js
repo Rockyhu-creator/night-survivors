@@ -49,10 +49,11 @@ export class Camera {
     this.shakeY = 0;
   }
 
-  follow(target, w, h, dt) {
+  // anchorY：目标在画面中的纵向锚点比例（0.5=居中；竖屏传 0.42 让玩家偏上，下方留出视野）
+  follow(target, w, h, dt, anchorY = 0.5) {
     const k = 1 - Math.pow(0.0015, dt);
     this.x += (target.x - w / 2 - this.x) * k;
-    this.y += (target.y - h / 2 - this.y) * k;
+    this.y += (target.y - h * anchorY - this.y) * k;
     this.trauma = Math.max(0, this.trauma - dt * 2.2);
     const mag = this.trauma * this.trauma * 14;
     this.shakeX = (Math.random() * 2 - 1) * mag;

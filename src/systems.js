@@ -77,6 +77,7 @@ export class PickupSystem {
           continue;
         }
         this.game.gainExp(g.value);
+        this.game.audio.pickup();
         this.game.fx.spawnSparks(player.x, player.y, g.def.color, 3);
         this.gems.splice(i, 1);
       }

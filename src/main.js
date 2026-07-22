@@ -59,6 +59,17 @@ document.getElementById('btn-resume').addEventListener('click', () => {
 
 game.showTitle();
 
+// 声音开关：默认静音，点击切换（M 键同效，见 game.onKey）
+const muteBtn = document.getElementById('btn-mute');
+muteBtn.textContent = game.audio.enabled ? '🔊' : '🔇';
+muteBtn.addEventListener('click', () => game.toggleMute());
+
+// 浏览器自动播放策略：首次用户手势时解锁 AudioContext
+// （AudioManager 内部已按 enabled 判断，未开启声音则不会真正创建上下文）
+const unlockAudio = () => { game.audio.ensureCtx(); };
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
+
 // 自动化测试调试钩子
 if (new URLSearchParams(window.location.search).has('debug')) {
   window.__game = game;

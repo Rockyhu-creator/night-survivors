@@ -7,6 +7,7 @@ import { PickupSystem, FXSystem } from './systems.js';
 import { UpgradeSystem } from './upgrade.js';
 import { UIManager } from './ui.js';
 import { findEvolvableRecipe, performEvolution } from './evolution.js';
+import { AudioManager } from './audio.js';
 
 const STEP = 1 / 60;
 
@@ -23,6 +24,8 @@ export class Game {
     this.rerollsLeft = 3;
     this.banishesLeft = 3;
     this.difficulty = DIFFICULTIES.normal;
+    // 相机纵向锚点：0.5=居中；竖屏下由 resize() 改为 0.42（玩家偏上，避免手指遮挡下方视野）
+    this.cameraAnchorY = 0.5;
     this.groundPattern = null;
     this.decals = [];
     this.generateDecals();
@@ -60,6 +63,7 @@ export class Game {
     this.fx = new FXSystem();
     this.upgrade = new UpgradeSystem(this);
     this.ui = new UIManager(this);
+    this.audio = new AudioManager();
 
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
@@ -104,6 +108,8 @@ export class Game {
       CONFIG.LOGICAL_HEIGHT = 540;
       document.documentElement.classList.remove('portrait');
     }
+    // 竖屏时相机锚点上移：玩家显示在画面 42% 高度处，下方多留视野（手指操作区在下半屏）
+    this.cameraAnchorY = isPortrait ? 0.42 : 0.5;
     this.canvas.width = CONFIG.LOGICAL_WIDTH;
     this.canvas.height = CONFIG.LOGICAL_HEIGHT;
     this.ctx.imageSmoothingEnabled = false;
@@ -123,7 +129,7 @@ export class Game {
     // 相机重新跟随玩家（避免方向切换后画面错位）
     if (this.player && this.player.x !== undefined) {
       this.camera.x = this.player.x - CONFIG.LOGICAL_WIDTH / 2;
-      this.camera.y = this.player.y - CONFIG.LOGICAL_HEIGHT / 2;
+      this.camera.y = this.player.y - CONFIG.LOGICAL_HEIGHT * this.cameraAnchorY;
     }
   }
 
@@ -150,8 +156,9 @@ export class Game {
     this.fx.reset();
     this.upgrade.reset();
     this.camera.x = -CONFIG.LOGICAL_WIDTH / 2;
-    this.camera.y = -CONFIG.LOGICAL_HEIGHT / 2;
+    this.camera.y = -CONFIG.LOGICAL_HEIGHT * this.cameraAnchorY;
     this.camera.trauma = 0;
+    this.audio.uiClick();
     this.weapons.addWeapon('blade');
     unlockInCollection('blade');
     this.ui.startGame();
@@ -183,7 +190,17 @@ export class Game {
   onKey(e) {
     if (e.code === 'Escape' || e.code === 'KeyP') {
       this.togglePause();
+    } else if (e.code === 'KeyM') {
+      this.toggleMute();
     }
+  }
+
+  // 声音开关（右上角按钮与 M 键共用），同步更新按钮图标
+  toggleMute() {
+    const on = this.audio.toggle();
+    const btn = document.getElementById('btn-mute');
+    if (btn) btn.textContent = on ? '🔊' : '🔇';
+    if (on) this.audio.uiClick();
   }
 
   togglePause() {
@@ -200,7 +217,7 @@ export class Game {
   step(dt) {
     this.time += dt;
     this.player.update(dt, this.input);
-    this.camera.follow(this.player, CONFIG.LOGICAL_WIDTH, CONFIG.LOGICAL_HEIGHT, dt);
+    this.camera.follow(this.player, CONFIG.LOGICAL_WIDTH, CONFIG.LOGICAL_HEIGHT, dt, this.cameraAnchorY);
     this.enemies.update(dt);
     this.weapons.update(dt);
     this.pickups.update(dt);
@@ -227,6 +244,7 @@ export class Game {
       if (options.length > 0) {
         this.expQueue -= 1;
         this.state = 'upgrading';
+        this.audio.levelup();
         this.upgrade.open(options);
       } else {
         this.expQueue = 0;
@@ -247,11 +265,13 @@ export class Game {
     this.kills += 1;
     this.pickups.drop(enemy.x, enemy.y, enemy.expValue);
     this.fx.spawnSparks(enemy.x, enemy.y, '#e74c3c', 6);
+    this.audio.kill();
   }
 
   onBossSpawn(def) {
     this.ui.showBossWarning(def.name);
     this.camera.addShake(0.8);
+    this.audio.bossWarning();
   }
 
   onBossKilled(e) {
@@ -268,24 +288,29 @@ export class Game {
       this.ui.showEvolutionBanner(artifact);
       this.ui.refreshLoadout();
       this.fx.spawnSparks(this.player.x, this.player.y, '#d4af37', 30);
+      this.audio.evolve();
     } else if (chest.boss) {
       this.gainExp(40);
       this.player.hp = this.player.maxHp;
       this.ui.showToast('Boss 宝箱: +40 经验,生命回满');
+      this.audio.chest();
     } else {
       this.gainExp(25);
       this.ui.showToast('宝箱: +25 经验');
+      this.audio.chest();
     }
   }
 
   onPlayerHit() {
     this.camera.addShake(0.55);
     this.ui.flashVignette();
+    this.audio.hit();
   }
 
   gameOver() {
     this.state = 'gameover';
     this.ui.showGameOver();
+    this.audio.gameover();
   }
 
   renderBackdropOnly() {
