@@ -378,14 +378,14 @@ html, body {
 .warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
 
 /* ---------- 手机端浮动摇杆 + 触屏暂停按钮 ---------- */
-/* 借鉴吸血鬼幸存者手游：左半屏全域触摸，按下位置即摇杆起点，松手隐藏 */
+/* 借鉴吸血鬼幸存者手游：全屏全域触摸，按下位置即摇杆起点，松手隐藏 */
 
-/* 触摸层：覆盖左半屏，接收 pointerdown 触发浮动摇杆 */
-/* 横屏时覆盖左半屏，竖屏时也覆盖左半屏（避免误触右侧暂停按钮） */
+/* 触摸层：覆盖全屏，接收 pointerdown 触发浮动摇杆 */
+/* z-index 低于暂停按钮(13)和升级/结算界面(20)，不会遮挡这些 UI */
 #touch-zone {
   position: absolute;
   left: 0; top: 0;
-  width: 50%; height: 100%;
+  width: 100%; height: 100%;
   z-index: 11;
   touch-action: none;
   display: none;
