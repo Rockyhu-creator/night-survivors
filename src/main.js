@@ -6,9 +6,15 @@ const game = new Game();
 game.init();
 
 // 触屏设备检测：激活手机端控件
-// 不依赖 CSS 的 pointer: coarse 媒体查询（微信内置浏览器等可能不支持），
-// 改为 JS 检测后给 <html> 加 .touch-device class，CSS 基于此 class 控制显隐
-const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+// 多重检测，任一命中即认为触屏设备（兼容微信 WebView 等特殊环境）
+// - ontouchstart：最基础 API，兼容性好
+// - maxTouchPoints：标准 API，能区分触屏/非触屏设备
+// - pointer: coarse：CSS 媒体查询，部分 WebView 不支持
+const isTouchDevice =
+  'ontouchstart' in window ||
+  (navigator.maxTouchPoints || 0) > 0 ||
+  (navigator.msMaxTouchPoints || 0) > 0 ||
+  window.matchMedia('(pointer: coarse)').matches;
 if (isTouchDevice) {
   document.documentElement.classList.add('touch-device');
   const mobileControls = new MobileControls(game);
