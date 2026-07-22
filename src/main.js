@@ -6,8 +6,11 @@ const game = new Game();
 game.init();
 
 // 触屏设备检测：激活手机端控件
+// 不依赖 CSS 的 pointer: coarse 媒体查询（微信内置浏览器等可能不支持），
+// 改为 JS 检测后给 <html> 加 .touch-device class，CSS 基于此 class 控制显隐
 const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (isTouchDevice) {
+  document.documentElement.classList.add('touch-device');
   const mobileControls = new MobileControls(game);
   mobileControls.enable();
 }

@@ -11,6 +11,10 @@ export class MobileControls {
   }
 
   buildDom() {
+    // 防御：移除可能存在的旧元素（防止重复实例化导致 ID 冲突）
+    document.getElementById('joystick-base')?.remove();
+    document.getElementById('touch-pause-btn')?.remove();
+
     // 虚拟摇杆：base 圆盘 + thumb 中心点
     this.joyBase = document.createElement('div');
     this.joyBase.id = 'joystick-base';

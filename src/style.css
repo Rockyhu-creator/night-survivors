@@ -394,11 +394,12 @@ html, body {
   font-family: var(--pixel-font); font-size: 14px;
   letter-spacing: 4px; color: var(--bone); opacity: 0.85;
 }
-@media (orientation: portrait) and (pointer: coarse) {
-  #rotate-hint { display: flex; }
+@media (orientation: portrait) {
+  .touch-device #rotate-hint { display: flex; }
 }
 
 /* ---------- 手机端虚拟摇杆 + 触屏暂停按钮 ---------- */
+/* 默认隐藏，仅 .touch-device 且非 .hidden 时显示 */
 #joystick-base {
   position: absolute;
   left: calc(30px + env(safe-area-inset-left));
@@ -409,8 +410,9 @@ html, body {
   border: 3px solid rgba(212, 175, 55, 0.5);
   z-index: 12;
   touch-action: none;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
 }
+.touch-device #joystick-base:not(.hidden) { display: flex; }
 #joystick-thumb {
   width: 60px; height: 60px;
   border-radius: 50%;
@@ -419,7 +421,6 @@ html, body {
   pointer-events: none;
   transition: transform 0.08s ease-out;
 }
-#joystick-base.hidden { display: none; }
 
 #touch-pause-btn {
   position: absolute;
@@ -433,85 +434,78 @@ html, body {
   border-radius: 6px;
   z-index: 13;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   touch-action: manipulation;
 }
-#touch-pause-btn.hidden { display: none; }
+.touch-device #touch-pause-btn:not(.hidden) { display: flex; }
 #touch-pause-btn:active { background: rgba(212, 175, 55, 0.3); }
 
-/* 仅触屏设备显示控件 */
-@media (pointer: fine) {
-  #joystick-base, #touch-pause-btn { display: none !important; }
-}
-
 /* ---------- 手机端响应式适配 ---------- */
-@media (max-width: 720px) and (pointer: coarse) {
-  /* 升级卡片纵向堆叠 */
-  #upgrade-cards {
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-    max-height: 70vh;
-    padding: 0 12px;
-  }
-  .upgrade-card {
-    width: min(420px, 88vw);
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    text-align: left;
-  }
-  .upgrade-card img { width: 56px; height: 56px; flex-shrink: 0; }
-  .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
-  .upgrade-card h3 { margin: 4px 0 4px; font-size: 16px; }
-  .upgrade-card p { font-size: 12px; line-height: 1.5; }
-  .upgrade-card .uc-pick { flex-shrink: 0; }
-
-  .levelup-title { font-size: 32px; letter-spacing: 8px; }
-  .levelup-sub { margin: 8px 0 18px; letter-spacing: 3px; font-size: 13px; }
-
-  /* 升级操作条触控友好 */
-  #upgrade-actions { gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
-  .ua-btn { padding: 10px 16px; font-size: 9px; }
-  .ua-hint { font-size: 10px; width: 100%; text-align: center; opacity: 0.6; }
-
-  /* HUD 缩放 */
-  #hud-top { top: 28px; gap: 20px; }
-  #hp-wrap { width: 160px; height: 16px; }
-  #timer { font-size: 20px; letter-spacing: 2px; }
-  #kill-count { width: 140px; font-size: 12px; }
-
-  /* 装备图标缩小 */
-  #loadout { left: 10px; bottom: 10px; gap: 6px; }
-  .loadout-icon { width: 36px; height: 36px; }
-  .loadout-lv { font-size: 7px; padding: 1px 2px; }
-
-  /* Boss 血条 */
-  #boss-bar-wrap { top: 56px; width: min(420px, 80vw); }
-  #boss-name { font-size: 14px; letter-spacing: 4px; }
-
-  /* 图鉴界面 */
-  #codex-screen { padding: 20px 12px; }
-  .codex-title { font-size: 30px; letter-spacing: 8px; }
-  .codex-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-  .codex-card { padding: 10px 6px; }
-  .codex-card img { width: 42px; height: 42px; }
-  .codex-card .cc-name { font-size: 12px; }
-  .codex-card .cc-hint { font-size: 10px; }
-
-  /* 暂停提示文案适配 */
-  .pause-hint { font-size: 12px; letter-spacing: 2px; }
-
-  /* 结算界面 */
-  .gameover-title { font-size: 36px; letter-spacing: 6px; }
-  .stat-line { font-size: 11px; gap: 14px; }
-  .stat-line b { min-width: 90px; }
-  .gameover-btns { gap: 14px; flex-wrap: wrap; }
-
-  /* 标题界面 */
-  .game-title { font-size: clamp(42px, 12vw, 72px); letter-spacing: 6px; }
-  .title-tagline { margin: 12px 0 22px; font-size: 13px; letter-spacing: 4px; }
-  .how-to { gap: 18px; margin-top: 24px; flex-wrap: wrap; }
-  .how-key { font-size: 8px; padding: 5px 7px; }
+/* 基于 .touch-device class（JS 检测后添加到 <html>），不依赖 pointer: coarse 媒体查询 */
+.touch-device #upgrade-cards {
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 70vh;
+  padding: 0 12px;
 }
+.touch-device .upgrade-card {
+  width: min(420px, 88vw);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+.touch-device .upgrade-card img { width: 56px; height: 56px; flex-shrink: 0; }
+.touch-device .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
+.touch-device .upgrade-card h3 { margin: 4px 0 4px; font-size: 16px; }
+.touch-device .upgrade-card p { font-size: 12px; line-height: 1.5; }
+.touch-device .upgrade-card .uc-pick { flex-shrink: 0; }
+
+.touch-device .levelup-title { font-size: 32px; letter-spacing: 8px; }
+.touch-device .levelup-sub { margin: 8px 0 18px; letter-spacing: 3px; font-size: 13px; }
+
+/* 升级操作条触控友好 */
+.touch-device #upgrade-actions { gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+.touch-device .ua-btn { padding: 10px 16px; font-size: 9px; }
+.touch-device .ua-hint { font-size: 10px; width: 100%; text-align: center; opacity: 0.6; }
+
+/* HUD 缩放 */
+.touch-device #hud-top { top: 28px; gap: 20px; }
+.touch-device #hp-wrap { width: 160px; height: 16px; }
+.touch-device #timer { font-size: 20px; letter-spacing: 2px; }
+.touch-device #kill-count { width: 140px; font-size: 12px; }
+
+/* 装备图标缩小 */
+.touch-device #loadout { left: 10px; bottom: 10px; gap: 6px; }
+.touch-device .loadout-icon { width: 36px; height: 36px; }
+.touch-device .loadout-lv { font-size: 7px; padding: 1px 2px; }
+
+/* Boss 血条 */
+.touch-device #boss-bar-wrap { top: 56px; width: min(420px, 80vw); }
+.touch-device #boss-name { font-size: 14px; letter-spacing: 4px; }
+
+/* 图鉴界面 */
+.touch-device #codex-screen { padding: 20px 12px; }
+.touch-device .codex-title { font-size: 30px; letter-spacing: 8px; }
+.touch-device .codex-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.touch-device .codex-card { padding: 10px 6px; }
+.touch-device .codex-card img { width: 42px; height: 42px; }
+.touch-device .codex-card .cc-name { font-size: 12px; }
+.touch-device .codex-card .cc-hint { font-size: 10px; }
+
+/* 暂停提示文案适配 */
+.touch-device .pause-hint { font-size: 12px; letter-spacing: 2px; }
+
+/* 结算界面 */
+.touch-device .gameover-title { font-size: 36px; letter-spacing: 6px; }
+.touch-device .stat-line { font-size: 11px; gap: 14px; }
+.touch-device .stat-line b { min-width: 90px; }
+.touch-device .gameover-btns { gap: 14px; flex-wrap: wrap; }
+
+/* 标题界面 */
+.touch-device .game-title { font-size: clamp(42px, 12vw, 72px); letter-spacing: 6px; }
+.touch-device .title-tagline { margin: 12px 0 22px; font-size: 13px; letter-spacing: 4px; }
+.touch-device .how-to { gap: 18px; margin-top: 24px; flex-wrap: wrap; }
+.touch-device .how-key { font-size: 8px; padding: 5px 7px; }
