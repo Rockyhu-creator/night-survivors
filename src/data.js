@@ -9,6 +9,23 @@ export const CONFIG = {
   BEST_KEY: 'night_survivors_best',
 };
 
+// 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
+// spawnMul=刷怪频率倍率，bossCalm=Boss存活时刷怪量比例，bossGapMul=Boss间隔倍率
+export const DIFFICULTIES = {
+  easy: {
+    id: 'easy', name: '夜行者', desc: '敌人较弱,升级回满血,适合休闲',
+    hpSlope: 0.25, dmgSlope: 0.15, spawnMul: 0.7, bossCalm: 0.3, bossGapMul: 1.5,
+  },
+  normal: {
+    id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
+    hpSlope: 0.35, dmgSlope: 0.22, spawnMul: 1.0, bossCalm: 0.5, bossGapMul: 1.0,
+  },
+  hard: {
+    id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
+    hpSlope: 0.50, dmgSlope: 0.30, spawnMul: 1.3, bossCalm: 0.7, bossGapMul: 0.85,
+  },
+};
+
 export const ENEMY_TYPES = {
   bat: {
     sprite: 'bat', hp: 12, speed: 95, damage: 8, exp: 1,
@@ -83,7 +100,7 @@ export const PASSIVES = {
 };
 
 export function expForLevel(level) {
-  return Math.floor(5 + (level - 1) * 4 + Math.pow(level - 1, 1.7) * 2);
+  return Math.floor(4 + (level - 1) * 3 + Math.pow(level - 1, 1.7) * 2);
 }
 
 export function loadBest() {

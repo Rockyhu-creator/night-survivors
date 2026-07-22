@@ -99,10 +99,11 @@ export class EnemyManager {
 
   statScale() {
     const t = this.game.time;
+    const diff = this.game.difficulty;
     return {
-      hp: 1 + (t / 60) * 0.55,
+      hp: 1 + (t / 60) * diff.hpSlope,
       speed: 1 + Math.min(0.5, (t / 60) * 0.06),
-      damage: 1 + (t / 60) * 0.22,
+      damage: 1 + (t / 60) * diff.dmgSlope,
     };
   }
 
@@ -246,22 +247,26 @@ export class EnemyManager {
   update(dt) {
     const scale = this.statScale();
     const t = this.game.time;
+    const diff = this.game.difficulty;
     for (const def of BOSSES) {
-      if (t >= def.unlockAt && !this.bossSpawned.has(def.id)) {
+      const unlockAt = Math.round(def.unlockAt * diff.bossGapMul);
+      if (t >= unlockAt && !this.bossSpawned.has(def.id)) {
         this.bossSpawned.add(def.id);
         this.activeBoss = this.spawnBoss(def);
         this.game.onBossSpawn?.(def);
       }
     }
-    const interval = Math.max(0.18, 0.9 - t / 160);
+    const interval = Math.max(0.18, 0.9 - t / 160) / diff.spawnMul;
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer += interval;
+      // Boss 存活时降低刷怪量，让玩家集中火力打 Boss
+      const bossCalm = this.activeBoss ? diff.bossCalm : 1;
       if (this.enemies.length < CONFIG.ENEMY_CAP) {
         this.spawnAt(this.pickType(), scale);
-        // 1 分钟后每波刷 2 只,2 分钟后 3 只,形成密度成长
         const extra = t > 120 ? 2 : (t > 60 ? 1 : 0);
-        for (let i = 0; i < extra && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
+        const adjustedExtra = Math.round(extra * bossCalm);
+        for (let i = 0; i < adjustedExtra && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
           this.spawnAt(this.pickType(), scale);
         }
       }

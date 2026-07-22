@@ -82,6 +82,30 @@ html, body {
 .gothic-btn.ghost { border-color: #4a3f5e; font-size: 12px; padding: 12px 30px; }
 .gothic-btn.ghost:hover { background: #4a3f5e; box-shadow: 0 0 18px rgba(142,68,173,.5); }
 
+/* 难度选择 */
+#difficulty-select { margin-top: 20px; text-align: center; }
+.diff-label {
+  font-family: var(--pixel-font); font-size: 10px; color: #6a5a7e;
+  letter-spacing: 2px; margin-bottom: 10px;
+}
+.diff-options { display: flex; gap: 10px; justify-content: center; }
+.diff-btn {
+  font-family: var(--body-font); font-size: 14px; font-weight: 600;
+  color: #8a7a9e; background: rgba(20,12,30,.7);
+  border: 2px solid #3a2f4e; padding: 8px 20px; cursor: pointer;
+  border-radius: 4px; transition: all .15s ease; letter-spacing: 1px;
+}
+.diff-btn:hover { color: var(--bone); border-color: #5a4f6e; }
+.diff-btn.active {
+  color: var(--gold); border-color: var(--gold);
+  background: rgba(212,175,55,.15);
+  box-shadow: 0 0 14px rgba(212,175,55,.4);
+}
+.diff-desc {
+  font-size: 13px; color: #7a6a8e; margin-top: 8px; min-height: 18px;
+  font-style: italic;
+}
+
 .best-record {
   margin-top: 22px; font-family: var(--pixel-font);
   font-size: 11px; color: var(--gold);

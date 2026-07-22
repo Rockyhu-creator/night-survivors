@@ -1,4 +1,4 @@
-import { CONFIG, expForLevel, unlockInCollection } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -20,6 +20,7 @@ export class Game {
     this.expQueue = 0;
     this.accumulator = 0;
     this.lastTs = 0;
+    this.difficulty = DIFFICULTIES.normal;
     this.groundPattern = null;
     this.decals = [];
     this.generateDecals();
@@ -98,6 +99,10 @@ export class Game {
     this.ui.showTitle();
   }
 
+  setDifficulty(id) {
+    this.difficulty = DIFFICULTIES[id] || DIFFICULTIES.normal;
+  }
+
   startRun() {
     this.time = 0;
     this.kills = 0;
@@ -154,12 +159,16 @@ export class Game {
   processLevelUps() {
     const player = this.player;
     let needed = expForLevel(player.level);
+    let leveled = false;
     while (player.exp >= needed) {
       player.exp -= needed;
       player.level += 1;
       this.expQueue += 1;
+      leveled = true;
       needed = expForLevel(player.level);
     }
+    // 升级回满血（对齐官方吸血鬼幸存者机制）
+    if (leveled) player.hp = player.maxHp;
     if (this.expQueue > 0) {
       const options = this.upgrade.rollOptions();
       if (options.length > 0) {
