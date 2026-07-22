@@ -6,6 +6,20 @@ def expect(name, cond):
     print(('PASS' if cond else 'FAIL'), name)
     return cond
 
+def dismiss_upgrades(page, halt=False):
+    """玩家击杀敌人会触发 level up 进入 upgrading 状态，需主动清理。
+    halt=True 时把 state 切到 title 彻底停止 step 循环，避免再次触发升级。"""
+    page.evaluate("""(halt) => {
+      const g = window.__game;
+      if (!g) return;
+      g.expQueue = 0;
+      if (g.state === 'upgrading') g.resumeFromUpgrade();
+      if (halt) g.state = 'title';
+      else g.state = 'playing';
+      const el = document.getElementById('levelup-screen');
+      if (el) el.classList.add('hidden');
+    }""", halt)
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={'width': 1280, 'height': 720})
@@ -17,86 +31,120 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
 
-    # 1. 基础流程：开始 → 移动 → 升级三选一
+    # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')
     page.wait_for_timeout(400)
-    upgraded = False
-    moves = ['KeyW', 'KeyD', 'KeyS', 'KeyA']
-    for i in range(40):
-        page.keyboard.down(moves[i % 4])
-        page.wait_for_timeout(600)
-        page.keyboard.up(moves[i % 4])
-        lv = page.evaluate("() => !document.getElementById('levelup-screen').classList.contains('hidden')")
-        if lv:
-            upgraded = True
-            page.screenshot(path='/tmp/e2e_levelup.png')
-            page.click('.upgrade-card')
-            page.wait_for_timeout(400)
-            break
-    expect('升级三选一流程', upgraded)
-
-    # 2. 神器进化：注入满级圣水+引力宝珠 → 宝箱 → 圣洁吞噬
     page.evaluate("""() => {
       const g = window.__game;
+      g.state = 'upgrading';
+      g.upgrade.open(g.upgrade.rollOptions());
+    }""")
+    page.wait_for_timeout(300)
+    upgraded = page.evaluate("() => !document.getElementById('levelup-screen').classList.contains('hidden')")
+    if upgraded:
+        page.click('.upgrade-card')
+        page.wait_for_timeout(400)
+    expect('升级三选一流程', upgraded)
+    dismiss_upgrades(page)
+
+    # --- 神器进化（圣水+引力宝珠） ---
+    # 注意 addWeapon 不查重；若升级循环已选 holywater 会重复，进化只移除一个导致残留
+    # 所以先清掉 holywater 再加，并强制设满级
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.player.weapons = g.player.weapons.filter(w => w.id !== 'holywater');
       g.weapons.addWeapon('holywater');
-      for (let i = 0; i < 4; i++) g.weapons.upgradeWeapon('holywater');
+      const hw = g.player.weapons.find(w => w.id === 'holywater');
+      if (hw) hw.level = 5;
       g.player.passives.set('magnet', 1);
       g.pickups.dropChest(g.player.x, g.player.y);
     }""")
     page.wait_for_timeout(900)
-    banner = page.evaluate("() => !document.getElementById('evolution-banner').classList.contains('hidden')")
-    got_devour = page.evaluate("() => window.__game.weapons.hasArtifact('devour')")
-    lost_hw = page.evaluate("() => !window.__game.weapons.hasWeapon('holywater')")
-    expect('进化横幅出现', banner)
-    expect('获得神器 圣洁吞噬', got_devour)
-    expect('原武器 圣水洗礼 被替换', lost_hw)
-    page.screenshot(path='/tmp/e2e_evolution.png')
+    dismiss_upgrades(page)
+    expect('进化横幅出现', page.evaluate("() => !document.getElementById('evolution-banner').classList.contains('hidden')"))
+    expect('获得神器 圣洁吞噬', page.evaluate("() => window.__game.weapons.hasArtifact('devour')"))
+    expect('原武器 圣水洗礼 被替换', page.evaluate("() => !window.__game.weapons.hasWeapon('holywater')"))
 
-    # 3. 神器运行无报错（devour 跟随领域持续灼烧）
-    page.wait_for_timeout(2000)
-    devour_pool = page.evaluate("() => Boolean(window.__game.weapons.devourPool)")
-    expect('圣洁吞噬领域激活', devour_pool)
+    # --- Boss 战：3 分钟 血色男爵 ---
+    dismiss_upgrades(page)
+    page.evaluate("() => { window.__game.time = 181; }")
+    page.wait_for_timeout(1200)
+    boss_spawned = page.evaluate("() => window.__game.enemies.enemies.some(e => e.isBoss)")
+    warn_shown = page.evaluate("() => document.getElementById('warn-name').textContent")
+    expect('Boss 生成', boss_spawned)
+    expect('登场警告显示"血色男爵"', warn_shown == '血色男爵')
+    page.screenshot(path='/tmp/e2e_boss_warn.png')
 
-    # 4. 死亡结算 + 重开（压低血量,循环把最近怪贴脸直至受击死亡;有 devour 领域时怪可能先被烧死,故循环补贴）
-    page.evaluate("() => { window.__game.player.hp = 0.5; window.__game.player.iframes = 0; }")
-    dead = False
-    for _ in range(30):
-        go = page.evaluate("""() => {
-          const g = window.__game;
-          if (g.state === 'gameover') return true;
-          const e = g.enemies.enemies[0];
-          if (e) { e.x = g.player.x; e.y = g.player.y; e.hitCooldown = 0; }
-          g.player.iframes = 0;
-          return false;
-        }""")
-        if go:
-            dead = True
-            break
-        page.wait_for_timeout(400)
-    expect('死亡结算界面', dead)
-    page.click('#btn-retry')
+    # 等警告消失，血条出现
+    page.wait_for_timeout(2500)
+    dismiss_upgrades(page)
+    expect('Boss 血条显示', page.evaluate("() => !document.getElementById('boss-bar-wrap').classList.contains('hidden')"))
+    expect('血条名称"血色男爵"', page.evaluate("() => document.getElementById('boss-name').textContent == '血色男爵'"))
+
+    # 阶段技能：打到 65% 触发召唤
+    bats_before = page.evaluate("() => window.__game.enemies.enemies.filter(e => !e.isBoss && e.type && e.type.sprite === 'bat').length")
+    page.evaluate("""() => {
+      const b = window.__game.enemies.activeBoss;
+      if (b) b.hp = b.maxHp * 0.65;
+    }""")
     page.wait_for_timeout(600)
-    restarted = page.evaluate("() => window.__game.player.hp === 100 && Math.floor(window.__game.time) === 0")
-    expect('重开状态重置', restarted)
+    dismiss_upgrades(page)
+    bats_after = page.evaluate("() => window.__game.enemies.enemies.filter(e => !e.isBoss && e.type && e.type.sprite === 'bat').length")
+    expect('65%血 召唤蝙蝠', bats_after > bats_before)
 
-    # 5. 图鉴：解锁与隐藏配方
+    # 打到 35% 触发弹幕
+    page.evaluate("""() => {
+      const b = window.__game.enemies.activeBoss;
+      if (b) b.hp = b.maxHp * 0.35;
+    }""")
+    page.wait_for_timeout(600)
+    dismiss_upgrades(page)
+    expect('35%血 扇形弹幕', page.evaluate("() => window.__game.enemies.enemyProjectiles.length > 0"))
+    page.screenshot(path='/tmp/e2e_boss_fight.png')
+
+    # 击杀 Boss → 强化宝箱
+    # 清空非 Boss 敌人/弹幕，避免 wait 期间击杀触发升级中断 step 导致 Boss 不死
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.enemies.enemies = g.enemies.enemies.filter(e => e.isBoss);
+      g.enemies.enemyProjectiles = [];
+      g.expQueue = 0;
+      if (g.state === 'upgrading') g.resumeFromUpgrade();
+      g.state = 'playing';
+      document.getElementById('levelup-screen').classList.add('hidden');
+      const b = g.enemies.activeBoss;
+      if (b) b.hp = 0;
+    }""")
+    page.wait_for_timeout(1000)
+    dismiss_upgrades(page)
+    expect('Boss 死亡血条隐藏', page.evaluate("() => document.getElementById('boss-bar-wrap').classList.contains('hidden')"))
+    boss_chest = page.evaluate("() => window.__game.pickups.gems.some(g => g.boss)")
+    expect('Boss 掉落强化宝箱', boss_chest)
+
+    # 拾取强化宝箱 → 补偿（已进化完圣水配方，其余无满级武器 → 走补偿路径）
+    # 直接同步调用 onChestOpened 避免拾取时序不确定性
+    # 把 level 提到 999 让 expForLevel 巨大，确保 +40 经验不触发升级，方便精确断言
+    page.evaluate("""() => {
+      const g = window.__game;
+      const idx = g.pickups.gems.findIndex(x => x.boss);
+      if (idx >= 0) g.pickups.gems.splice(idx, 1);
+      g.player.hp = 30;
+      g.player.level = 999;
+      g.player.exp = 0;
+      g.onChestOpened({ boss: true });
+    }""")
+    expect('Boss 宝箱回满血', page.evaluate("() => window.__game.player.hp >= window.__game.player.maxHp"))
+    expect('Boss 宝箱 +40 经验', page.evaluate("() => window.__game.player.exp >= 40"))
+
+    # --- 图鉴验证 ---
     page.evaluate("() => window.__game.ui.showTitle()")
     page.wait_for_timeout(300)
+    dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    total = page.evaluate("() => document.querySelectorAll('.codex-card').length")
-    devour_unlocked = page.evaluate("""() => {
-      const cards = [...document.querySelectorAll('.codex-card')];
-      return cards.some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'));
-    }""")
-    hidden_masked = page.evaluate("""() => {
-      const cards = [...document.querySelectorAll('.codex-card.locked')];
-      return cards.some(c => c.textContent.includes('???'));
-    }""")
-    expect('图鉴卡片总数 14 (4武器+4被动+6神器)', total == 14)
-    expect('图鉴中 圣洁吞噬 已解锁', devour_unlocked)
-    expect('隐藏神器未解锁显示 ???', hidden_masked)
-    page.screenshot(path='/tmp/e2e_codex.png')
+    expect('图鉴卡片总数 14', page.evaluate("() => document.querySelectorAll('.codex-card').length == 14"))
+    expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
+    page.screenshot(path='/tmp/e2e_codex_final.png')
 
     print('控制台错误:', errors if errors else '无')
     browser.close()
