@@ -1,12 +1,24 @@
 export class Input {
   constructor() {
     this.keys = new Set();
+    this.virtualX = 0;
+    this.virtualY = 0;
     window.addEventListener('keydown', (e) => {
       this.keys.add(e.code);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.virtualX = 0;
+      this.virtualY = 0;
+    });
+  }
+
+  // 由 MobileControls 调用，写入虚拟摇杆的归一化向量
+  setVirtualInput(x, y) {
+    this.virtualX = x;
+    this.virtualY = y;
   }
 
   axis() {
@@ -16,6 +28,9 @@ export class Input {
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) x += 1;
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) y -= 1;
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) y += 1;
+    // 合并虚拟摇杆输入：每轴取绝对值最大者
+    if (Math.abs(this.virtualX) > Math.abs(x)) x = this.virtualX;
+    if (Math.abs(this.virtualY) > Math.abs(y)) y = this.virtualY;
     if (x !== 0 && y !== 0) {
       const inv = 1 / Math.SQRT2;
       x *= inv;
