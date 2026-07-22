@@ -13,6 +13,19 @@ if (isTouchDevice) {
   document.documentElement.classList.add('touch-device');
   const mobileControls = new MobileControls(game);
   mobileControls.enable();
+
+  // 方向变化时重新计算分辨率（game.resize() 已监听 window 'resize'，
+  // 但 orientationchange 在某些移动浏览器需要单独监听 + 延迟读取尺寸）
+  window.addEventListener('orientationchange', () => setTimeout(() => game.resize(), 100));
+  // 微信 WebView 可能不触发 orientationchange，加 200ms 轮询兜底
+  let lastPortrait = window.innerHeight > window.innerWidth;
+  setInterval(() => {
+    const isPortrait = window.innerHeight > window.innerWidth;
+    if (isPortrait !== lastPortrait) {
+      lastPortrait = isPortrait;
+      game.resize();
+    }
+  }, 200);
 }
 
 // 难度选择

@@ -377,27 +377,6 @@ html, body {
 }
 .warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
 
-/* ---------- 手机端竖屏旋转提示 ---------- */
-#rotate-hint {
-  position: absolute; inset: 0; z-index: 100;
-  background: rgba(6, 3, 12, 0.92);
-  display: none;
-  flex-direction: column; align-items: center; justify-content: center;
-  gap: 18px;
-}
-.rotate-icon { font-size: 64px; animation: rotateHint 2s ease-in-out infinite; }
-@keyframes rotateHint {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(90deg); }
-}
-.rotate-text {
-  font-family: var(--pixel-font); font-size: 14px;
-  letter-spacing: 4px; color: var(--bone); opacity: 0.85;
-}
-@media (orientation: portrait) {
-  .touch-device #rotate-hint { display: flex; }
-}
-
 /* ---------- 手机端虚拟摇杆 + 触屏暂停按钮 ---------- */
 /* 默认隐藏，仅 .touch-device 且非 .hidden 时显示 */
 #joystick-base {
@@ -509,3 +488,34 @@ html, body {
 .touch-device .title-tagline { margin: 12px 0 22px; font-size: 13px; letter-spacing: 4px; }
 .touch-device .how-to { gap: 18px; margin-top: 24px; flex-wrap: wrap; }
 .touch-device .how-key { font-size: 8px; padding: 5px 7px; }
+
+/* ---------- 手机端竖屏布局适配（.portrait 由 JS 添加到 <html>） ---------- */
+.portrait #hud-top {
+  flex-direction: column;
+  gap: 8px;
+  top: 24px;
+}
+.portrait #hp-wrap { width: 180px; }
+.portrait #timer { font-size: 18px; }
+.portrait #kill-count { width: auto; text-align: center; }
+
+.portrait #boss-bar-wrap { top: 130px; width: min(420px, 86vw); }
+
+.portrait #loadout {
+  left: 10px;
+  bottom: 170px; /* 避开左下角虚拟摇杆 */
+  flex-direction: column;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.portrait .loadout-icon { width: 32px; height: 32px; }
+
+/* 竖屏下虚拟摇杆位置微调（更靠左下） */
+.portrait #joystick-base {
+  left: calc(20px + env(safe-area-inset-left));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+}
+.portrait #touch-pause-btn {
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+}

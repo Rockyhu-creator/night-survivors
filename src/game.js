@@ -66,25 +66,48 @@ export class Game {
     this.resize();
 
     loadAssets().then(() => {
-      const ground = sprite('ground');
-      if (ground) {
-        // 地面纹理放大到 128 平铺并整体压暗提亮层次
-        const tile = document.createElement('canvas');
-        tile.width = 128;
-        tile.height = 128;
-        const tctx = tile.getContext('2d');
-        tctx.drawImage(ground, 0, 0, 128, 128);
-        tctx.fillStyle = 'rgba(46, 36, 72, 0.45)';
-        tctx.fillRect(0, 0, 128, 128);
-        this.groundPattern = this.ctx.createPattern(tile, 'repeat');
-      }
+      this.regenerateGroundPattern();
       if (this.state === 'loading') this.state = 'title';
     });
 
     requestAnimationFrame((ts) => this.frame(ts));
   }
 
+  // 重新生成地面 pattern（canvas 重建后调用）
+  regenerateGroundPattern() {
+    const ground = sprite('ground');
+    if (!ground || !this.ctx) return;
+    const tile = document.createElement('canvas');
+    tile.width = 128;
+    tile.height = 128;
+    const tctx = tile.getContext('2d');
+    tctx.drawImage(ground, 0, 0, 128, 128);
+    tctx.fillStyle = 'rgba(46, 36, 72, 0.45)';
+    tctx.fillRect(0, 0, 128, 128);
+    this.groundPattern = this.ctx.createPattern(tile, 'repeat');
+  }
+
   resize() {
+    // 仅触屏设备启用竖屏模式（桌面端缩窗口不触发）
+    const isTouchDevice = document.documentElement.classList.contains('touch-device');
+    // 竖屏判定：高明显大于宽（避免边缘 case 误判，如 browser automation 时尺寸为 0）
+    const isPortrait = isTouchDevice && window.innerHeight > window.innerWidth * 1.2;
+    // 动态切换逻辑分辨率
+    if (isPortrait) {
+      CONFIG.LOGICAL_WIDTH = 540;
+      CONFIG.LOGICAL_HEIGHT = 960;
+      document.documentElement.classList.add('portrait');
+    } else {
+      CONFIG.LOGICAL_WIDTH = 960;
+      CONFIG.LOGICAL_HEIGHT = 540;
+      document.documentElement.classList.remove('portrait');
+    }
+    this.canvas.width = CONFIG.LOGICAL_WIDTH;
+    this.canvas.height = CONFIG.LOGICAL_HEIGHT;
+    this.ctx.imageSmoothingEnabled = false;
+    // 重新生成地面 pattern（canvas 尺寸变化后 pattern 可能失效）
+    this.regenerateGroundPattern();
+    // 等比缩放居中
     const scale = Math.min(
       window.innerWidth / CONFIG.LOGICAL_WIDTH,
       window.innerHeight / CONFIG.LOGICAL_HEIGHT,
@@ -95,6 +118,11 @@ export class Game {
     this.canvas.style.height = `${h}px`;
     this.canvas.style.left = `${Math.floor((window.innerWidth - w) / 2)}px`;
     this.canvas.style.top = `${Math.floor((window.innerHeight - h) / 2)}px`;
+    // 相机重新跟随玩家（避免方向切换后画面错位）
+    if (this.player && this.player.x !== undefined) {
+      this.camera.x = this.player.x - CONFIG.LOGICAL_WIDTH / 2;
+      this.camera.y = this.player.y - CONFIG.LOGICAL_HEIGHT / 2;
+    }
   }
 
   showTitle() {
