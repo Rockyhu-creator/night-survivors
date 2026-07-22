@@ -1,8 +1,16 @@
 import { Game } from './game.js';
 import { DIFFICULTIES } from './data.js';
+import { MobileControls } from './mobile-controls.js';
 
 const game = new Game();
 game.init();
+
+// 触屏设备检测：激活手机端控件
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+if (isTouchDevice) {
+  const mobileControls = new MobileControls(game);
+  mobileControls.enable();
+}
 
 // 难度选择
 const diffDesc = document.getElementById('diff-desc');
