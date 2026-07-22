@@ -142,7 +142,20 @@ with sync_playwright() as p:
     dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    expect('图鉴卡片总数 14', page.evaluate("() => document.querySelectorAll('.codex-card').length == 14"))
+    # 图鉴卡片 = 武器(4) + 被动道具(8) + 神器(6) = 18，随 data.js 新增条目需同步更新此处
+    codex = page.evaluate("""() => {
+      const secs = [...document.querySelectorAll('.codex-section')];
+      const byTitle = {};
+      for (const s of secs) {
+        const t = s.querySelector('h3').textContent;
+        byTitle[t] = s.querySelectorAll('.codex-card').length;
+      }
+      return { total: document.querySelectorAll('.codex-card').length, byTitle };
+    }""")
+    expect('图鉴卡片总数 18 (4武器+8被动+6神器)', codex['total'] == 18)
+    expect('图鉴 武器4张', codex['byTitle'].get('武器') == 4)
+    expect('图鉴 被动道具8张', codex['byTitle'].get('被动道具') == 8)
+    expect('图鉴 神器6张', codex['byTitle'].get('神器') == 6)
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     page.screenshot(path='/tmp/e2e_codex_final.png')
 
