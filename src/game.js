@@ -194,17 +194,22 @@ export class Game {
 
   onBossKilled(e) {
     this.ui.hideBossBar();
+    this.pickups.dropBossChest(e.x, e.y);
     this.fx.spawnSparks(e.x, e.y, '#d4af37', 40);
     this.camera.addShake(1);
   }
 
-  onChestOpened() {
+  onChestOpened(chest = {}) {
     const recipe = findEvolvableRecipe(this.player, this.weapons);
     if (recipe) {
       const artifact = performEvolution(this.player, this.weapons, recipe);
       this.ui.showEvolutionBanner(artifact);
       this.ui.refreshLoadout();
       this.fx.spawnSparks(this.player.x, this.player.y, '#d4af37', 30);
+    } else if (chest.boss) {
+      this.gainExp(40);
+      this.player.hp = this.player.maxHp;
+      this.ui.showToast('Boss 宝箱: +40 经验,生命回满');
     } else {
       this.gainExp(25);
       this.ui.showToast('宝箱: +25 经验');

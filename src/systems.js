@@ -43,6 +43,16 @@ export class PickupSystem {
     });
   }
 
+  dropBossChest(x, y) {
+    this.gems.push({
+      chest: true, boss: true,
+      x, y,
+      value: 0,
+      def: { key: 'gemLarge', min: 0, size: 40, color: '#d4af37' },
+      magnet: false, vx: 0, vy: 0, bob: 0,
+    });
+  }
+
   update(dt) {
     const player = this.game.player;
     const magnetR = player.magnetRange;
@@ -79,16 +89,23 @@ export class PickupSystem {
       const sy = g.y - cam.oy + Math.sin(g.bob) * 2.5;
       const img = sprite(g.def.key);
       const pulse = 1 + Math.sin(g.bob * 1.4) * 0.12;
-      const size = (g.chest ? 40 : g.def.size) * pulse;
+      const size = (g.chest ? (g.boss ? 48 : 40) : g.def.size) * pulse;
       ctx.save();
       if (g.chest) {
-        ctx.fillStyle = 'rgba(212,175,55,0.25)';
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + 10, 18, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (g.boss) {
+          ctx.fillStyle = 'rgba(212,175,55,0.35)';
+          ctx.beginPath();
+          ctx.ellipse(sx, sy + 12, 22, 9, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = 'rgba(212,175,55,0.25)';
+          ctx.beginPath();
+          ctx.ellipse(sx, sy + 10, 18, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.shadowColor = g.chest ? '#d4af37' : g.def.color;
-      ctx.shadowBlur = g.chest ? 18 : 8;
+      ctx.shadowBlur = g.chest ? (g.boss ? 24 : 18) : 8;
       if (img) ctx.drawImage(img, sx - size / 2, sy - size / 2, size, size);
       else {
         ctx.fillStyle = g.def.color;
