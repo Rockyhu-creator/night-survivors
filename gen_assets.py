@@ -544,6 +544,50 @@ def gen_decal_rubble():
     save(img, "decal_rubble.png", 1)
 
 
+def gen_decal_bone():
+    W, H = 26, 14
+    img, d = new_canvas(W, H)
+    d.ellipse([2, 10, 24, 14], fill=(22, 16, 30, 255))   # 投影
+    bone_d, bone_m, bone_l = (150, 142, 124, 255), (190, 182, 164, 255), (238, 234, 220, 255)
+    # 散落骨头1（水平）
+    for x in range(4, 14):
+        px(d, x, 7, bone_m); px(d, x, 8, bone_m)
+    fill_ellipse_shaded(d, 4, 7.5, 2, 2, (bone_d, bone_m, bone_l))
+    fill_ellipse_shaded(d, 13, 7.5, 2, 2, (bone_d, bone_m, bone_l))
+    # 散落骨头2（略斜，偏下）
+    for x in range(11, 21):
+        py = 10 + (x - 11) // 4
+        px(d, x, py, bone_m); px(d, x, py + 1, bone_m)
+    fill_ellipse_shaded(d, 11, 10, 2, 2, (bone_d, bone_m, bone_l))
+    fill_ellipse_shaded(d, 20, 12, 2, 2, (bone_d, bone_m, bone_l))
+    # 颅骨
+    fill_ellipse_shaded(d, 19, 5, 3, 3, ((150, 142, 124), (200, 192, 174), (240, 236, 222)))
+    px(d, 18, 5, (40, 36, 30)); px(d, 20, 5, (40, 36, 30))  # 眼窝
+    for x in range(17, 22):
+        px(d, x, 8, bone_d)  # 下颌
+    save(img, "decal_bone.png", 1)
+
+
+def gen_decal_cross():
+    W, H = 14, 22
+    img, d = new_canvas(W, H)
+    d.ellipse([2, 17, 12, 21], fill=(22, 16, 30, 255))   # 投影
+    stone_d, stone_m, stone_l = (80, 76, 96, 255), (112, 107, 128, 255), (160, 155, 175, 255)
+    # 竖杆
+    for y in range(3, 21):
+        for x in range(6, 9):
+            t = (x - 6) / 3
+            px(d, x, y, stone_m if t < 0.5 else stone_d)
+    # 横杆
+    for y in range(8, 12):
+        for x in range(2, 12):
+            t = (x - 2) / 10
+            px(d, x, y, stone_m if 0.2 < t < 0.8 else stone_d)
+    fill_ellipse_shaded(d, 7, 3, 2, 2, (stone_d, stone_m, stone_l))  # 顶端圆头
+    px(d, 7, 12, (60, 56, 76)); px(d, 7, 13, (60, 56, 76))  # 裂纹
+    save(img, "decal_cross.png", 1)
+
+
 # ---------- 标题背景 ----------
 def gen_bg():
     W, H = 960, 540
@@ -777,6 +821,8 @@ gen_ground()
 gen_decal_tomb()
 gen_decal_wood()
 gen_decal_rubble()
+gen_decal_bone()
+gen_decal_cross()
 gen_bg()
 gen_icon_skull()
 gen_art_storm()

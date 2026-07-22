@@ -36,12 +36,28 @@ export class Game {
     this.decals.length = 0;
     let seed = 12345;
     const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    for (let i = 0; i < 260; i += 1) {
+    // 装饰密度 [PLACEHOLDER]：260→150 约降 42%，整体更通透；真机可微调 120~180
+    const COUNT = 150;
+    // 加权随机：大件(墓碑/枯木/碎石)少、小件(枯骨/十字架)多，呈现自然散落墓园
+    const weights = [2, 2, 3, 5, 4]; // tomb, wood, rubble, bone, cross
+    const wsum = weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < COUNT; i += 1) {
+      let r = rand() * wsum;
+      let kind = 0;
+      for (let k = 0; k < weights.length; k += 1) {
+        if (r < weights[k]) { kind = k; break; }
+        r -= weights[k];
+      }
+      // 大件缩放偏大、小件(枯骨/十字架)偏小，强化“散落点缀”观感
+      let sBase, sVar;
+      if (kind === 3) { sBase = 0.5; sVar = 0.45; }       // 枯骨：小
+      else if (kind === 4) { sBase = 0.6; sVar = 0.4; }   // 十字架：中小
+      else { sBase = 0.8; sVar = 0.5; }                   // 墓碑/枯木/碎石
       this.decals.push({
         x: (rand() - 0.5) * 3000,
         y: (rand() - 0.5) * 3000,
-        kind: Math.floor(rand() * 3),
-        s: 0.7 + rand() * 0.7,
+        kind,
+        s: sBase + rand() * sVar,
         flip: rand() > 0.5,
       });
     }
@@ -322,8 +338,8 @@ export class Game {
     const w = CONFIG.LOGICAL_WIDTH;
     const h = CONFIG.LOGICAL_HEIGHT;
     // 各装饰以底部为锚点的绘制高度（像素），乘以随机缩放 d.s
-    const BASE_H = [30, 34, 16];
-    const KEYS = ['tomb', 'wood', 'rubble'];
+    const BASE_H = [30, 34, 16, 12, 18];
+    const KEYS = ['tomb', 'wood', 'rubble', 'bone', 'cross'];
     ctx.save();
     for (const d of this.decals) {
       const sx = d.x - cam.ox;
@@ -352,12 +368,20 @@ export class Game {
           ctx.fillRect(-2, -22, 4, 24);
           ctx.fillRect(-9, -18, 8, 3);
           ctx.fillRect(1, -26, 9, 3);
-        } else {
+        } else if (d.kind === 2) {
           ctx.beginPath();
           ctx.arc(-5, 0, 4, 0, Math.PI * 2);
           ctx.arc(3, -2, 5, 0, Math.PI * 2);
           ctx.arc(8, 1, 3, 0, Math.PI * 2);
           ctx.fill();
+        } else if (d.kind === 3) {
+          // 枯骨兜底（素材未加载时）
+          ctx.fillRect(-8, -2, 16, 2);
+          ctx.fillRect(-6, 1, 12, 2);
+        } else {
+          // 小十字架兜底
+          ctx.fillRect(-1, -10, 2, 12);
+          ctx.fillRect(-4, -4, 8, 2);
         }
       }
       ctx.restore();

@@ -21,6 +21,8 @@ const files = {
   tomb: 'decal_tomb.png',
   wood: 'decal_wood.png',
   rubble: 'decal_rubble.png',
+  bone: 'decal_bone.png',
+  cross: 'decal_cross.png',
 };
 
 const images = {};
