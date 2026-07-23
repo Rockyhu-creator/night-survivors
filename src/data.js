@@ -194,37 +194,37 @@ export function saveBest(best) {
 // 数值全部 [PLACEHOLDER]：cost 为解锁价、偏向幅度按设计文档假设，真机试玩后调。
 export const BLOODLINES = [
   {
-    id: 'wanderer', name: '流浪者', icon: 'blade',
+    id: 'wanderer', name: '流浪者', icon: 'portrait_wanderer',
     desc: '均衡起手 · 血之飞刃 + 微幅全能力',
     weapon: 'blade', cost: 0, hidden: false,
     apply: (g) => { g.player.damageMul += 0.05; g.player.maxHp += 5; },
   },
   {
-    id: 'saint', name: '圣徒', icon: 'holywater',
+    id: 'saint', name: '圣徒', icon: 'portrait_saint',
     desc: '圣水起手 · 范围与持续 +20%',
     weapon: 'holywater', cost: 80, hidden: false,
     apply: (g) => { g.player.areaMul *= 1.20; },
   },
   {
-    id: 'berserker', name: '狂战', icon: 'axe',
+    id: 'berserker', name: '狂战', icon: 'portrait_berserker',
     desc: '战斧起手 · 攻速 +12% · 移速 +6%',
     weapon: 'axe', cost: 120, hidden: false,
     apply: (g) => { g.player.cooldownMul *= 0.88; g.player.speedMul += 0.06; },
   },
   {
-    id: 'thunder', name: '雷巫', icon: 'lightning',
+    id: 'thunder', name: '雷巫', icon: 'portrait_thunder',
     desc: '雷霆起手 · 冷却缩减 +20%',
     weapon: 'lightning', cost: 160, hidden: false,
     apply: (g) => { g.player.cooldownMul *= 0.80; },
   },
   {
-    id: 'bloodthirsty', name: '嗜血者', icon: 'blade',
+    id: 'bloodthirsty', name: '嗜血者', icon: 'portrait_bloodthirsty',
     desc: '飞刃起手 · 命中回血 + 伤害 +5%',
     weapon: 'blade', cost: 200, hidden: false,
     apply: (g) => { g.player.lifesteal += 1.5; g.player.damageMul += 0.05; },
   },
   {
-    id: 'apostle', name: '永夜使徒', icon: 'player',
+    id: 'apostle', name: '永夜使徒', icon: 'portrait_apostle',
     desc: '无武器起手 · 高难高回报: 伤害+30% · 移速+25% · 冷却-25% · 生命-20%',
     weapon: null, cost: 260, hidden: true,
     apply: (g) => {

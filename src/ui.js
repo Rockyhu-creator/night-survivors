@@ -391,7 +391,17 @@ export class UIManager {
         btn.disabled = true;
       }
 
-      card.append(img, name, desc, btn);
+      // 初始武器说明（纯文本，不放图标）
+      const wLine = document.createElement('p');
+      wLine.className = 'bl-weapon';
+      if (def.weapon) {
+        const wdef = WEAPONS[def.weapon];
+        wLine.innerHTML = `初始武器：<b>${wdef.name}</b><br><span class="bl-wdesc">${wdef.desc}</span>`;
+      } else {
+        wLine.innerHTML = `初始武器：<b>无</b><br><span class="bl-wdesc">纯血裔天赋流</span>`;
+      }
+
+      card.append(img, name, wLine, desc, btn);
       this.bloodlineContentEl.appendChild(card);
     }
   }

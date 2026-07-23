@@ -20,6 +20,12 @@ const files = {
   art_sepulcher: 'art_sepulcher.png',
   art_eternalwhip: 'art_eternalwhip.png',
   art_matrix: 'art_matrix.png',
+  portrait_wanderer: 'portrait_wanderer.png',
+  portrait_saint: 'portrait_saint.png',
+  portrait_berserker: 'portrait_berserker.png',
+  portrait_thunder: 'portrait_thunder.png',
+  portrait_bloodthirsty: 'portrait_bloodthirsty.png',
+  portrait_apostle: 'portrait_apostle.png',
   gemSmall: 'gem_small.png',
   gemMedium: 'gem_medium.png',
   gemLarge: 'gem_large.png',
@@ -34,6 +40,7 @@ const files = {
 
 const images = {};
 const processed = {};
+if (typeof window !== 'undefined') window.__assets = files;
 
 export function hasImage(key) {
   return Boolean(images[key]);

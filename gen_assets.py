@@ -953,6 +953,109 @@ def gen_art_matrix():  # 圣光矩阵：八芒星 + 放射
     save(img, "art_matrix.png", 2)
 
 
+# ---------- 角色全身立绘（UX 改造，2026-07-23）：40×60 全身像，不含武器 ----------
+def gen_portrait(name, cloth, skin, accent, feature):
+    W, H = 40, 60
+    img, d = new_canvas(W, H)
+    cx = 20
+    cd, cm, cl = cloth
+    sd, sm, sl = skin
+    # 腿（底部 3 行为靴）
+    for side in (-1, 1):
+        for x in range(cx + side * 3, cx + side * 3 + 4):
+            for y in range(42, 58):
+                px(d, x, y, cd if y < 55 else (24, 14, 20))
+    # 躯干（左亮右暗）
+    for y in range(22, 42):
+        for x in range(cx - 9, cx + 10):
+            t = (x - (cx - 9)) / 19
+            px(d, x, y, cl if t < 0.3 else (cm if t < 0.7 else cd))
+    # 手臂
+    for side in (-1, 1):
+        for y in range(23, 41):
+            px(d, cx + side * 10, y, cm); px(d, cx + side * 11, y, cd)
+    # 肩
+    fill_ellipse_shaded(d, cx - 9, 23, 4, 4, cloth)
+    fill_ellipse_shaded(d, cx + 9, 23, 4, 4, cloth)
+    # 头
+    fill_ellipse_shaded(d, cx, 12, 7, 8, skin)
+    # 眼
+    px(d, cx - 3, 12, accent); px(d, cx + 2, 12, accent)
+    # 各血裔特征
+    feature(d, cx)
+    save(img, name, 2)
+
+
+def _feat_wanderer(d, cx):
+    cloak = ((38, 6, 14), (120, 20, 38), (192, 56, 72))
+    fill_ellipse_shaded(d, cx, 6, 9, 6, cloak)          # 兜顶
+    for y in range(6, 16):
+        px(d, cx - 9, y, cloak[1]); px(d, cx + 8, y, cloak[1])  # 侧帘
+    px(d, cx, 33, (46, 204, 113)); px(d, cx - 1, 33, (46, 204, 113)); px(d, cx, 32, (120, 255, 180))  # 腰带灵魂宝石
+
+
+def _feat_saint(d, cx):
+    gold = ((160, 130, 40), (212, 175, 55), (255, 230, 140))
+    for a in range(0, 360, 6):                            # 光环
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 9), round(6 + math.sin(rad) * 3), gold[2])
+    rect(d, cx - 1, 27, cx + 1, 34, gold[1]); rect(d, cx - 3, 29, cx + 3, 31, gold[1])  # 胸前十字
+
+
+def _feat_berserker(d, cx):
+    for x in range(cx - 4, cx + 5): px(d, x, 9, (40, 20, 20))   # 眼上横疤
+    for i in range(5):                                          # 战纹
+        px(d, cx - 6 + i, 14 + i, (200, 40, 40)); px(d, cx + 3 - i, 14 + i, (200, 40, 40))
+    fur = ((200, 180, 150), (230, 215, 190), (255, 245, 230))
+    fill_ellipse_shaded(d, cx - 9, 23, 4, 3, fur); fill_ellipse_shaded(d, cx + 9, 23, 4, 3, fur)  # 毛肩
+
+
+def _feat_thunder(d, cx):
+    bolt = ((180, 120, 230, 255), (230, 200, 255, 255))
+    pts = [(cx, 26), (cx - 3, 31), (cx, 31), (cx - 3, 37)]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
+        for i in range(steps):
+            x = x0 + (x1 - x0) * i / steps; y = y0 + (y1 - y0) * i / steps
+            px(d, round(x), round(y), bolt[1])
+    px(d, cx - 12, 20, bolt[0]); px(d, cx + 12, 22, bolt[0])   # 肩头电火花
+
+
+def _feat_bloodthirsty(d, cx):
+    cape = ((120, 15, 30), (180, 30, 50), (230, 90, 110))
+    for y in range(2, 14):                                       # 高领血披风
+        half = 9 - abs(y - 2) * 0.4
+        for x in range(int(cx - half), int(cx + half) + 1):
+            px(d, x, y, cape[0])
+    px(d, cx - 2, 16, (245, 245, 245)); px(d, cx + 1, 16, (245, 245, 245))  # 獠牙
+
+
+def _feat_apostle(d, cx):
+    void = ((18, 12, 30), (45, 35, 65), (80, 65, 110))
+    fill_ellipse_shaded(d, cx, 12, 7, 8, void)                  # 无面暗影
+    px(d, cx - 3, 12, (120, 220, 255)); px(d, cx + 2, 12, (120, 220, 255))  # 幽光眼
+    px(d, cx - 3, 11, (200, 245, 255)); px(d, cx + 2, 11, (200, 245, 255))
+
+
+def gen_portrait_wanderer():
+    gen_portrait('portrait_wanderer.png', ((38, 6, 14), (120, 20, 38), (192, 56, 72)), ((225, 200, 180), (245, 225, 210), (255, 245, 235)), (255, 45, 45), _feat_wanderer)
+
+def gen_portrait_saint():
+    gen_portrait('portrait_saint.png', ((200, 200, 215), (235, 235, 245), (255, 255, 255)), ((230, 205, 180), (248, 228, 205), (255, 248, 235)), (255, 210, 90), _feat_saint)
+
+def gen_portrait_berserker():
+    gen_portrait('portrait_berserker.png', ((90, 40, 40), (150, 70, 60), (200, 110, 90)), ((180, 140, 110), (210, 170, 140), (235, 200, 170)), (255, 230, 120), _feat_berserker)
+
+def gen_portrait_thunder():
+    gen_portrait('portrait_thunder.png', ((60, 30, 110), (110, 70, 170), (160, 120, 215)), ((210, 200, 225), (235, 225, 245), (255, 250, 255)), (245, 215, 110), _feat_thunder)
+
+def gen_portrait_bloodthirsty():
+    gen_portrait('portrait_bloodthirsty.png', ((120, 15, 30), (180, 30, 50), (230, 90, 110)), ((210, 200, 205), (235, 228, 232), (250, 245, 248)), (255, 40, 40), _feat_bloodthirsty)
+
+def gen_portrait_apostle():
+    gen_portrait('portrait_apostle.png', ((18, 12, 30), (45, 35, 65), (80, 65, 110)), ((30, 25, 45), (55, 48, 75), (90, 80, 120)), (120, 220, 255), _feat_apostle)
+
+
 gen_player()
 gen_bat()
 gen_skeleton()
@@ -986,4 +1089,10 @@ gen_weapon_cross()
 gen_art_sepulcher()
 gen_art_eternalwhip()
 gen_art_matrix()
+gen_portrait_wanderer()
+gen_portrait_saint()
+gen_portrait_berserker()
+gen_portrait_thunder()
+gen_portrait_bloodthirsty()
+gen_portrait_apostle()
 print("---- 全部素材生成完成 ----")
