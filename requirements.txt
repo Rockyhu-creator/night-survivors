@@ -1,0 +1,6 @@
+# 程序化像素素材生成器依赖（gen_assets.py）
+# 锁定 Pillow 精确版本，避免 PNG 字节漂移：
+# 不同 Pillow 构建产出的 zlib/DEFLATE 流与辅助块（gAMA/sRGB/iCCP 等）字节不同，
+# 即使像素完全一致，重跑也会让 git 误判文件改动。锁死后 + 固定 compress_level 即可复现。
+# 注：Pillow 预编译 wheel 内置 zlib，锁 Pillow 版本即锁定 zlib 编码行为。
+Pillow==12.3.0

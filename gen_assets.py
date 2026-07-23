@@ -49,7 +49,11 @@ def save(img, name, scale=1):
     img = outline(img)
     if scale != 1:
         img = img.resize((img.width*scale, img.height*scale), Image.NEAREST)
-    img.save(f"{OUT}/{name}")
+    # 锁定 PNG 编码参数并剥离随构建/版本变化的辅助块（gamma/icc/srgb/transparency），
+    # 确保同一份源码多次生成得到逐字节一致的 PNG，根治“字节漂移”。
+    for _k in ("gamma", "icc_profile", "transparency", "srgb"):
+        img.info.pop(_k, None)
+    img.save(f"{OUT}/{name}", compress_level=9)
     print("OK", name)
 
 
