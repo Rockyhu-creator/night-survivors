@@ -179,13 +179,74 @@ with sync_playwright() as p:
     expect('每层至少1个武器向(配额)', weighted['weaponHits'] == weighted['N'])
     expect('加权倾向已有武器(blade命中率>35%)', weighted['bladeHits'] > weighted['N'] * 0.35)
 
+    # --- 新武器：可装备 + 开火命中（武器丰富化，2026-07-23）---
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.player.weapons = [];
+      g.weapons.addWeapon('aura');
+      g.weapons.addWeapon('whip');
+      g.weapons.addWeapon('cross');
+      g.enemies.enemies = [];
+      g.expQueue = 0;
+      g.player.level = 999;            // 防止 wait 期间击杀触发升级中断 step
+      // 用游戏自身 createEnemy 生成完整靶子（手写 dummy 缺 speed 等字段会在 update 里变 NaN）
+      const type = g.enemies.pickType();
+      const dummy = g.enemies.createEnemy(type, g.enemies.statScale(), g.player.x + 30, g.player.y);
+      dummy.hp = 9999; dummy.maxHp = 9999; dummy.speed = 0;   // 静止贴脸厚血靶
+      g.enemies.enemies.push(dummy);
+      g.__testDummy = dummy;
+    }""")
+    page.wait_for_timeout(1300)
+    fired = page.evaluate("""() => {
+      const g = window.__game;
+      const dummy = g.__testDummy;
+      return {
+        aura: g.weapons.hasWeapon('aura'),
+        whip: g.weapons.hasWeapon('whip'),
+        cross: g.weapons.hasWeapon('cross'),
+        dmgHappened: !dummy || dummy.hp < 9999,
+      };
+    }""")
+    expect('新武器 亡灵光环 可装备', fired['aura'])
+    expect('新武器 噬魂长鞭 可装备', fired['whip'])
+    expect('新武器 黎明圣印 可装备', fired['cross'])
+    expect('新武器开火命中敌人', fired['dmgHappened'])
+    # 清理靶子与敌人，避免影响后续断言
+    page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.expQueue = 0; }")
+
+    # --- 新配方进化：武器满级+被动 → 神器（武器丰富化，2026-07-23）---
+    for wid, pid, aid in [('aura','heart','sepulcher'), ('whip','boots','eternalwhip'), ('cross','tome','matrix')]:
+        page.evaluate("""(args) => {
+          const g = window.__game;
+          const wid = args[0], pid = args[1], aid = args[2];
+          g.state = 'playing';
+          g.enemies.enemies = [];
+          g.expQueue = 0;
+          if (g.state === 'upgrading') g.resumeFromUpgrade();
+          g.state = 'playing';
+          document.getElementById('levelup-screen').classList.add('hidden');
+          g.player.weapons = [];
+          g.player.passives = new Map();
+          g.weapons.addWeapon(wid);
+          const w = g.player.weapons.find(x => x.id === wid);
+          if (w) w.level = 5;
+          g.player.passives.set(pid, 1);
+          g.onChestOpened({ boss: true });
+        }""", [wid, pid, aid])
+        page.wait_for_timeout(400)
+        dismiss_upgrades(page)
+        got = page.evaluate("""(aid) => window.__game.weapons.hasArtifact(aid)""", aid)
+        expect(f'新配方进化 → {aid} 神器', got)
+        page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.expQueue = 0; }")
+
     # --- 图鉴验证 ---
     page.evaluate("() => window.__game.ui.showTitle()")
     page.wait_for_timeout(300)
     dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    # 图鉴卡片 = 武器(4) + 被动道具(9) + 神器(6) = 19，随 data.js 新增条目需同步更新此处
+    # 图鉴卡片 = 武器(7) + 被动道具(9) + 神器(9) = 25，随 data.js 新增条目需同步更新此处
     codex = page.evaluate("""() => {
       const secs = [...document.querySelectorAll('.codex-section')];
       const byTitle = {};
@@ -195,10 +256,10 @@ with sync_playwright() as p:
       }
       return { total: document.querySelectorAll('.codex-card').length, byTitle };
     }""")
-    expect('图鉴卡片总数 19 (4武器+9被动+6神器)', codex['total'] == 19)
-    expect('图鉴 武器4张', codex['byTitle'].get('武器') == 4)
+    expect('图鉴卡片总数 25 (7武器+9被动+9神器)', codex['total'] == 25)
+    expect('图鉴 武器7张', codex['byTitle'].get('武器') == 7)
     expect('图鉴 被动道具9张', codex['byTitle'].get('被动道具') == 9)
-    expect('图鉴 神器6张', codex['byTitle'].get('神器') == 6)
+    expect('图鉴 神器9张', codex['byTitle'].get('神器') == 9)
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     page.screenshot(path='/tmp/e2e_codex_final.png')
 

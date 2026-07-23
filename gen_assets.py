@@ -836,6 +836,123 @@ def gen_art_tempest():  # 雷劫（隐藏）：粗壮紫雷劈落裂纹地面
     save(img, "art_tempest.png", 2)
 
 
+# ---------- 武器丰富化：3 把新武器图标（2026-07-23） ----------
+def gen_weapon_aura():  # 亡灵光环：紫色双环 + 中心骷髅微光
+    S = 40
+    img, d = new_canvas(S)
+    ring_m, ring_l = (150, 70, 180, 255), (210, 150, 230, 255)
+    cx, cy = 20, 20
+    for r in (15, 12):
+        col = ring_l if r == 12 else ring_m
+        for a in range(0, 360, 4):
+            rad = math.radians(a)
+            px(d, round(cx + math.cos(rad) * r), round(cy + math.sin(rad) * r), col)
+    for y in range(16, 25):  # 中心骷髅
+        for x in range(15, 26):
+            dx = (x - cx) / 6.0; dy = (y - cy) / 6.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (40, 18, 55, 255))
+    px(d, 17, 19, (255, 80, 200)); px(d, 22, 19, (255, 80, 200))
+    save(img, "weapon_aura.png", 2)
+
+def gen_weapon_whip():  # 噬魂长鞭：弯曲鞭身 + 柄 + 尖
+    S = 40
+    img, d = new_canvas(S)
+    leather, leather_hi, tip = (120, 50, 60, 255), (200, 110, 120, 255), (240, 200, 180, 255)
+    pts = []
+    for i in range(20):
+        t = i / 19
+        x = 8 + t * 22
+        y = 6 + math.sin(t * math.pi * 1.5) * 18 + t * 10
+        pts.append((x, y))
+    for (x, y) in pts:
+        xi, yi = round(x), round(y)
+        px(d, xi, yi, leather_hi); px(d, xi + 1, yi, leather); px(d, xi, yi + 1, leather)
+    rect(d, 6, 4, 10, 9, leather)
+    px(d, round(pts[-1][0]), round(pts[-1][1]), tip)
+    save(img, "weapon_whip.png", 2)
+
+def gen_weapon_cross():  # 黎明圣印：放射光芒 + 金环 + 十字
+    S = 40
+    img, d = new_canvas(S)
+    gold, gold_hi, ray = (212, 175, 55, 255), (255, 230, 140, 255), (255, 210, 90, 255)
+    cx, cy = 20, 20
+    for k in range(8):  # 放射
+        a = math.radians(k * 45 + 22.5)
+        for r in range(16, 19):
+            px(d, round(cx + math.cos(a) * r), round(cy + math.sin(a) * r), ray)
+    for r in (13, 11):  # 环
+        col = gold if r == 11 else gold_hi
+        for a in range(0, 360, 4):
+            rad = math.radians(a)
+            px(d, round(cx + math.cos(rad) * r), round(cy + math.sin(rad) * r), col)
+    rect(d, 18, 9, 22, 31, gold); rect(d, 14, 16, 26, 24, gold)
+    px(d, 19, 10, gold_hi); px(d, 20, 10, gold_hi)
+    save(img, "weapon_cross.png", 2)
+
+
+# ---------- 武器丰富化：3 个新进化神器图标（2026-07-23） ----------
+def gen_art_sepulcher():  # 寂灭结界：紫光包裹棺木 + 十字铭文
+    S = 40
+    img, d = new_canvas(S)
+    glow = (180, 90, 200, 255); glow_hi = (230, 170, 240, 255)
+    wood_d, wood_m, wood_l = (70, 40, 90, 255), (120, 80, 140, 255), (170, 120, 190, 255)
+    cx = 20
+    for y in range(4, 36):
+        for x in range(4, 36):
+            dx = (x - cx) / 16.0; dy = (y - 20) / 16.0
+            dd = dx * dx + dy * dy
+            if dd < 1:
+                px(d, x, y, (glow[0], glow[1], glow[2], int(70 * (1 - dd))))
+    for y in range(8, 33):  # 棺木（菱形）
+        half = 10 - abs(y - 20) * 0.5
+        if half < 0:
+            half = 0
+        rh = round(half)
+        for x in range(cx - rh, cx + rh + 1):
+            t = (x - (cx - rh)) / (rh * 2 + 1) if rh > 0 else 0.5
+            col = wood_l if t < 0.3 else (wood_m if t < 0.7 else wood_d)
+            px(d, x, y, col)
+    rect(d, 18, 12, 22, 28, wood_d); rect(d, 14, 16, 26, 20, wood_d)
+    px(d, 19, 12, glow_hi); px(d, 20, 12, glow_hi)
+    save(img, "art_sepulcher.png", 2)
+
+def gen_art_eternalwhip():  # 永劫之鞭：双鞭交叉 + 中心结
+    S = 40
+    img, d = new_canvas(S)
+    leather, leather_hi = (120, 50, 60, 255), (220, 130, 140, 255)
+    cx, cy = 20, 20
+    for off in (-1, 1):
+        for i in range(24):
+            t = i / 23
+            x = cx + off * (t - 0.5) * 30
+            y = cy + (t - 0.5) * 30
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, leather_hi); px(d, xi + (1 if off > 0 else -1), yi, leather)
+    for y in range(17, 24):  # 中心结
+        for x in range(17, 24):
+            if (x - 20) ** 2 + (y - 20) ** 2 < 10:
+                px(d, x, y, (150, 70, 80, 255))
+    save(img, "art_eternalwhip.png", 2)
+
+def gen_art_matrix():  # 圣光矩阵：八芒星 + 放射
+    S = 40
+    img, d = new_canvas(S)
+    gold, gold_hi, ray = (212, 175, 55, 255), (255, 235, 150, 255), (255, 215, 90, 255)
+    cx, cy = 20, 20
+    for k in range(16):  # 放射
+        a = math.radians(k * 22.5)
+        for r in range(8, 19):
+            px(d, round(cx + math.cos(a) * r), round(cy + math.sin(a) * r), ray if r > 14 else gold)
+    for y in range(10, 31):  # 八芒星核心
+        for x in range(10, 31):
+            dx = (x - cx) / 10.0; dy = (y - cy) / 10.0
+            c1 = abs(dx) + abs(dy); c2 = max(abs(dx), abs(dy))
+            if c1 < 0.9 or c2 < 0.55:
+                px(d, x, y, gold if (c1 < 0.5 or c2 < 0.3) else gold_hi)
+    save(img, "art_matrix.png", 2)
+
+
 gen_player()
 gen_bat()
 gen_skeleton()
@@ -863,4 +980,10 @@ gen_art_spiral()
 gen_art_stormcall()
 gen_art_crimson()
 gen_art_tempest()
+gen_weapon_aura()
+gen_weapon_whip()
+gen_weapon_cross()
+gen_art_sepulcher()
+gen_art_eternalwhip()
+gen_art_matrix()
 print("---- 全部素材生成完成 ----")

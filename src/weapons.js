@@ -7,6 +7,7 @@ export class WeaponSystem {
     this.projectiles = [];
     this.pools = [];
     this.bolts = [];
+    this.slashes = [];
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -15,6 +16,7 @@ export class WeaponSystem {
     this.projectiles.length = 0;
     this.pools.length = 0;
     this.bolts.length = 0;
+    this.slashes.length = 0;
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -64,6 +66,14 @@ export class WeaponSystem {
     this.updateProjectiles(dt);
     this.updatePools(dt);
     this.updateBolts(dt);
+    this.updateSlashes(dt);
+  }
+
+  updateSlashes(dt) {
+    for (let i = this.slashes.length - 1; i >= 0; i -= 1) {
+      this.slashes[i].life -= dt;
+      if (this.slashes[i].life <= 0) this.slashes.splice(i, 1);
+    }
   }
 
   updateArtifact(weapon, dt) {
@@ -155,6 +165,53 @@ export class WeaponSystem {
         const target = game.enemies.nearestTo(player.x, player.y, 320);
         if (target) this.strikeLightning(target, { damage: 30 * player.damageMul, chains: 2, chainRange: 160 }, new Set());
       }
+    } else if (weapon.id === 'sepulcher') {
+      // 寂灭结界：更大光环持续伤害 + 每 1.2s 向 4 向迸射骨刺
+      st.devourAngle += dt;
+      const r = 150;
+      for (const e of game.enemies.enemiesNear(player.x, player.y, r + 30)) {
+        if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < r) {
+          game.enemies.damageEnemy(e, 20 * player.damageMul, 0, 0);
+        }
+      }
+      st.sepTimer = (st.sepTimer || 0) - dt;
+      if (st.sepTimer <= 0) {
+        st.sepTimer = 1.2;
+        for (let i = 0; i < 4; i += 1) {
+          const ang = (i / 4) * Math.PI * 2 + st.devourAngle;
+          this.projectiles.push({
+            kind: 'blade', x: player.x, y: player.y,
+            vx: Math.cos(ang) * 360, vy: Math.sin(ang) * 360,
+            damage: 24 * player.damageMul, pierce: 2, life: 1.4, spin: 0, hitSet: new Set(),
+          });
+        }
+      }
+    } else if (weapon.id === 'eternalwhip') {
+      // 永劫之鞭：每 1.0s 三向(-20°/0/+20°)齐扫、更宽
+      st.ewTimer = (st.ewTimer || 0) - dt;
+      if (st.ewTimer <= 0) {
+        st.ewTimer = 1.0;
+        const target = this.pickTarget(0);
+        const base = target ? Math.atan2(target.y - player.y, target.x - player.x) : (player.facing >= 0 ? 0 : Math.PI);
+        for (const off of [-0.35, 0, 0.35]) {
+          this.applyWhip(player, base + off, { damage: 30, length: 300, width: 70 });
+        }
+      }
+    } else if (weapon.id === 'matrix') {
+      // 圣光矩阵：每 1.2s 常驻八向放射、穿透 3
+      st.mxTimer = (st.mxTimer || 0) - dt;
+      if (st.mxTimer <= 0) {
+        st.mxTimer = 1.2;
+        const n = 8;
+        for (let i = 0; i < n; i += 1) {
+          const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+          this.projectiles.push({
+            kind: 'blade', x: player.x, y: player.y,
+            vx: Math.cos(ang) * 440, vy: Math.sin(ang) * 440,
+            damage: 30 * player.damageMul, pierce: 3, life: 1.6, spin: 0, hitSet: new Set(),
+          });
+        }
+      }
     }
   }
 
@@ -216,7 +273,64 @@ export class WeaponSystem {
         const target = enemies[Math.floor(Math.random() * enemies.length)];
         this.strikeLightning(target, s, new Set());
       }
+    } else if (weapon.id === 'aura') {
+      // 亡灵光环：贴身脉冲，对环内所有敌人造成 tick 伤害（连续 AoE，与圣水远处领域互补）
+      const r = s.radius * (player.areaMul || 1);
+      for (const e of game.enemies.enemiesNear(player.x, player.y, r + 30)) {
+        if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < r) {
+          game.enemies.damageEnemy(e, s.damage * player.damageMul, 0, 0);
+          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), '#c060a0');
+          // 血裔·吸血(嗜血者) 同步回血
+          if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
+        }
+      }
+    } else if (weapon.id === 'whip') {
+      // 噬魂长鞭：朝最近敌人方向挥出长条 hitbox（静止时朝面向），一线清空
+      const target = this.pickTarget(0) || enemies[0];
+      const ang = target
+        ? Math.atan2(target.y - player.y, target.x - player.x)
+        : (player.facing >= 0 ? 0 : Math.PI);
+      this.applyWhip(player, ang, s);
+    } else if (weapon.id === 'cross') {
+      // 黎明圣印：多向放射（4/6/8 方向），复用 blade 投射物渲染
+      const n = s.count;
+      for (let i = 0; i < n; i += 1) {
+        const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+        this.projectiles.push({
+          kind: 'blade', x: player.x, y: player.y,
+          vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
+          damage: s.damage * player.damageMul,
+          pierce: s.pierce, life: 1.6, spin: 0, hitSet: new Set(),
+        });
+      }
     }
+  }
+
+  // 长鞭：沿方向线段 hitbox 采样，命中矩形内敌人（点到线段距离判定）
+  applyWhip(player, ang, s) {
+    const game = this.game;
+    const len = s.length;
+    const halfW = (s.width || 44) / 2;
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang);
+    for (let t = 20; t <= len; t += 12) {
+      const cx = player.x + dx * t;
+      const cy = player.y + dy * t;
+      for (const e of game.enemies.enemiesNear(cx, cy, halfW + 30)) {
+        if (e.hp <= 0) continue;
+        const px = e.x - player.x;
+        const py = e.y - player.y;
+        const proj = px * dx + py * dy;
+        if (proj < 0 || proj > len) continue;
+        const perp = Math.abs(px * dy - py * dx);
+        if (perp < halfW + e.radius) {
+          game.enemies.damageEnemy(e, s.damage * player.damageMul, dx, dy);
+          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), '#c060a0');
+          if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
+        }
+      }
+    }
+    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.18, maxLife: 0.18 });
   }
 
   pickTarget(offset = 0) {
@@ -353,6 +467,55 @@ export class WeaponSystem {
       ctx.beginPath();
       ctx.arc(sx, sy, pool.radius * (0.85 + Math.sin(pool.age * 6) * 0.08), 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+
+    // 亡灵光环 + 长鞭横扫 + 寂灭结界（武器丰富化新增视觉）
+    const auraW = this.game.player.weapons.find((w) => w.id === 'aura' && !w.artifact);
+    if (auraW) {
+      const st = this.stats(auraW);
+      const r = st.radius * (this.game.player.areaMul || 1);
+      const pulse = 0.85 + Math.sin(this.game.time * 4) * 0.1;
+      const sx = this.game.player.x - cam.ox;
+      const sy = this.game.player.y - cam.oy;
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = '#7a3b6e';
+      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.7;
+      ctx.strokeStyle = '#c060a0';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    // 寂灭结界：更亮更大的光环
+    if (this.hasArtifact('sepulcher')) {
+      const sx = this.game.player.x - cam.ox;
+      const sy = this.game.player.y - cam.oy;
+      const r = 150;
+      const pulse = 0.85 + Math.sin(this.game.time * 4) * 0.1;
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      ctx.fillStyle = '#8a2f5a';
+      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = '#e07ac0';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    // 长鞭横扫弧
+    for (const sl of this.slashes) {
+      const a = sl.life / sl.maxLife;
+      ctx.save();
+      ctx.globalAlpha = a * 0.85;
+      ctx.translate(sl.x - cam.ox, sl.y - cam.oy);
+      ctx.rotate(sl.ang);
+      const grad = ctx.createLinearGradient(0, 0, sl.len, 0);
+      grad.addColorStop(0, 'rgba(192,96,160,0.1)');
+      grad.addColorStop(1, 'rgba(224,122,192,0.9)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, -sl.width / 2, sl.len, sl.width);
       ctx.restore();
     }
 

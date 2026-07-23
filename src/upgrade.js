@@ -134,6 +134,9 @@ export class UpgradeSystem {
       if (next.damage) bits.push(`伤害 ${next.damage}`);
       if (next.count) bits.push(`数量 ${next.count}`);
       if (next.strikes) bits.push(`落雷 ${next.strikes}`);
+      if (next.radius) bits.push(`半径 ${next.radius}`);
+      if (next.length) bits.push(`长度 ${next.length}`);
+      if (next.width) bits.push(`宽度 ${next.width}`);
       if (next.cooldown) bits.push(`冷却 ${next.cooldown}s`);
       return { tag: `升级 → LV.${lv + 1}`, tagClass: '', title: option.def.name, desc: bits.join(' · '), icon: option.def.icon };
     }

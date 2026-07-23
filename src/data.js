@@ -114,6 +114,40 @@ export const WEAPONS = {
       { damage: 54, cooldown: 1.8, strikes: 4, chains: 4, chainRange: 200 },
     ],
   },
+  // 以下 3 把为武器丰富化新增（2026-07-23），机制形态与现有 4 把正交。数值 [PLACEHOLDER] 待真机校准
+  aura: {
+    id: 'aura', name: '亡灵光环', icon: 'weapon_aura', maxLevel: 5,
+    desc: '周身脉冲光环,踏入之敌持续受腐蚀',
+    levels: [
+      { damage: 6,  cooldown: 0.6,  radius: 70 },
+      { damage: 9,  cooldown: 0.6,  radius: 85 },
+      { damage: 13, cooldown: 0.55, radius: 100 },
+      { damage: 18, cooldown: 0.5,  radius: 115 },
+      { damage: 24, cooldown: 0.5,  radius: 130 },
+    ],
+  },
+  whip: {
+    id: 'whip', name: '噬魂长鞭', icon: 'weapon_whip', maxLevel: 5,
+    desc: '朝最近敌人挥出长鞭,横扫一线之敌',
+    levels: [
+      { damage: 12, cooldown: 1.6, length: 180, width: 44 },
+      { damage: 16, cooldown: 1.5, length: 210, width: 48 },
+      { damage: 22, cooldown: 1.35, length: 245, width: 54 },
+      { damage: 28, cooldown: 1.2, length: 280, width: 60 },
+      { damage: 36, cooldown: 1.0, length: 320, width: 70 },
+    ],
+  },
+  cross: {
+    id: 'cross', name: '黎明圣印', icon: 'weapon_cross', maxLevel: 5,
+    desc: '放射圣印,向多个方向涤荡敌人',
+    levels: [
+      { damage: 16, cooldown: 2.2, count: 4, pierce: 1, speed: 380 },
+      { damage: 20, cooldown: 2.0, count: 4, pierce: 2, speed: 400 },
+      { damage: 26, cooldown: 1.9, count: 6, pierce: 2, speed: 420 },
+      { damage: 33, cooldown: 1.6, count: 6, pierce: 3, speed: 440 },
+      { damage: 42, cooldown: 1.4, count: 8, pierce: 3, speed: 460 },
+    ],
+  },
 };
 
 export const PASSIVES = {
@@ -302,6 +336,10 @@ export const ARTIFACTS = {
   stormcall: { id: 'stormcall', name: '雷霆循环', icon: 'art_stormcall', baseWeapon: 'lightning', rarity: 'normal', desc: '每 1.2 秒轰击 6 个目标,雷电跳跃 6 次' },
   crimson: { id: 'crimson', name: '猩红之拥', icon: 'art_crimson', baseWeapon: 'blade', rarity: 'hidden', desc: '飞刃命中回复 1 点生命,伤害翻倍' },
   tempest: { id: 'tempest', name: '雷劫', icon: 'art_tempest', baseWeapon: 'lightning', rarity: 'hidden', desc: '你行经之处,落雷不绝' },
+  // 以下 3 个为武器丰富化新增进化神器（2026-07-23）
+  sepulcher: { id: 'sepulcher', name: '寂灭结界', icon: 'art_sepulcher', baseWeapon: 'aura', rarity: 'normal', desc: '光环暴涨并迸射骨刺,绞杀周遭' },
+  eternalwhip: { id: 'eternalwhip', name: '永劫之鞭', icon: 'art_eternalwhip', baseWeapon: 'whip', rarity: 'normal', desc: '三向齐扫,横扫千军' },
+  matrix: { id: 'matrix', name: '圣光矩阵', icon: 'art_matrix', baseWeapon: 'cross', rarity: 'normal', desc: '常驻八向圣印,穿透涤荡' },
 };
 
 // ---------- 合成配方 ----------
@@ -312,6 +350,10 @@ export const RECIPES = [
   { weapon: 'lightning', passive: 'tome', artifact: 'stormcall' },
   { weapon: 'blade', passive: 'tome', artifact: 'crimson' },
   { weapon: 'lightning', passive: 'boots', artifact: 'tempest' },
+  // 武器丰富化新增配方（2026-07-23）
+  { weapon: 'aura', passive: 'heart', artifact: 'sepulcher' },
+  { weapon: 'whip', passive: 'boots', artifact: 'eternalwhip' },
+  { weapon: 'cross', passive: 'tome', artifact: 'matrix' },
 ];
 
 const COLLECTION_KEY = 'night_survivors_collection';
