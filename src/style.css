@@ -1,3 +1,13 @@
+/* 自托管像素字体(仅拉丁/数字 HUD 用),去掉 Google Fonts 外链依赖 */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/PressStart2P.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --bg: #0d0a1a;
   --blood: #c0392b;
@@ -6,8 +16,8 @@
   --bone: #e8e0d0;
   --gold: #d4af37;
   --purple: #8e44ad;
-  --pixel-font: "Press Start 2P", monospace;
-  --body-font: "Noto Serif SC", serif;
+  --pixel-font: "Press Start 2P", monospace; /* 自托管(public/fonts),仅拉丁/数字 HUD */
+  --body-font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; /* 中文系统字体栈:零下载、国内原生可靠 */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -66,7 +76,7 @@ html, body {
 .title-tagline { margin: 18px 0 34px; font-size: 17px; letter-spacing: 6px; opacity: .82; }
 
 .gothic-btn {
-  font-family: var(--pixel-font); font-size: 15px;
+  font-family: var(--body-font); font-size: 15px;
   color: var(--bone); background: rgba(20,12,30,.9);
   border: 3px solid var(--blood); outline: 2px solid #000;
   padding: 16px 42px; cursor: pointer;
@@ -85,7 +95,7 @@ html, body {
 /* 难度选择 */
 #difficulty-select { margin-top: 20px; text-align: center; }
 .diff-label {
-  font-family: var(--pixel-font); font-size: 10px; color: #6a5a7e;
+  font-family: var(--body-font); font-size: 10px; color: #6a5a7e;
   letter-spacing: 2px; margin-bottom: 10px;
 }
 .diff-options { display: flex; gap: 10px; justify-content: center; }
@@ -107,7 +117,7 @@ html, body {
 }
 
 .best-record {
-  margin-top: 22px; font-family: var(--pixel-font);
+  margin-top: 22px; font-family: var(--body-font);
   font-size: 11px; color: var(--gold);
   text-shadow: 0 0 10px rgba(212,175,55,.6); letter-spacing: 2px;
 }
@@ -117,7 +127,7 @@ html, body {
 }
 .how-item { display: flex; flex-direction: column; gap: 8px; font-size: 14px; opacity: .85; }
 .how-key {
-  font-family: var(--pixel-font); font-size: 10px;
+  font-family: var(--body-font); font-size: 10px;
   color: var(--gold); letter-spacing: 1px;
   border: 1px solid rgba(212,175,55,.45); padding: 7px 10px;
   background: rgba(0,0,0,.45);
@@ -210,7 +220,7 @@ html, body {
 }
 .loadout-icon.passive { border-color: rgba(142,68,173,.6); }
 .loadout-icon.passive .loadout-lv { background: var(--purple); color: #fff; }
-.loadout-slots { width: 100%; font-family: var(--pixel-font); font-size: 9px; color: var(--gold); opacity: 0.8; margin-bottom: 4px; letter-spacing: 1px; }
+.loadout-slots { width: 100%; font-family: var(--body-font); font-size: 9px; color: var(--gold); opacity: 0.8; margin-bottom: 4px; letter-spacing: 1px; }
 
 /* ---------- 升级界面 ---------- */
 #levelup-screen { background: rgba(6,4,14,.86); backdrop-filter: blur(3px); }
@@ -258,7 +268,7 @@ html, body {
 @keyframes blink { 50% { opacity: .25; } }
 #final-stats { margin: 34px 0 40px; display: flex; flex-direction: column; gap: 14px; }
 .stat-line {
-  font-family: var(--pixel-font); font-size: 13px; letter-spacing: 2px;
+  font-family: var(--body-font); font-size: 13px; letter-spacing: 2px;
   color: var(--bone); display: flex; gap: 20px; justify-content: center;
 }
 .stat-line b { color: var(--gold); min-width: 120px; text-align: right; }
@@ -277,12 +287,12 @@ html, body {
   animation: evoIn .5s cubic-bezier(.2,1.6,.4,1) both;
 }
 @keyframes evoIn { from { opacity: 0; transform: translateX(-50%) scale(.6); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
-.evo-label { font-family: var(--pixel-font); font-size: 12px; letter-spacing: 6px; color: var(--gold); }
+.evo-label { font-family: var(--body-font); font-size: 12px; letter-spacing: 6px; color: var(--gold); }
 #evo-name { font-family: var(--body-font); font-weight: 900; font-size: 52px; letter-spacing: 8px; color: var(--gold); text-shadow: 0 0 34px rgba(212,175,55,.9); margin: 8px 0; }
 #evo-desc { font-size: 16px; letter-spacing: 3px; opacity: .85; }
 #toast {
   position: absolute; top: 24%; left: 50%; transform: translateX(-50%);
-  font-family: var(--pixel-font); font-size: 12px; color: var(--bone);
+  font-family: var(--body-font); font-size: 12px; color: var(--bone);
   background: rgba(0,0,0,.7); border: 2px solid rgba(212,175,55,.5);
   padding: 10px 20px; z-index: 18; pointer-events: none; letter-spacing: 2px;
 }
@@ -329,7 +339,7 @@ html, body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .pause-title {
-  font-family: var(--pixel-font); font-size: 32px; letter-spacing: 12px;
+  font-family: var(--body-font); font-size: 32px; letter-spacing: 12px;
   color: var(--bone); text-shadow: 0 0 20px rgba(232, 224, 208, 0.5);
 }
 .pause-hint {
@@ -347,7 +357,7 @@ html, body {
   display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
 }
 .ua-btn {
-  font-family: var(--pixel-font); font-size: 10px; letter-spacing: 2px;
+  font-family: var(--body-font); font-size: 10px; letter-spacing: 2px;
   background: rgba(20, 14, 32, 0.9); color: var(--bone);
   border: 2px solid rgba(212, 175, 55, 0.5); padding: 10px 18px;
   cursor: pointer; transition: all 0.15s;
@@ -359,7 +369,7 @@ html, body {
 .ua-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .ua-btn span { color: var(--gold); margin-left: 4px; }
 .ua-hint { font-size: 11px; opacity: 0.55; letter-spacing: 1px; }
-.ua-slots { font-family: var(--pixel-font); font-size: 11px; color: var(--gold); letter-spacing: 1px; margin: 0 0 0 auto; }
+.ua-slots { font-family: var(--body-font); font-size: 11px; color: var(--gold); letter-spacing: 1px; margin: 0 0 0 auto; }
 
 /* 升级卡片选中态与选择按钮 */
 .upgrade-card.selected {
@@ -367,7 +377,7 @@ html, body {
   box-shadow: 0 0 18px rgba(231, 76, 60, 0.5) !important;
 }
 .uc-pick {
-  margin-top: 14px; font-family: var(--pixel-font); font-size: 9px;
+  margin-top: 14px; font-family: var(--body-font); font-size: 9px;
   letter-spacing: 2px; background: var(--blood); color: var(--bone);
   border: none; padding: 8px 18px; cursor: pointer; transition: all 0.15s;
 }
@@ -392,7 +402,7 @@ html, body {
   letter-spacing: 10px; color: var(--blood-bright);
   text-shadow: 0 0 34px rgba(192,57,43,.95); margin: 6px 0 2px;
 }
-.warn-sub { font-family: var(--pixel-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
+.warn-sub { font-family: var(--body-font); font-size: 13px; letter-spacing: 10px; color: var(--bone); opacity: .85; }
 
 /* ---------- 手机端浮动摇杆 + 触屏暂停按钮 ---------- */
 /* 借鉴吸血鬼幸存者手游：全屏全域触摸，按下位置即摇杆起点，松手隐藏 */
@@ -577,7 +587,7 @@ html, body {
 
 /* ---------- 灵魂货币：主界面显示 + 祭坛 ---------- */
 .soul-balance {
-  margin-top: 18px; font-family: var(--pixel-font);
+  margin-top: 18px; font-family: var(--body-font);
   font-size: 13px; color: var(--purple);
   text-shadow: 0 0 12px rgba(142,68,173,.7); letter-spacing: 2px;
 }
@@ -596,7 +606,7 @@ html, body {
 }
 .altar-sub { margin: 10px 0 8px; letter-spacing: 5px; opacity: .72; }
 .altar-balance {
-  font-family: var(--pixel-font); font-size: 16px; color: var(--purple);
+  font-family: var(--body-font); font-size: 16px; color: var(--purple);
   text-shadow: 0 0 14px rgba(142,68,173,.8); letter-spacing: 3px; margin-bottom: 26px;
 }
 #altar-content {
