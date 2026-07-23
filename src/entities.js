@@ -79,7 +79,11 @@ export class Player {
     if (blink) ctx.globalAlpha = 0.35;
     ctx.translate(sx, sy + bob);
     ctx.scale(this.facing, 1);
-    const img = sprite('player');
+    const breath = 1 + Math.sin(this.walkTime * 3) * 0.025;
+    ctx.scale(breath, breath);
+    // A4 玩家精灵按血裔切换；this.game 在部分预览上下文未注入，做防御性兜底
+    const bl = (this.game && this.game.bloodline) || (typeof window !== 'undefined' && window.__game && window.__game.bloodline) || 'wanderer';
+    const img = sprite('player_' + bl) || sprite('player');
     if (img) {
       ctx.drawImage(img, -size / 2, -size / 2, size, size);
     } else {
@@ -462,6 +466,21 @@ export class EnemyManager {
       ctx.save();
       ctx.translate(sx, sy + wobbleY);
       if (this.game.player.x < e.x) ctx.scale(-1, 1);
+      // A3 屏幕内微动画：纯 in-code 变换，零新素材，按 type 区分
+      {
+        const ph = e.wobble;
+        const t = this.game.time;
+        if (e.type === ENEMY_TYPES.slime) {
+          const sq = 1 + Math.sin(t * 6 + ph) * 0.12;
+          ctx.scale(1 / Math.sqrt(sq), sq);
+        } else if (e.type === ENEMY_TYPES.skeleton) {
+          ctx.rotate(Math.sin(t * 4 + ph) * 0.06);
+        } else if (e.type === ENEMY_TYPES.elite || e.isBoss) {
+          ctx.scale(1, 1 + Math.sin(t * 5 + ph) * 0.03);
+        } else if (e.type === ENEMY_TYPES.bat) {
+          ctx.scale(1 + Math.sin(t * 18 + ph) * 0.14, 1 + Math.cos(t * 18 + ph) * 0.08);
+        }
+      }
       if (img) {
         ctx.drawImage(img, -size / 2, -size / 2, size, size);
       } else {

@@ -78,6 +78,7 @@ export class Game {
     this.input = new Input();
     this.camera = new Camera();
     this.player = new Player();
+    this.player.game = this;  // 注入 game 引用，供玩家渲染按血裔切换精灵
     this.enemies = new EnemyManager(this);
     this.weapons = new WeaponSystem(this);
     this.pickups = new PickupSystem(this);
