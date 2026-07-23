@@ -156,6 +156,29 @@ with sync_playwright() as p:
     expect('血色再生持续回血', page.evaluate("() => window.__game.player.hp > 50"))
     page.evaluate("() => { window.__game.player.regenRate = 0; }")
 
+    # --- 升级加权：每层至少1个武器向(配额) + 已有武器加权更易出现 ---
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];                               // 清空避免 step 干扰
+      g.player.weapons = [{ id: 'blade', level: 1, timer: 0.4 }];  // 只留 blade L1(未满级)
+      g.player.passives = new Map([['boots', 1]]);          // 只留 boots L1(已有)
+      g.upgrade.banned.clear();
+    }""")
+    weighted = page.evaluate("""() => {
+      const g = window.__game;
+      let weaponHits = 0, bladeHits = 0;
+      const N = 300;
+      for (let i = 0; i < N; i++) {
+        const opts = g.upgrade.rollOptions();
+        if (opts.some(o => o.isWeapon)) weaponHits++;
+        if (opts.some(o => o.id === 'blade')) bladeHits++;
+      }
+      return { weaponHits, bladeHits, N };
+    }""")
+    expect('每层至少1个武器向(配额)', weighted['weaponHits'] == weighted['N'])
+    expect('加权倾向已有武器(blade命中率>35%)', weighted['bladeHits'] > weighted['N'] * 0.35)
+
     # --- 图鉴验证 ---
     page.evaluate("() => window.__game.ui.showTitle()")
     page.wait_for_timeout(300)

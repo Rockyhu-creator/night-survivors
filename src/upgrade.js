@@ -48,20 +48,24 @@ export class UpgradeSystem {
   buildPool() {
     const player = this.game.player;
     const pool = [];
+    // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级装备权重大幅高于新装备，加速单 build 成型
+    // isWeapon 标记武器向，供 rollOptions 做"每层至少1个武器"配额。权重 [PLACEHOLDER] 待真机微调
+    const W = { weaponUp: 5, passiveUp: 3, weaponNew: 2, passiveNew: 1 };
     for (const def of Object.values(WEAPONS)) {
       if (this.banned.has(def.id)) continue;
       if (this.game.weapons.hasWeapon(def.id)) {
         if (this.game.weapons.weaponLevel(def.id) < def.maxLevel) {
-          pool.push({ kind: 'weapon-up', id: def.id, def });
+          pool.push({ kind: 'weapon-up', id: def.id, def, weight: W.weaponUp, isWeapon: true });
         }
       } else {
-        pool.push({ kind: 'weapon-new', id: def.id, def });
+        pool.push({ kind: 'weapon-new', id: def.id, def, weight: W.weaponNew, isWeapon: true });
       }
     }
     for (const def of Object.values(PASSIVES)) {
       if (this.banned.has(def.id)) continue;
       const lv = player.passives.get(def.id) || 0;
-      if (lv < def.maxLevel) pool.push({ kind: 'passive', id: def.id, def });
+      if (lv >= def.maxLevel) continue;
+      pool.push({ kind: 'passive', id: def.id, def, weight: lv > 0 ? W.passiveUp : W.passiveNew, isWeapon: false });
     }
     return pool;
   }
@@ -69,9 +73,30 @@ export class UpgradeSystem {
   rollOptions() {
     const pool = this.buildPool();
     const options = [];
+    // 加权不放回抽样：按 weight 随机，抽中即移出池
+    const pickWeighted = (arr) => {
+      const total = arr.reduce((s, o) => s + (o.weight || 1), 0);
+      let roll = Math.random() * total;
+      for (let i = 0; i < arr.length; i += 1) {
+        roll -= arr[i].weight || 1;
+        if (roll <= 0) return arr.splice(i, 1)[0];
+      }
+      return arr.pop();
+    };
+    // 武器配额：池里有武器向时先保底 1 个，杜绝"3 个全是被动"卡 build
+    if (pool.some((o) => o.isWeapon)) {
+      const weaponsOnly = pool.filter((o) => o.isWeapon);
+      const picked = pickWeighted(weaponsOnly);
+      options.push(picked);
+      pool.splice(pool.indexOf(picked), 1);
+    }
     while (options.length < 3 && pool.length > 0) {
-      const idx = Math.floor(Math.random() * pool.length);
-      options.push(pool.splice(idx, 1)[0]);
+      options.push(pickWeighted(pool));
+    }
+    // 打乱展示顺序，避免"第一个固定是武器"的察觉
+    for (let i = options.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
     }
     this.currentOptions = options;
     this.selectedIdx = -1;
