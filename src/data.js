@@ -389,7 +389,7 @@ export function unlockInCollection(id) {
 // ---------- Boss ----------
 export const BOSSES = [
   {
-    id: 'baron', name: '血色男爵', sprite: 'elite', unlockAt: 180,
+    id: 'baron', name: '血色男爵', sprite: 'boss_baron', unlockAt: 180,
     hp: 1800, speed: 38, damage: 40, exp: 120,
     radius: 34, spriteSize: 128, knockResist: 0.98,
     skills: [
@@ -398,7 +398,7 @@ export const BOSSES = [
     ],
   },
   {
-    id: 'queen', name: '苍白女王', sprite: 'elite', unlockAt: 360,
+    id: 'queen', name: '苍白女王', sprite: 'boss_queen', unlockAt: 360,
     hp: 4500, speed: 42, damage: 55, exp: 300,
     radius: 36, spriteSize: 140, knockResist: 0.98,
     skills: [
@@ -407,7 +407,7 @@ export const BOSSES = [
     ],
   },
   {
-    id: 'overlord', name: '永夜君王', sprite: 'elite', unlockAt: 540,
+    id: 'overlord', name: '永夜君王', sprite: 'boss_overlord', unlockAt: 540,
     hp: 9000, speed: 46, damage: 70, exp: 600,
     radius: 40, spriteSize: 156, knockResist: 0.99,
     skills: [
@@ -417,3 +417,5 @@ export const BOSSES = [
     ],
   },
 ];
+
+if (typeof window !== 'undefined') window.__bosses = BOSSES;

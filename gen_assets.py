@@ -76,24 +76,24 @@ def fill_ellipse_shaded(d, cx, cy, rx, ry, pal, lx=-0.35, ly=-0.9):
 
 
 # ---------- 主角：夜裔猎人（戴兜帽斗篷） ----------
-def gen_player():
+def gen_player(name, spec):
+    cloth, skin, accent, feature = spec
     S = 46
     cx = 23
     img, d = new_canvas(S)
-    cloak = ((38, 6, 14), (120, 20, 38), (192, 56, 72))
     armor = ((60, 62, 88), (150, 150, 180), (205, 205, 230))
-    eye, gem = (255, 45, 45), (46, 204, 113)
+    eye, gem = accent, (46, 204, 113)
     # 斗篷（下摆梯形，左上来光）
     for y in range(14, 43):
         half = int(3 + (y - 14) * 0.52)
         for x in range(cx - half, cx + half + 1):
             t = (x - (cx - half)) / (half * 2 + 1)
-            col = cloak[2] if t < 0.22 else (cloak[1] if t < 0.72 else cloak[0])
+            col = cloth[2] if t < 0.22 else (cloth[1] if t < 0.72 else cloth[0])
             px(d, x, y, col)
     # 斗篷竖向褶皱（明暗）
     for y in range(16, 42, 3):
-        px(d, cx - 6, y, cloak[0]); px(d, cx + 7, y, cloak[0])
-        px(d, cx, y, cloak[2])
+        px(d, cx - 6, y, cloth[0]); px(d, cx + 7, y, cloth[0])
+        px(d, cx, y, cloth[2])
     # 靴子
     for x in range(cx - 9, cx - 3):
         px(d, x, 41, (30, 18, 26)); px(d, x, 42, (20, 12, 18))
@@ -103,7 +103,7 @@ def gen_player():
     fill_ellipse_shaded(d, cx - 12, 17, 6, 5, armor)
     fill_ellipse_shaded(d, cx + 12, 17, 6, 5, armor)
     # 兜帽
-    fill_ellipse_shaded(d, cx, 11, 11, 12, cloak)
+    fill_ellipse_shaded(d, cx, 11, 11, 12, cloth)
     # 面部阴影
     for y in range(7, 18):
         for x in range(cx - 7, cx + 7):
@@ -113,7 +113,7 @@ def gen_player():
                 px(d, x, y, (18, 6, 14, 255))
     # 兜帽顶部高光
     for y in range(2, 6):
-        px(d, cx - 4 + y, y, cloak[2])
+        px(d, cx - 4 + y, y, cloth[2])
     # 眼睛 + 微光
     px(d, cx - 5, 13, (120, 20, 20, 170)); px(d, cx + 4, 13, (120, 20, 20, 170))
     px(d, cx - 4, 13, eye); px(d, cx + 3, 13, eye)
@@ -130,7 +130,13 @@ def gen_player():
         y = 19 + i
         px(d, x, y, (200, 60, 60) if i % 2 == 0 else (255, 150, 150))
     px(d, cx + 12, 19, (255, 200, 200))
-    save(img, "player.png", 1)
+    # 血裔专属特征（与立绘同源）
+    feature(d, cx)
+    save(img, name, 1)
+
+
+def gen_player_default():
+    gen_player('player.png', CHAR_SPECS['wanderer'])
 
 
 # ---------- 蝙蝠 ----------
@@ -987,10 +993,10 @@ def gen_portrait(name, cloth, skin, accent, feature):
 
 
 def _feat_wanderer(d, cx):
-    cloak = ((38, 6, 14), (120, 20, 38), (192, 56, 72))
-    fill_ellipse_shaded(d, cx, 6, 9, 6, cloak)          # 兜顶
+    cloth = ((38, 6, 14), (120, 20, 38), (192, 56, 72))
+    fill_ellipse_shaded(d, cx, 6, 9, 6, cloth)          # 兜顶
     for y in range(6, 16):
-        px(d, cx - 9, y, cloak[1]); px(d, cx + 8, y, cloak[1])  # 侧帘
+        px(d, cx - 9, y, cloth[1]); px(d, cx + 8, y, cloth[1])  # 侧帘
     px(d, cx, 33, (46, 204, 113)); px(d, cx - 1, 33, (46, 204, 113)); px(d, cx, 32, (120, 255, 180))  # 腰带灵魂宝石
 
 
@@ -1054,6 +1060,166 @@ def gen_portrait_bloodthirsty():
 
 def gen_portrait_apostle():
     gen_portrait('portrait_apostle.png', ((18, 12, 30), (45, 35, 65), (80, 65, 110)), ((30, 25, 45), (55, 48, 75), (90, 80, 120)), (120, 220, 255), _feat_apostle)
+
+
+# ---------- 角色统一 spec（A4，2026-07-23）：立绘与游戏内精灵同源 ----------
+# 元组与上方 6 个 gen_portrait_* wrapper 完全一致，保证「选人立绘 = 游戏内角色」
+CHAR_SPECS = {
+    'wanderer':     (((38, 6, 14), (120, 20, 38), (192, 56, 72)),
+                     ((225, 200, 180), (245, 225, 210), (255, 245, 235)),
+                     (255, 45, 45), _feat_wanderer),
+    'saint':        (((200, 200, 215), (235, 235, 245), (255, 255, 255)),
+                     ((230, 205, 180), (248, 228, 205), (255, 248, 235)),
+                     (255, 210, 90), _feat_saint),
+    'berserker':    (((90, 40, 40), (150, 70, 60), (200, 110, 90)),
+                     ((180, 140, 110), (210, 170, 140), (235, 200, 170)),
+                     (255, 230, 120), _feat_berserker),
+    'thunder':      (((60, 30, 110), (110, 70, 170), (160, 120, 215)),
+                     ((210, 200, 225), (235, 225, 245), (255, 250, 255)),
+                     (245, 215, 110), _feat_thunder),
+    'bloodthirsty': (((120, 15, 30), (180, 30, 50), (230, 90, 110)),
+                     ((210, 200, 205), (235, 228, 232), (250, 245, 248)),
+                     (255, 40, 40), _feat_bloodthirsty),
+    'apostle':      (((18, 12, 30), (45, 35, 65), (80, 65, 110)),
+                     ((30, 25, 45), (55, 48, 75), (90, 80, 120)),
+                     (120, 220, 255), _feat_apostle),
+}
+
+# 游戏内玩家精灵（A4）：同一 spec，配色/特征与立绘一致
+def gen_player_wanderer():
+    gen_player('player_wanderer.png', CHAR_SPECS['wanderer'])
+def gen_player_saint():
+    gen_player('player_saint.png', CHAR_SPECS['saint'])
+def gen_player_berserker():
+    gen_player('player_berserker.png', CHAR_SPECS['berserker'])
+def gen_player_thunder():
+    gen_player('player_thunder.png', CHAR_SPECS['thunder'])
+def gen_player_bloodthirsty():
+    gen_player('player_bloodthirsty.png', CHAR_SPECS['bloodthirsty'])
+def gen_player_apostle():
+    gen_player('player_apostle.png', CHAR_SPECS['apostle'])
+
+
+# ---------- Boss 专属精灵（A1，2026-07-23）：替换复用精英怪的尴尬 ----------
+def _boss_base(d, robe, trim, skin, eye, accent):
+    # 长袍下摆（梯形，左上来光）
+    for y in range(20, 62):
+        half = int(7 + (y - 20) * 0.52)
+        for x in range(32 - half, 32 + half + 1):
+            t = (x - (32 - half)) / (half * 2 + 1)
+            col = robe[2] if t < 0.18 else (robe[1] if t < 0.7 else robe[0])
+            px(d, x, y, col)
+    # 袍边纹路
+    for y in range(22, 60, 4):
+        px(d, 26, y, trim); px(d, 38, y, trim)
+    # 肩
+    fill_ellipse_shaded(d, 18, 25, 9, 8, robe)
+    fill_ellipse_shaded(d, 46, 25, 9, 8, robe)
+    # 头
+    fill_ellipse_shaded(d, 32, 15, 11, 12, skin)
+    # 眼（发光）
+    px(d, 27, 15, eye); px(d, 37, 15, eye)
+    px(d, 27, 14, accent); px(d, 37, 14, accent)
+    # 胸前纹章
+    fill_ellipse_shaded(d, 32, 36, 6, 9, (trim, trim, accent))
+
+def gen_boss_baron():
+    # 血色男爵：红金长袍 + 双角王冠 + 高领
+    S = 64
+    img, d = new_canvas(S)
+    robe = ((90, 12, 22), (165, 28, 42), (225, 70, 88))
+    trim = (212, 175, 55)
+    skin = ((210, 180, 165), (235, 215, 200), (250, 240, 230))
+    eye, accent = (255, 40, 40), (255, 200, 90)
+    _boss_base(d, robe, trim, skin, eye, accent)
+    # 高领（披风立起）
+    for y in range(18, 30):
+        for x in range(20, 44):
+            if abs(x - 32) > (y - 18) * 1.4:
+                px(d, x, y, robe[0])
+    # 双角王冠
+    for i in range(10):
+        px(d, 22 + i // 3, 6 - i // 2, (230, 200, 90))
+        px(d, 42 - i // 3, 6 - i // 2, (230, 200, 90))
+    px(d, 32, 4, (255, 225, 120)); px(d, 31, 5, (255, 225, 120)); px(d, 33, 5, (255, 225, 120))
+    save(img, "boss_baron.png", 1)
+
+def gen_boss_queen():
+    # 苍白女王：苍白蓝白长裙 + 尖顶冠 + 幽光
+    S = 64
+    img, d = new_canvas(S)
+    robe = ((70, 80, 110), (140, 160, 195), (215, 230, 250))
+    trim = (180, 220, 255)
+    skin = ((225, 230, 245), (240, 245, 255), (255, 255, 255))
+    eye, accent = (120, 220, 255), (200, 245, 255)
+    _boss_base(d, robe, trim, skin, eye, accent)
+    # 拖地长裙（更宽下摆）
+    for y in range(50, 62):
+        for x in range(8, 56):
+            if abs(x - 32) < (y - 50) * 2 + 4:
+                px(d, x, y, robe[2] if (x + y) % 3 else robe[1])
+    # 尖顶冠
+    for i in range(12):
+        px(d, 32 - i, 10 - i // 2, (210, 235, 255))
+        px(d, 32 + i, 10 - i // 2, (210, 235, 255))
+    px(d, 32, 2, (255, 255, 255))
+    save(img, "boss_queen.png", 1)
+
+def gen_boss_overlord():
+    # 永夜君王：暗紫虚空长袍 + 宽大肩翼 + 王冕
+    S = 64
+    img, d = new_canvas(S)
+    robe = ((20, 10, 40), (50, 30, 80), (90, 60, 135))
+    trim = (120, 80, 200)
+    skin = ((30, 25, 45), (55, 48, 75), (90, 80, 120))
+    eye, accent = (150, 90, 255), (200, 160, 255)
+    _boss_base(d, robe, trim, skin, eye, accent)
+    # 巨大肩翼（夹紧在画布内）
+    for side in (-1, 1):
+        for y in range(20, 50):
+            half = int(7 + (y - 20) * 0.32)
+            x0 = 32 + side * 10
+            x1 = 32 + side * (10 + half)
+            lo, hi = (x0, x1) if side > 0 else (x1, x0)
+            lo = max(2, min(62, lo)); hi = max(2, min(62, hi))
+            for x in range(lo, hi + 1):
+                px(d, x, y, robe[1] if (x + y) % 4 else robe[0])
+    # 宽王冕
+    for x in range(20, 45):
+        px(d, x, 8, (160, 110, 230))
+    for x in range(22, 43, 4):
+        for y in range(3, 9):
+            px(d, x, y, (200, 160, 255))
+    save(img, "boss_overlord.png", 1)
+
+# ---------- 宝箱专属精灵（A2，2026-07-23）：替换「大号宝石伪宝箱」 ----------
+def gen_chest():
+    S = 44
+    img, d = new_canvas(S)
+    wood = ((90, 55, 30), (140, 95, 55), (190, 140, 85))
+    gold = ((200, 160, 50), (235, 200, 90), (255, 230, 140))
+    # 箱体
+    for y in range(20, 38):
+        for x in range(6, 38):
+            px(d, x, y, wood[2] if (x + y) % 3 else wood[1])
+    # 木纹
+    for y in range(22, 38, 3):
+        px(d, 6, y, wood[0]); px(d, 37, y, wood[0])
+    # 弧形箱盖
+    for y in range(8, 20):
+        half = int(16 - (y - 8) * 0.4)
+        for x in range(32 - half, 32 + half + 1):
+            px(d, x, y, wood[2] if (x + y) % 3 else wood[1])
+    # 金属包边
+    for y in range(8, 39):
+        px(d, 6, y, gold[1]); px(d, 37, y, gold[1])
+    for x in range(6, 38):
+        px(d, x, 19, gold[1]); px(d, x, 38, gold[0])
+    # 锁扣 + 金光封印
+    for x in range(28, 36):
+        px(d, x, 18, gold[2]); px(d, x, 19, gold[2])
+    px(d, 32, 20, gold[2]); px(d, 31, 21, gold[2]); px(d, 33, 21, gold[2])
+    save(img, "chest.png", 1)
 
 
 # ---------- 祭坛专属图标（UX 改造，2026-07-23）：不复用任何现有素材 ----------
@@ -1172,7 +1338,17 @@ def gen_altar_slot_passive():  # 扩容被动槽：符文牌 + 盾
     save(img, "altar_slot_passive.png", 2)
 
 
-gen_player()
+gen_player_default()
+gen_player_wanderer()
+gen_player_saint()
+gen_player_berserker()
+gen_player_thunder()
+gen_player_bloodthirsty()
+gen_player_apostle()
+gen_boss_baron()
+gen_boss_queen()
+gen_boss_overlord()
+gen_chest()
 gen_bat()
 gen_skeleton()
 gen_slime()

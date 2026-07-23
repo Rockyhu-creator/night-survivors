@@ -38,7 +38,7 @@ export class PickupSystem {
       chest: true,
       x, y,
       value: 0,
-      def: { key: 'gemLarge', min: 0, size: 34, color: '#d4af37' },
+      def: { key: 'chest', min: 0, size: 34, color: '#d4af37' },
       magnet: false, vx: 0, vy: 0, bob: 0,
     });
   }
@@ -60,7 +60,7 @@ export class PickupSystem {
       chest: true, boss: true,
       x, y,
       value: 0,
-      def: { key: 'gemLarge', min: 0, size: 40, color: '#d4af37' },
+      def: { key: 'chest', min: 0, size: 40, color: '#d4af37' },
       magnet: false, vx: 0, vy: 0, bob: 0,
     });
   }
