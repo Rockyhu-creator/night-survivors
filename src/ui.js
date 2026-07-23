@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, loadSouls, buyUnlock } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite } from './assets.js';
 
@@ -18,6 +18,10 @@ export class UIManager {
     this.bestRecordEl = document.getElementById('best-record');
     this.newRecordEl = document.getElementById('new-record');
     this.finalStatsEl = document.getElementById('final-stats');
+    this.soulBalanceEl = document.getElementById('soul-balance');
+    this.altarScreen = document.getElementById('altar-screen');
+    this.altarBalanceEl = document.getElementById('altar-balance');
+    this.altarContentEl = document.getElementById('altar-content');
     this.vignette = document.getElementById('damage-vignette');
     this.bossBarWrap = document.getElementById('boss-bar-wrap');
     this.bossName = document.getElementById('boss-name');
@@ -58,6 +62,10 @@ export class UIManager {
     } else {
       this.bestRecordEl.classList.add('hidden');
     }
+    // 灵魂货币：主界面显示累计余额
+    const souls = loadSouls();
+    this.soulBalanceEl.classList.remove('hidden');
+    this.soulBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
   }
 
   startGame() {
@@ -177,6 +185,8 @@ export class UIManager {
       ['击杀怪物', `${result.kills}`],
       ['抵达等级', `LV.${result.level}`],
       ['最佳纪录', formatTime((isRecord ? result : prev).time)],
+      ['获得灵魂', `${game.runSouls}`],
+      ['灵魂累计', `${game.totalSouls}`],
     ];
     for (const [label, value] of lines) {
       const div = document.createElement('div');
@@ -238,5 +248,61 @@ export class UIManager {
   hideCodex() {
     document.getElementById('codex-screen').classList.add('hidden');
     document.getElementById('title-screen').classList.remove('hidden');
+  }
+
+  showAltar() {
+    this.titleScreen.classList.add('hidden');
+    this.altarScreen.classList.remove('hidden');
+    this.renderAltar();
+  }
+
+  hideAltar() {
+    this.altarScreen.classList.add('hidden');
+    this.showTitle();
+  }
+
+  renderAltar() {
+    const souls = loadSouls();
+    this.altarBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    this.altarContentEl.innerHTML = '';
+    for (const def of ALTAR) {
+      const owned = souls.unlocks.includes(def.id);
+      const affordable = souls.balance >= def.cost;
+      const card = document.createElement('div');
+      card.className = `altar-card ${owned ? 'owned' : ''}`;
+
+      const img = document.createElement('img');
+      img.src = this.iconURL(def.icon);
+      img.alt = def.name;
+
+      const name = document.createElement('h3');
+      name.textContent = def.name;
+
+      const desc = document.createElement('p');
+      desc.className = 'ac-desc';
+      desc.textContent = def.desc;
+
+      const btn = document.createElement('button');
+      btn.className = 'gothic-btn ac-buy';
+      if (owned) {
+        btn.textContent = '已解锁';
+        btn.disabled = true;
+        btn.classList.add('owned-btn');
+      } else if (!affordable) {
+        btn.textContent = `👁 ${def.cost}`;
+        btn.disabled = true;
+      } else {
+        btn.textContent = `👁 ${def.cost}`;
+        btn.addEventListener('click', () => {
+          if (buyUnlock(def.id)) {
+            this.audio.uiClick();
+            this.renderAltar();
+          }
+        });
+      }
+
+      card.append(img, name, desc, btn);
+      this.altarContentEl.appendChild(card);
+    }
   }
 }

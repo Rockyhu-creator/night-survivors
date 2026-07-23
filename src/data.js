@@ -9,6 +9,28 @@ export const CONFIG = {
   BEST_KEY: 'night_survivors_best',
 };
 
+// ---------- 灵魂货币（长期循环 / 元进度）----------
+// Sources（单局结算发放，全部 [PLACEHOLDER] 待真机校准）：
+//   存活每 30s +1 / 击杀每 20 +1 / 每等级 +1 / 每 Boss +25 / 难度首通一次性奖励
+// Sinks：祭坛永久解锁（见 ALTAR 表）。防通胀：单局上限 ~150，真机按 metric 调。
+export const SOUL_REWARDS = {
+  per30s: 1,        // 每存活 30 秒
+  per20Kills: 1,    // 每 20 击杀
+  perLevel: 1,      // 每等级
+  perBoss: 25,      // 每个 Boss
+  firstClear: { easy: 50, normal: 100, hard: 200 }, // 难度首通（仅一次）
+};
+
+// 祭坛解锁表：永久增益，花灵魂购买。apply(game) 在 startRun 注入。
+// cost 全部 [PLACEHOLDER]，真机按投放速率与通胀阈值调。
+export const ALTAR = [
+  { id: 'soul_hp',  name: '永恒之躯', icon: 'gemLarge',  cost: 60,  desc: '生命上限 +30（永久）',       apply: (g) => { g.player.maxHp += 30; } },
+  { id: 'soul_spd', name: '疾风之拥', icon: 'player',    cost: 90,  desc: '移动速度 +6%（永久）',        apply: (g) => { g.player.speedMul += 0.06; } },
+  { id: 'soul_dmg', name: '嗜血诅咒', icon: 'blade',     cost: 130, desc: '所有伤害 +5%（永久）',        apply: (g) => { g.player.damageMul += 0.05; } },
+  { id: 'soul_gain',name: '亡魂低语', icon: 'gemMedium', cost: 160, desc: '灵魂获取 +25%（永久）',       apply: (g) => { g.soulGainMul *= 1.25; } },
+  { id: 'soul_dual',name: '双生武装', icon: 'holywater', cost: 220, desc: '开局额外获得「圣水洗礼」',     apply: (g) => { g.weapons.addWeapon('holywater'); } },
+];
+
 // 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
 // spawnMul=刷怪频率倍率，bossCalm=Boss存活时刷怪量比例，bossGapMul=Boss间隔倍率
 // 2026-07 难度下修 [PLACEHOLDER 待真机验证]：原三档敌人成长斜率远超玩家离散升级的成长，
@@ -125,6 +147,61 @@ export function saveBest(best) {
   try {
     localStorage.setItem(CONFIG.BEST_KEY, JSON.stringify(best));
   } catch { /* ignore */ }
+}
+
+// ---------- 灵魂货币持久化 ----------
+const SOUL_KEY = 'night_survivors_souls';
+
+export function loadSouls() {
+  try {
+    const raw = localStorage.getItem(SOUL_KEY);
+    const o = raw ? JSON.parse(raw) : null;
+    return {
+      balance: o?.balance || 0,
+      spent: o?.spent || 0,
+      unlocks: o?.unlocks || [],
+      cleared: o?.cleared || [],
+    };
+  } catch {
+    return { balance: 0, spent: 0, unlocks: [], cleared: [] };
+  }
+}
+
+export function saveSouls(s) {
+  try { localStorage.setItem(SOUL_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
+export function addSouls(n) {
+  const s = loadSouls();
+  s.balance += Math.max(0, Math.floor(n));
+  saveSouls(s);
+  return s.balance;
+}
+
+export function spendSouls(n) {
+  const s = loadSouls();
+  if (s.balance < n) return false;
+  s.balance -= n;
+  saveSouls(s);
+  return true;
+}
+
+export function isUnlocked(id) {
+  return loadSouls().unlocks.includes(id);
+}
+
+// 购买祭坛解锁：余额不足或已拥有则失败。成功则扣费并记录
+export function buyUnlock(id) {
+  const def = ALTAR.find((a) => a.id === id);
+  if (!def) return false;
+  const s = loadSouls();
+  if (s.unlocks.includes(id)) return false;
+  if (s.balance < def.cost) return false;
+  s.balance -= def.cost;
+  s.spent += def.cost;
+  s.unlocks.push(id);
+  saveSouls(s);
+  return true;
 }
 
 export function formatTime(seconds) {

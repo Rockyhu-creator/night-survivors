@@ -202,5 +202,48 @@ with sync_playwright() as p:
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     page.screenshot(path='/tmp/e2e_codex_final.png')
 
+    # --- 灵魂货币：结算发灵魂 + 祭坛解锁（长期循环）---
+    # 重置灵魂存档，避免历史状态干扰断言
+    page.evaluate("() => window.__souls.saveSouls({balance:0,spent:0,unlocks:[],cleared:[]})")
+    # 构造一次死亡结算：5分钟(5) + 60击杀(3) + LV12(12) + 1Boss(25) + 难度首通normal(100) = 145
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.time = 150; g.kills = 60; g.player.level = 12; g.bossKills = 1; g.soulGainMul = 1;
+      g.player.hp = 0;
+      g.gameOver();
+    }""")
+    page.wait_for_timeout(300)
+    soul = page.evaluate("""() => ({
+      run: window.__game.runSouls,
+      total: window.__game.totalSouls,
+      stored: window.__souls.loadSouls().balance,
+      cleared: window.__souls.loadSouls().cleared,
+    })""")
+    expect('结算发放灵魂>0', soul['run'] > 0)
+    expect('结算灵魂=145(含首通)', soul['run'] == 145)
+    expect('灵魂已持久化且等于本局', soul['stored'] == soul['run'])
+    expect('难度首通已记录', 'normal' in soul['cleared'])
+
+    # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
+    page.evaluate("""() => {
+      window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});
+      window.__souls.buyUnlock('soul_hp');   // 花费 60
+    }""")
+    bought = page.evaluate("""() => ({
+      unlocked: window.__souls.isUnlocked('soul_hp'),
+      balance: window.__souls.loadSouls().balance,
+    })""")
+    expect('祭坛解锁成功', bought['unlocked'])
+    expect('解锁扣减灵魂(1000-60=940)', bought['balance'] == 940)
+    # 开局注入：永恒之躯(maxHp+30) → 130
+    page.evaluate("() => window.__game.startRun()")
+    expect('祭坛增益开局生效(maxHp≥130)', page.evaluate("() => window.__game.player.maxHp >= 130"))
+    # 返回主界面确认灵魂余额可见
+    page.evaluate("() => window.__game.showTitle()")
+    page.wait_for_timeout(200)
+    expect('主界面显示灵魂余额', page.evaluate("() => !document.getElementById('soul-balance').classList.contains('hidden')"))
+
     print('控制台错误:', errors if errors else '无')
     browser.close()

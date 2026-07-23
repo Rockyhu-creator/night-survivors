@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection, SOUL_REWARDS, ALTAR, loadSouls, saveSouls, addSouls, isUnlocked } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -23,6 +23,10 @@ export class Game {
     this.lastTs = 0;
     this.rerollsLeft = 3;
     this.banishesLeft = 3;
+    this.bossKills = 0;
+    this.soulGainMul = 1;
+    this.runSouls = 0;
+    this.totalSouls = 0;
     this.difficulty = DIFFICULTIES.normal;
     // 相机纵向锚点：0.5=居中；竖屏下由 resize() 改为 0.42（玩家偏上，避免手指遮挡下方视野）
     this.cameraAnchorY = 0.5;
@@ -177,6 +181,13 @@ export class Game {
     this.audio.uiClick();
     this.weapons.addWeapon('blade');
     unlockInCollection('blade');
+    // 注入已解锁的祭坛永久增益（灵魂货币长期循环）
+    this.soulGainMul = 1;
+    for (const a of ALTAR) {
+      if (isUnlocked(a.id)) a.apply(this);
+    }
+    // 增益可能抬高 maxHp，同步回满血避免开局残血
+    this.player.hp = this.player.maxHp;
     this.ui.startGame();
     this.state = 'playing';
   }
@@ -295,6 +306,7 @@ export class Game {
   }
 
   onBossKilled(e) {
+    this.bossKills += 1;
     this.ui.hideBossBar();
     this.pickups.dropBossChest(e.x, e.y);
     this.fx.spawnSparks(e.x, e.y, '#d4af37', 40);
@@ -327,8 +339,30 @@ export class Game {
     this.audio.hit();
   }
 
+  // 结算灵魂：存活/击杀/等级/Boss + 难度首通（一次性）
+  computeSoulReward() {
+    const r = SOUL_REWARDS;
+    let reward =
+      Math.floor(this.time / 30) * r.per30s +
+      Math.floor(this.kills / 20) * r.per20Kills +
+      this.player.level * r.perLevel +
+      this.bossKills * r.perBoss;
+    // 难度首通（一次性）：写入 cleared 并持久化，余额不变
+    const souls = loadSouls();
+    if (!souls.cleared.includes(this.difficulty.id)) {
+      souls.cleared.push(this.difficulty.id);
+      reward += r.firstClear[this.difficulty.id] || 0;
+      saveSouls(souls);
+    }
+    return Math.floor(reward * (this.soulGainMul || 1));
+  }
+
   gameOver() {
     this.state = 'gameover';
+    const reward = this.computeSoulReward();
+    addSouls(reward);
+    this.runSouls = reward;
+    this.totalSouls = loadSouls().balance;
     this.ui.showGameOver();
     this.audio.gameover();
   }
