@@ -32,6 +32,7 @@ export class Game {
     // 相机纵向锚点：0.5=居中；竖屏下由 resize() 改为 0.42（玩家偏上，避免手指遮挡下方视野）
     this.cameraAnchorY = 0.5;
     this.groundPattern = null;
+    this._vignetteCanvas = null; // 暗角离屏缓存：避免每帧 createRadialGradient
     this.decals = [];
     this.generateDecals();
   }
@@ -466,14 +467,22 @@ export class Game {
     this.player.render(ctx, cam);
     this.fx.render(ctx, cam);
 
-    // 暗夜氛围边缘暗角
-    const grad = ctx.createRadialGradient(
-      CONFIG.LOGICAL_WIDTH / 2, CONFIG.LOGICAL_HEIGHT / 2, CONFIG.LOGICAL_HEIGHT * 0.42,
-      CONFIG.LOGICAL_WIDTH / 2, CONFIG.LOGICAL_HEIGHT / 2, CONFIG.LOGICAL_HEIGHT * 0.95,
-    );
-    grad.addColorStop(0, 'rgba(6,4,16,0)');
-    grad.addColorStop(1, 'rgba(6,4,16,0.55)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, CONFIG.LOGICAL_WIDTH, CONFIG.LOGICAL_HEIGHT);
+    // 暗夜氛围边缘暗角（离屏缓存，避免每帧 createRadialGradient）
+    if (!this._vignetteCanvas) {
+      const vc = document.createElement('canvas');
+      vc.width = CONFIG.LOGICAL_WIDTH;
+      vc.height = CONFIG.LOGICAL_HEIGHT;
+      const vctx = vc.getContext('2d');
+      const grad = vctx.createRadialGradient(
+        CONFIG.LOGICAL_WIDTH / 2, CONFIG.LOGICAL_HEIGHT / 2, CONFIG.LOGICAL_HEIGHT * 0.42,
+        CONFIG.LOGICAL_WIDTH / 2, CONFIG.LOGICAL_HEIGHT / 2, CONFIG.LOGICAL_HEIGHT * 0.95,
+      );
+      grad.addColorStop(0, 'rgba(6,4,16,0)');
+      grad.addColorStop(1, 'rgba(6,4,16,0.55)');
+      vctx.fillStyle = grad;
+      vctx.fillRect(0, 0, vc.width, vc.height);
+      this._vignetteCanvas = vc;
+    }
+    ctx.drawImage(this._vignetteCanvas, 0, 0);
   }
 }

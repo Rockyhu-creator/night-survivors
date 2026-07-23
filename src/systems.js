@@ -126,8 +126,24 @@ export class PickupSystem {
           ctx.fill();
         }
       }
-      ctx.shadowColor = g.chest ? '#d4af37' : g.def.color;
-      ctx.shadowBlur = g.chest ? (g.boss ? 24 : 18) : 8;
+      /* 辉光：用 lighter 合成模式替代 shadowBlur。
+         shadowBlur 是 Canvas2D 开销最大的属性(O(N²)级模糊)，每帧按宝石数重复执行。
+         lighter(加法合成)近乎零开销，在暗色背景下同样产生辉光效果。 */
+      ctx.globalCompositeOperation = 'lighter';
+      if (img) {
+        ctx.globalAlpha = g.chest ? (g.boss ? 0.38 : 0.28) : 0.18;
+        const gl = size * 1.25;
+        ctx.drawImage(img, sx - gl / 2, sy - gl / 2, gl, gl);
+      } else {
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = g.def.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, size / 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // 正常绘制
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
       if (img) ctx.drawImage(img, sx - size / 2, sy - size / 2, size, size);
       else {
         ctx.fillStyle = g.def.color;
