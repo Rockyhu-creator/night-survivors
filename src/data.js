@@ -11,18 +11,20 @@ export const CONFIG = {
 
 // 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
 // spawnMul=刷怪频率倍率，bossCalm=Boss存活时刷怪量比例，bossGapMul=Boss间隔倍率
+// 2026-07 难度下修 [PLACEHOLDER 待真机验证]：原三档敌人成长斜率远超玩家离散升级的成长，
+// 中期形成"清不动→吃不到经验→更打不动"的死亡螺旋。全面放缓 hp/dmg/spawn 曲线。
 export const DIFFICULTIES = {
   easy: {
-    id: 'easy', name: '夜行者', desc: '敌人较弱,升级回满血,适合休闲',
-    hpSlope: 0.25, dmgSlope: 0.15, spawnMul: 0.7, bossCalm: 0.3, bossGapMul: 1.5,
+    id: 'easy', name: '夜行者', desc: '敌人较弱,节奏舒缓,适合休闲上手',
+    hpSlope: 0.18, dmgSlope: 0.10, spawnMul: 0.55, bossCalm: 0.3, bossGapMul: 1.5,
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
-    hpSlope: 0.35, dmgSlope: 0.22, spawnMul: 1.0, bossCalm: 0.5, bossGapMul: 1.0,
+    hpSlope: 0.26, dmgSlope: 0.15, spawnMul: 0.80, bossCalm: 0.5, bossGapMul: 1.0,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
-    hpSlope: 0.50, dmgSlope: 0.30, spawnMul: 1.3, bossCalm: 0.7, bossGapMul: 0.85,
+    hpSlope: 0.38, dmgSlope: 0.22, spawnMul: 1.05, bossCalm: 0.7, bossGapMul: 0.85,
   },
 };
 
@@ -102,6 +104,8 @@ export const PASSIVES = {
   swift: { id: 'swift', name: '极速猎手', icon: 'player', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
   greed: { id: 'greed', name: '财富之魂', icon: 'gemMedium', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
   guard: { id: 'guard', name: '钢铁意志', icon: 'gemLarge', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
+  // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 [PLACEHOLDER] 满级 4 HP/s
+  regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
 };
 
 export function expForLevel(level) {

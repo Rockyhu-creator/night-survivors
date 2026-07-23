@@ -676,6 +676,37 @@ def gen_icon_skull():
     save(img, "icon_skull.png", 2)
 
 
+# ---------- 血瓶（拾取回血道具） ----------
+def gen_potion():
+    # 球形烧瓶盛血，木塞封口，像素体积光；风格对齐经验宝石一套管线
+    S = 36
+    img, d = new_canvas(S)
+    cx = 18
+    blood_pal = ((140, 16, 32), (205, 32, 50), (255, 120, 130))
+    glass = (210, 228, 240, 150)
+    cork_d, cork_m, cork_l = (70, 44, 22), (122, 80, 40), (178, 128, 76)
+    # 球形瓶身（血色体积光，上左来光）
+    fill_ellipse_shaded(d, cx, 23, 11, 11, blood_pal)
+    # 瓶内血浆液面（上半更亮，示意满瓶血液）
+    for y in range(16, 21):
+        for x in range(cx - 8, cx + 9):
+            dx = (x - cx) / 11.0
+            dy = (y - 23) / 11.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (235, 64, 80))
+    # 瓶颈（玻璃半透明）
+    rect(d, cx - 3, 8, cx + 2, 14, glass)
+    # 木塞（左亮右暗）
+    for y in range(3, 9):
+        for x in range(cx - 4, cx + 5):
+            t = (x - (cx - 4)) / 9
+            px(d, x, y, cork_l if t < 0.3 else (cork_m if t < 0.7 else cork_d))
+    # 玻璃高光点
+    px(d, cx - 6, 18, (255, 255, 255, 220)); px(d, cx - 7, 20, (255, 255, 255, 170))
+    px(d, cx - 5, 16, (255, 255, 255, 170))
+    save(img, "potion.png", 2)
+
+
 import os
 os.makedirs(OUT, exist_ok=True)
 
@@ -825,6 +856,7 @@ gen_decal_bone()
 gen_decal_cross()
 gen_bg()
 gen_icon_skull()
+gen_potion()
 gen_art_storm()
 gen_art_devour()
 gen_art_spiral()

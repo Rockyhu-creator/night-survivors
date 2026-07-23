@@ -43,6 +43,18 @@ export class PickupSystem {
     });
   }
 
+  // 血瓶：击杀续航掉落，拾取回血。heal [PLACEHOLDER] 待真机手感微调
+  dropPotion(x, y, heal = 20) {
+    this.gems.push({
+      potion: true,
+      x, y,
+      value: 0,
+      heal,
+      def: { key: 'potion', min: 0, size: 22, color: '#ff5a6e' },
+      magnet: false, vx: 0, vy: 0, bob: Math.random() * Math.PI * 2,
+    });
+  }
+
   dropBossChest(x, y) {
     this.gems.push({
       chest: true, boss: true,
@@ -73,6 +85,15 @@ export class PickupSystem {
       if (d < player.radius + (g.chest ? 18 : 8)) {
         if (g.chest) {
           this.game.onChestOpened(g);
+          this.gems.splice(i, 1);
+          continue;
+        }
+        if (g.potion) {
+          const healed = Math.round(Math.min(player.maxHp, player.hp + g.heal) - player.hp);
+          player.hp = Math.min(player.maxHp, player.hp + g.heal);
+          this.game.audio.pickup();
+          this.game.fx.spawnSparks(player.x, player.y, '#ff6b81', 7);
+          if (healed > 0) this.game.fx.spawnDamageNumber(player.x, player.y - 18, `+${healed}`, '#7dff9a');
           this.gems.splice(i, 1);
           continue;
         }

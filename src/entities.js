@@ -16,6 +16,7 @@ export class Player {
     this.magnetMul = 1;
     this.expMul = 1;
     this.damageTakenMul = 1;
+    this.regenRate = 0;
     this.baseMagnet = 95;
     this.level = 1;
     this.exp = 0;
@@ -40,6 +41,10 @@ export class Player {
       if (axis.x !== 0) this.facing = axis.x > 0 ? 1 : -1;
     }
     this.iframes = Math.max(0, this.iframes - dt);
+    // 血色再生：持续回血（封顶 maxHp），死亡后不再回
+    if (this.regenRate > 0 && this.hp > 0) {
+      this.hp = Math.min(this.maxHp, this.hp + this.regenRate * dt);
+    }
   }
 
   takeDamage(amount) {

@@ -136,13 +136,33 @@ with sync_playwright() as p:
     expect('Boss 宝箱回满血', page.evaluate("() => window.__game.player.hp >= window.__game.player.maxHp"))
     expect('Boss 宝箱 +40 经验', page.evaluate("() => window.__game.player.exp >= 40"))
 
+    # --- 续航：血瓶拾取回血 + 血色再生被动持续回血 ---
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];          // 清空敌人避免干扰回血断言
+      g.player.level = 999;            // 避免拾取经验触发升级打断
+      g.player.hp = 50;
+      g.pickups.dropPotion(g.player.x, g.player.y, 20);
+    }""")
+    page.wait_for_timeout(400)
+    expect('血瓶拾取回血', page.evaluate("() => window.__game.player.hp >= 70"))
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.player.hp = 50;
+      g.player.regenRate = 10;         // 加速回血便于断言
+    }""")
+    page.wait_for_timeout(500)
+    expect('血色再生持续回血', page.evaluate("() => window.__game.player.hp > 50"))
+    page.evaluate("() => { window.__game.player.regenRate = 0; }")
+
     # --- 图鉴验证 ---
     page.evaluate("() => window.__game.ui.showTitle()")
     page.wait_for_timeout(300)
     dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    # 图鉴卡片 = 武器(4) + 被动道具(8) + 神器(6) = 18，随 data.js 新增条目需同步更新此处
+    # 图鉴卡片 = 武器(4) + 被动道具(9) + 神器(6) = 19，随 data.js 新增条目需同步更新此处
     codex = page.evaluate("""() => {
       const secs = [...document.querySelectorAll('.codex-section')];
       const byTitle = {};
@@ -152,9 +172,9 @@ with sync_playwright() as p:
       }
       return { total: document.querySelectorAll('.codex-card').length, byTitle };
     }""")
-    expect('图鉴卡片总数 18 (4武器+8被动+6神器)', codex['total'] == 18)
+    expect('图鉴卡片总数 19 (4武器+9被动+6神器)', codex['total'] == 19)
     expect('图鉴 武器4张', codex['byTitle'].get('武器') == 4)
-    expect('图鉴 被动道具8张', codex['byTitle'].get('被动道具') == 8)
+    expect('图鉴 被动道具9张', codex['byTitle'].get('被动道具') == 9)
     expect('图鉴 神器6张', codex['byTitle'].get('神器') == 6)
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     page.screenshot(path='/tmp/e2e_codex_final.png')

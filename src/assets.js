@@ -23,6 +23,7 @@ const files = {
   rubble: 'decal_rubble.png',
   bone: 'decal_bone.png',
   cross: 'decal_cross.png',
+  potion: 'potion.png',
 };
 
 const images = {};
