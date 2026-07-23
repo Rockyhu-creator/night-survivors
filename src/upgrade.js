@@ -19,12 +19,14 @@ export class UpgradeSystem {
       <button id="btn-reroll" class="ua-btn">重掷 <span id="reroll-count">3</span></button>
       <button id="btn-banish" class="ua-btn">放逐 <span id="banish-count">3</span></button>
       <p class="ua-hint">重掷:换一组三选一;放逐:选中一项后点放逐,本局不再出现</p>
+      <p id="slot-count" class="ua-slots"></p>
     `;
     this.screen.insertBefore(bar, this.cardsEl);
     this.rerollBtn = bar.querySelector('#btn-reroll');
     this.banishBtn = bar.querySelector('#btn-banish');
     this.rerollCountEl = bar.querySelector('#reroll-count');
     this.banishCountEl = bar.querySelector('#banish-count');
+    this.slotCountEl = bar.querySelector('#slot-count');
     this.rerollBtn.addEventListener('click', () => this.reroll());
     this.banishBtn.addEventListener('click', () => this.banish());
   }
@@ -43,6 +45,8 @@ export class UpgradeSystem {
     this.banishCountEl.textContent = this.game.banishesLeft;
     this.rerollBtn.disabled = this.game.rerollsLeft <= 0;
     this.banishBtn.disabled = this.game.banishesLeft <= 0 || this.selectedIdx < 0;
+    const p = this.game.player;
+    this.slotCountEl.textContent = `武器 ${p.weapons.length}/${p.maxWeapons} · 被动 ${p.passives.size}/${p.maxPassives}`;
   }
 
   buildPool() {

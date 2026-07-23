@@ -210,6 +210,7 @@ html, body {
 }
 .loadout-icon.passive { border-color: rgba(142,68,173,.6); }
 .loadout-icon.passive .loadout-lv { background: var(--purple); color: #fff; }
+.loadout-slots { width: 100%; font-family: var(--pixel-font); font-size: 9px; color: var(--gold); opacity: 0.8; margin-bottom: 4px; letter-spacing: 1px; }
 
 /* ---------- 升级界面 ---------- */
 #levelup-screen { background: rgba(6,4,14,.86); backdrop-filter: blur(3px); }
@@ -358,6 +359,7 @@ html, body {
 .ua-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .ua-btn span { color: var(--gold); margin-left: 4px; }
 .ua-hint { font-size: 11px; opacity: 0.55; letter-spacing: 1px; }
+.ua-slots { font-family: var(--pixel-font); font-size: 11px; color: var(--gold); letter-spacing: 1px; margin: 0 0 0 auto; }
 
 /* 升级卡片选中态与选择按钮 */
 .upgrade-card.selected {

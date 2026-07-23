@@ -150,6 +150,10 @@ export class UIManager {
   refreshLoadout() {
     const player = this.game.player;
     this.loadoutEl.innerHTML = '';
+    const counter = document.createElement('div');
+    counter.className = 'loadout-slots';
+    counter.textContent = `武器 ${player.weapons.length}/${player.maxWeapons} · 被动 ${player.passives.size}/${player.maxPassives}`;
+    this.loadoutEl.appendChild(counter);
     for (const w of player.weapons) {
       const def = WEAPONS[w.id] || ARTIFACTS[w.id];
       const div = document.createElement('div');
