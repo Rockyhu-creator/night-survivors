@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection, SOUL_REWARDS, ALTAR, loadSouls, saveSouls, addSouls, isUnlocked } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -28,6 +28,7 @@ export class Game {
     this.runSouls = 0;
     this.totalSouls = 0;
     this.difficulty = DIFFICULTIES.normal;
+    this.bloodline = 'wanderer';
     // 相机纵向锚点：0.5=居中；竖屏下由 resize() 改为 0.42（玩家偏上，避免手指遮挡下方视野）
     this.cameraAnchorY = 0.5;
     this.groundPattern = null;
@@ -162,6 +163,14 @@ export class Game {
     this.difficulty = DIFFICULTIES[id] || DIFFICULTIES.normal;
   }
 
+  // 选择血裔（仅在已解锁时生效）。返回是否成功
+  setBloodline(id) {
+    if (!isBloodlineUnlocked(id)) return false;
+    this.bloodline = id;
+    setSelectedBloodline(id);
+    return true;
+  }
+
   startRun() {
     this.time = 0;
     this.kills = 0;
@@ -179,8 +188,14 @@ export class Game {
     this.camera.y = -CONFIG.LOGICAL_HEIGHT * this.cameraAnchorY;
     this.camera.trauma = 0;
     this.audio.uiClick();
-    this.weapons.addWeapon('blade');
-    unlockInCollection('blade');
+    // 注入选定血裔：起始武器 + 属性偏向（S2 开局差异）
+    const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
+    this.bloodline = bl.id;
+    if (bl.weapon) {
+      this.weapons.addWeapon(bl.weapon);
+      unlockInCollection(bl.weapon);
+    }
+    bl.apply(this);
     // 注入已解锁的祭坛永久增益（灵魂货币长期循环）
     this.soulGainMul = 1;
     for (const a of ALTAR) {

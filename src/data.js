@@ -149,6 +149,53 @@ export function saveBest(best) {
   } catch { /* ignore */ }
 }
 
+// ---------- 血裔系统（开局角色差异，S2）----------
+// 6 个起始血裔：各有起始武器 + 属性偏向。除流浪者(默认)外需花灵魂解锁一次，永久可选。
+// 数值全部 [PLACEHOLDER]：cost 为解锁价、偏向幅度按设计文档假设，真机试玩后调。
+export const BLOODLINES = [
+  {
+    id: 'wanderer', name: '流浪者', icon: 'blade',
+    desc: '均衡起手 · 血之飞刃 + 微幅全能力',
+    weapon: 'blade', cost: 0, hidden: false,
+    apply: (g) => { g.player.damageMul += 0.05; g.player.maxHp += 5; },
+  },
+  {
+    id: 'saint', name: '圣徒', icon: 'holywater',
+    desc: '圣水起手 · 范围与持续 +20%',
+    weapon: 'holywater', cost: 80, hidden: false,
+    apply: (g) => { g.player.areaMul *= 1.20; },
+  },
+  {
+    id: 'berserker', name: '狂战', icon: 'axe',
+    desc: '战斧起手 · 攻速 +12% · 移速 +6%',
+    weapon: 'axe', cost: 120, hidden: false,
+    apply: (g) => { g.player.cooldownMul *= 0.88; g.player.speedMul += 0.06; },
+  },
+  {
+    id: 'thunder', name: '雷巫', icon: 'lightning',
+    desc: '雷霆起手 · 冷却缩减 +20%',
+    weapon: 'lightning', cost: 160, hidden: false,
+    apply: (g) => { g.player.cooldownMul *= 0.80; },
+  },
+  {
+    id: 'bloodthirsty', name: '嗜血者', icon: 'blade',
+    desc: '飞刃起手 · 命中回血 + 伤害 +5%',
+    weapon: 'blade', cost: 200, hidden: false,
+    apply: (g) => { g.player.lifesteal += 1.5; g.player.damageMul += 0.05; },
+  },
+  {
+    id: 'apostle', name: '永夜使徒', icon: 'player',
+    desc: '无武器起手 · 高难高回报: 伤害+30% · 移速+25% · 冷却-25% · 生命-20%',
+    weapon: null, cost: 260, hidden: true,
+    apply: (g) => {
+      g.player.damageMul += 0.30;
+      g.player.speedMul += 0.25;
+      g.player.cooldownMul *= 0.75;
+      g.player.maxHp -= 20;
+    },
+  },
+];
+
 // ---------- 灵魂货币持久化 ----------
 const SOUL_KEY = 'night_survivors_souls';
 
@@ -161,9 +208,11 @@ export function loadSouls() {
       spent: o?.spent || 0,
       unlocks: o?.unlocks || [],
       cleared: o?.cleared || [],
+      bloodlines: o?.bloodlines || ['wanderer'],
+      selectedBloodline: o?.selectedBloodline || 'wanderer',
     };
   } catch {
-    return { balance: 0, spent: 0, unlocks: [], cleared: [] };
+    return { balance: 0, spent: 0, unlocks: [], cleared: [], bloodlines: ['wanderer'], selectedBloodline: 'wanderer' };
   }
 }
 
@@ -208,6 +257,41 @@ export function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = Math.floor(seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
+}
+
+// ---------- 血裔解锁 / 选择 ----------
+export function isBloodlineUnlocked(id) {
+  if (id === 'wanderer') return true; // 默认血裔永久免费
+  return loadSouls().bloodlines.includes(id);
+}
+
+// 购买血裔解锁：余额不足或已拥有则失败。成功扣费并记录
+export function buyBloodlineUnlock(id) {
+  const def = BLOODLINES.find((b) => b.id === id);
+  if (!def) return false;
+  if (isBloodlineUnlocked(id)) return false;
+  const s = loadSouls();
+  if (s.balance < def.cost) return false;
+  s.balance -= def.cost;
+  s.spent += def.cost;
+  s.bloodlines.push(id);
+  saveSouls(s);
+  return true;
+}
+
+// 当前选定血裔（持久化）。未解锁或非法时回退默认
+export function getSelectedBloodline() {
+  const s = loadSouls();
+  const id = s.selectedBloodline;
+  return isBloodlineUnlocked(id) ? id : 'wanderer';
+}
+
+export function setSelectedBloodline(id) {
+  if (!isBloodlineUnlocked(id)) return false;
+  const s = loadSouls();
+  s.selectedBloodline = id;
+  saveSouls(s);
+  return true;
 }
 
 // ---------- 神器（Artifact）----------

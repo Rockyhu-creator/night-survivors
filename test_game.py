@@ -245,5 +245,91 @@ with sync_playwright() as p:
     page.wait_for_timeout(200)
     expect('主界面显示灵魂余额', page.evaluate("() => !document.getElementById('soul-balance').classList.contains('hidden')"))
 
+    # --- 血裔系统：开局角色差异（S2）---
+    # 重置灵魂存档为干净状态（含血裔字段），隔离前面祭坛/结算残留，余额给足用于解锁
+    page.evaluate("() => window.__souls.saveSouls({balance:9999,spent:0,unlocks:[],cleared:['normal'],bloodlines:['wanderer'],selectedBloodline:'wanderer'})")
+
+    # 默认血裔 流浪者：起手 blade + 微幅全能力(damageMul>1)
+    wl = page.evaluate("""() => {
+      window.__bloodlines.setBloodline('wanderer');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { id: window.__game.bloodline, weapons: p.weapons.map(w=>w.id), dmg: p.damageMul, hp: p.maxHp };
+    }""")
+    expect('默认血裔=流浪者', wl['id'] == 'wanderer')
+    expect('流浪者起手 血之飞刃', wl['weapons'] == ['blade'])
+    expect('流浪者 微幅全能力(damageMul>1)', wl['dmg'] > 1)
+
+    # 圣徒：圣水起手 + 范围倍率>1
+    saint = page.evaluate("""() => {
+      window.__bloodlines.buyBloodlineUnlock('saint');
+      window.__bloodlines.setBloodline('saint');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { weapons: p.weapons.map(w=>w.id), area: p.areaMul };
+    }""")
+    expect('圣徒 解锁+选择', page.evaluate("() => window.__bloodlines.isBloodlineUnlocked('saint')"))
+    expect('圣徒起手 圣水洗礼', saint['weapons'] == ['holywater'])
+    expect('圣徒 范围倍率>1', saint['area'] > 1)
+
+    # 狂战：战斧起手 + 冷却倍率<1 + 移速>1
+    ber = page.evaluate("""() => {
+      window.__bloodlines.buyBloodlineUnlock('berserker');
+      window.__bloodlines.setBloodline('berserker');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { weapons: p.weapons.map(w=>w.id), cd: p.cooldownMul, spd: p.speedMul };
+    }""")
+    expect('狂战起手 回旋战斧', ber['weapons'] == ['axe'])
+    expect('狂战 冷却倍率<1(更快)', ber['cd'] < 1)
+    expect('狂战 移速倍率>1', ber['spd'] > 1)
+
+    # 雷巫：雷霆起手 + 冷却缩减<1
+    th = page.evaluate("""() => {
+      window.__bloodlines.buyBloodlineUnlock('thunder');
+      window.__bloodlines.setBloodline('thunder');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { weapons: p.weapons.map(w=>w.id), cd: p.cooldownMul };
+    }""")
+    expect('雷巫起手 雷霆审判', th['weapons'] == ['lightning'])
+    expect('雷巫 冷却缩减<1', th['cd'] < 1)
+
+    # 嗜血者：飞刃起手 + 命中回血>0 + 伤害>1
+    bt = page.evaluate("""() => {
+      window.__bloodlines.buyBloodlineUnlock('bloodthirsty');
+      window.__bloodlines.setBloodline('bloodthirsty');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { weapons: p.weapons.map(w=>w.id), ls: p.lifesteal, dmg: p.damageMul };
+    }""")
+    expect('嗜血者起手 血之飞刃', bt['weapons'] == ['blade'])
+    expect('嗜血者 命中回血>0', bt['ls'] > 0)
+    expect('嗜血者 伤害>1', bt['dmg'] > 1)
+
+    # 永夜使徒(隐藏)：无武器起手 + 生命-20 + 高伤高移速
+    ap = page.evaluate("""() => {
+      window.__bloodlines.buyBloodlineUnlock('apostle');
+      window.__bloodlines.setBloodline('apostle');
+      window.__game.startRun();
+      const p = window.__game.player;
+      return { weapons: p.weapons.map(w=>w.id), hp: p.maxHp, dmg: p.damageMul, spd: p.speedMul, cd: p.cooldownMul };
+    }""")
+    expect('永夜使徒 解锁成功(隐藏)', page.evaluate("() => window.__bloodlines.isBloodlineUnlocked('apostle')"))
+    expect('永夜使徒 无武器起手', ap['weapons'] == [])
+    expect('永夜使徒 生命-20(<100)', ap['hp'] < 100)
+    expect('永夜使徒 高伤高移速', ap['dmg'] > 1 and ap['spd'] > 1)
+
+    # 隐藏血裔未解锁时不显示 + 标题显示当前血裔
+    page.evaluate("""() => {
+      window.__souls.saveSouls({balance:0,spent:0,unlocks:[],cleared:[],bloodlines:['wanderer'],selectedBloodline:'wanderer'});
+      window.__game.ui.showBloodline();
+    }""")
+    hidden_shown = page.evaluate("() => [...document.querySelectorAll('#bloodline-content .altar-card')].some(c => c.textContent.includes('永夜使徒'))")
+    expect('隐藏血裔未解锁不显示', not hidden_shown)
+    page.evaluate("() => window.__game.ui.hideBloodline()")  # 触发 showTitle 更新标签
+    page.wait_for_timeout(150)
+    expect('标题显示当前血裔', page.evaluate("() => document.getElementById('btn-bloodline').textContent.includes('流浪者')"))
+
     print('控制台错误:', errors if errors else '无')
     browser.close()

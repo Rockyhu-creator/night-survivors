@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, loadSouls, buyUnlock } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite } from './assets.js';
 
@@ -22,6 +22,10 @@ export class UIManager {
     this.altarScreen = document.getElementById('altar-screen');
     this.altarBalanceEl = document.getElementById('altar-balance');
     this.altarContentEl = document.getElementById('altar-content');
+    this.bloodlineBtnEl = document.getElementById('btn-bloodline');
+    this.bloodlineScreen = document.getElementById('bloodline-screen');
+    this.bloodlineBalanceEl = document.getElementById('bloodline-balance');
+    this.bloodlineContentEl = document.getElementById('bloodline-content');
     this.vignette = document.getElementById('damage-vignette');
     this.bossBarWrap = document.getElementById('boss-bar-wrap');
     this.bossName = document.getElementById('boss-name');
@@ -66,6 +70,9 @@ export class UIManager {
     const souls = loadSouls();
     this.soulBalanceEl.classList.remove('hidden');
     this.soulBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    // 血裔：标题按钮显示当前选定血裔
+    const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
+    if (this.bloodlineBtnEl) this.bloodlineBtnEl.textContent = `血裔：${bl.name}`;
   }
 
   startGame() {
@@ -303,6 +310,74 @@ export class UIManager {
 
       card.append(img, name, desc, btn);
       this.altarContentEl.appendChild(card);
+    }
+  }
+
+  showBloodline() {
+    this.titleScreen.classList.add('hidden');
+    this.bloodlineScreen.classList.remove('hidden');
+    this.renderBloodline();
+  }
+
+  hideBloodline() {
+    this.bloodlineScreen.classList.add('hidden');
+    this.showTitle();
+  }
+
+  renderBloodline() {
+    const souls = loadSouls();
+    const selected = getSelectedBloodline();
+    this.bloodlineBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    this.bloodlineContentEl.innerHTML = '';
+    for (const def of BLOODLINES) {
+      // 隐藏血裔（永夜使徒）仅在已解锁后显示，制造发现感
+      const unlocked = isBloodlineUnlocked(def.id);
+      if (def.hidden && !unlocked) continue;
+      const isSelected = def.id === selected;
+      const affordable = souls.balance >= def.cost;
+      const card = document.createElement('div');
+      card.className = `altar-card ${unlocked ? 'owned' : ''} ${isSelected ? 'selected' : ''}`;
+
+      const img = document.createElement('img');
+      img.src = this.iconURL(def.icon);
+      img.alt = def.name;
+
+      const name = document.createElement('h3');
+      name.textContent = def.name;
+
+      const desc = document.createElement('p');
+      desc.className = 'ac-desc';
+      desc.textContent = def.desc;
+
+      const btn = document.createElement('button');
+      btn.className = 'gothic-btn ac-buy';
+      if (isSelected) {
+        btn.textContent = '使用中';
+        btn.disabled = true;
+        btn.classList.add('owned-btn');
+      } else if (unlocked) {
+        btn.textContent = '选择';
+        btn.addEventListener('click', () => {
+          if (this.game.setBloodline(def.id)) {
+            this.audio.uiClick();
+            this.renderBloodline();
+          }
+        });
+      } else if (affordable) {
+        btn.textContent = `👁 ${def.cost} 解锁`;
+        btn.addEventListener('click', () => {
+          if (buyBloodlineUnlock(def.id) && this.game.setBloodline(def.id)) {
+            this.audio.uiClick();
+            this.renderBloodline();
+          }
+        });
+      } else {
+        btn.textContent = `👁 ${def.cost}`;
+        btn.disabled = true;
+      }
+
+      card.append(img, name, desc, btn);
+      this.bloodlineContentEl.appendChild(card);
     }
   }
 }

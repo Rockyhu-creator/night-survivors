@@ -1,5 +1,5 @@
 import { Game } from './game.js';
-import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked } from './data.js';
+import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked, getSelectedBloodline, setSelectedBloodline } from './data.js';
 import { MobileControls } from './mobile-controls.js';
 
 // 触屏设备检测：必须在 game.init() 之前完成，
@@ -54,6 +54,8 @@ document.getElementById('btn-codex').addEventListener('click', () => game.ui.sho
 document.getElementById('btn-codex-back').addEventListener('click', () => game.ui.hideCodex());
 document.getElementById('btn-altar').addEventListener('click', () => game.ui.showAltar());
 document.getElementById('btn-altar-back').addEventListener('click', () => game.ui.hideAltar());
+document.getElementById('btn-bloodline').addEventListener('click', () => game.ui.showBloodline());
+document.getElementById('btn-bloodline-back').addEventListener('click', () => game.ui.hideBloodline());
 // 暂停界面的"继续"按钮（桌面/移动端通用，移动端主要恢复路径）
 document.getElementById('btn-resume').addEventListener('click', () => {
   if (game.state === 'paused') game.togglePause();
@@ -76,4 +78,9 @@ window.addEventListener('keydown', unlockAudio, { once: true });
 if (new URLSearchParams(window.location.search).has('debug')) {
   window.__game = game;
   window.__souls = { loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked };
+  window.__bloodlines = {
+    BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked,
+    getSelectedBloodline, setSelectedBloodline,
+    setBloodline: (id) => game.setBloodline(id),
+  };
 }

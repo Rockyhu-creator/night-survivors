@@ -56,7 +56,8 @@ export class WeaponSystem {
       weapon.timer -= dt;
       if (weapon.timer <= 0) {
         const s = this.stats(weapon);
-        weapon.timer += s.cooldown;
+        // 血裔·攻速/冷却缩减：cooldown 乘 player.cooldownMul（<1=更快）
+        weapon.timer += s.cooldown * (player.cooldownMul || 1);
         this.fire(weapon, s);
       }
     }
@@ -179,15 +180,17 @@ export class WeaponSystem {
         });
       }
     } else if (weapon.id === 'holywater') {
+      // 血裔·范围/持续：圣徒 areaMul 放大圣水领域
+      const area = player.areaMul || 1;
       for (let i = 0; i < s.count; i += 1) {
         const target = this.pickTarget(i) || enemies[0];
         const jx = target.x + (Math.random() * 2 - 1) * 40;
         const jy = target.y + (Math.random() * 2 - 1) * 40;
         this.pools.push({
           x: jx, y: jy,
-          radius: s.radius,
+          radius: s.radius * area,
           damage: s.damage * player.damageMul,
-          duration: s.duration, tick: s.tick, tickTimer: 0,
+          duration: s.duration * area, tick: s.tick, tickTimer: 0,
           age: 0,
         });
       }
@@ -288,6 +291,10 @@ export class WeaponSystem {
           game.fx.spawnSparks(e.x, e.y, p.kind === 'blade' ? '#e74c3c' : '#9fc5ff', 4);
           if (p.lifeSteal) {
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + 1);
+          }
+          // 血裔·吸血(嗜血者)：每次命中按 lifesteal 回血（不含 pool/artifact，避免过载）
+          if (game.player.lifesteal > 0) {
+            game.player.hp = Math.min(game.player.maxHp, game.player.hp + game.player.lifesteal);
           }
           p.pierce -= 1;
           if (p.pierce <= 0) { p.life = 0; break; }

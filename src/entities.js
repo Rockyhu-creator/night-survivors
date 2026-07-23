@@ -18,6 +18,10 @@ export class Player {
     this.damageTakenMul = 1;
     this.regenRate = 0;
     this.baseMagnet = 95;
+    // 血裔注入属性：冷却倍率(<1=更快) / 范围倍率 / 命中吸血
+    this.cooldownMul = 1;
+    this.areaMul = 1;
+    this.lifesteal = 0;
     this.level = 1;
     this.exp = 0;
     this.weapons = [];
