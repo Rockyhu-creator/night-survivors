@@ -45,7 +45,23 @@ def outline(img, color=(8, 4, 14, 255)):
                         break
     return out
 
+# ---------- 资产归属声明（与 gen_assets.sh 的 AI 管线互斥） ----------
+# 以下文件名由 gen_assets.sh（文生图接口）独占生成并作为线上生产美术。
+# 本程序化生成器在模块加载时会全量重绘 public/assets/*，若不加拦截会把这
+# 15 张 AI 美术静默覆盖成程序化版本。故在 save() 中跳过它们，永不写入。
+AI_OWNED = {
+    "player.png",
+    "enemy_bat.png", "enemy_skeleton.png", "enemy_slime.png", "enemy_elite.png",
+    "weapon_blade.png", "weapon_holywater.png", "weapon_axe.png", "weapon_lightning.png",
+    "gem_small.png", "gem_medium.png", "gem_large.png",
+    "ground.png", "bg_title.png", "icon_skull.png",
+}
+
 def save(img, name, scale=1):
+    if name in AI_OWNED:
+        # AI 管线独占资产：程序化生成器不覆盖，保留线上美术
+        print("SKIP(AI-owned)", name)
+        return
     img = outline(img)
     if scale != 1:
         img = img.resize((img.width*scale, img.height*scale), Image.NEAREST)
@@ -509,6 +525,9 @@ def gen_ground():
     # 零散小碎石高光
     for _ in range(40):
         px(d, random.randint(0, S - 1), random.randint(0, S - 1), (62, 54, 78, 255))
+    if "ground.png" in AI_OWNED:
+        print("SKIP(AI-owned) ground.png")
+        return
     img.save(f"{OUT}/ground.png")
     print("OK ground.png")
 
@@ -671,6 +690,9 @@ def gen_bg():
         fd.ellipse([x-rx, y-ry, x+rx, y+ry], fill=(80, 60, 110, 18))
     fog = fog.filter(ImageFilter.GaussianBlur(8))
     img = Image.alpha_composite(img, fog)
+    if "bg_title.png" in AI_OWNED:
+        print("SKIP(AI-owned) bg_title.png")
+        return
     img.convert("RGB").save(f"{OUT}/bg_title.png")
     print("OK bg_title.png")
 

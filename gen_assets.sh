@@ -31,7 +31,12 @@ gen() {
 
 STYLE="16-bit pixel art, dark gothic vampire survivors game style, single isolated sprite centered on plain solid white background, no shadow, no scene, no border, no text, clean sharp pixels, top-down game asset"
 
-rm -f *.png   # 清掉占位图重新生成
+# 注：gen_assets.py（程序化管线）独占生成 boss_*/chest/decal_*/art_*/portrait_*/altar_* 等约30张，
+# 此处只清本 AI 管线要重建的 15 张，绝不 rm -f *.png（否则会误删程序化独占资产导致游戏缺图）。
+AI_FILES="player.png enemy_bat.png enemy_skeleton.png enemy_slime.png enemy_elite.png \
+weapon_blade.png weapon_holywater.png weapon_axe.png weapon_lightning.png \
+gem_small.png gem_medium.png gem_large.png ground.png bg_title.png icon_skull.png"
+rm -f $AI_FILES   # 仅清 AI 自有集，重建后由 curl 下载覆盖
 
 gen player.png        square "hooded vampire hunter hero character sprite, dark crimson cape and silver armor, glowing red eyes, facing viewer, full body visible, $STYLE"
 gen enemy_bat.png     square "dark vampire bat monster sprite, tattered purple-black wings spread wide, glowing red eyes, flying pose, full body visible, $STYLE"
