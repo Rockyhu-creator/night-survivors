@@ -56,6 +56,7 @@ document.getElementById('btn-altar').addEventListener('click', () => game.ui.sho
 document.getElementById('btn-altar-back').addEventListener('click', () => game.ui.hideAltar());
 document.getElementById('btn-bloodline').addEventListener('click', () => game.ui.showBloodline());
 document.getElementById('btn-bloodline-back').addEventListener('click', () => game.ui.hideBloodline());
+document.getElementById('btn-guide').addEventListener('click', () => game.ui.showGuide());
 // 暂停界面的"继续"按钮（桌面/移动端通用，移动端主要恢复路径）
 document.getElementById('btn-resume').addEventListener('click', () => {
   if (game.state === 'paused') game.togglePause();

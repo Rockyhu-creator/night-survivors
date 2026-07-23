@@ -58,6 +58,7 @@
           <button id="btn-bloodline" class="gothic-btn ghost">血裔：流浪者</button>
           <button id="btn-altar" class="gothic-btn ghost">灵魂祭坛</button>
           <button id="btn-codex" class="gothic-btn ghost">合成图鉴</button>
+          <button id="btn-guide" class="gothic-btn ghost">玩法说明</button>
         </div>
       </div>
     </div>
@@ -106,6 +107,23 @@
       <div id="bloodline-balance" class="altar-balance"></div>
       <div id="bloodline-content"></div>
       <button id="btn-bloodline-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- 玩法说明（首启自动弹） -->
+    <div id="guide-screen" class="screen guide-screen hidden">
+      <div class="guide-card">
+        <h2 class="guide-title">活到黎明 · 玩法说明</h2>
+        <ul class="guide-list">
+          <li><b>目标</b>：活到黎明（30 分钟）。每 5 分钟降临一位 Boss，击败后掉落的宝箱是进化的钥匙。</li>
+          <li><b>角色</b>：开局可在「血裔选择」中挑选初始角色，不同血裔起手武器与天赋不同。</li>
+          <li><b>移动</b>：WASD / 方向键；手机触屏拖动。你只管走位，活下去。</li>
+          <li><b>攻击</b>：武器自动索敌开火，无需手动瞄准。</li>
+          <li><b>升级</b>：拾取掉落的灵魂宝石积累经验，升级时三选一强化（满槽后只能升级已有装备）。</li>
+          <li><b>进化</b>：武器升满级并持有对应被动，开启 Boss 宝箱即可进化为更强神器。</li>
+          <li><b>长远</b>：阵亡后获得灵魂，在「灵魂祭坛」永久强化；武器/被动槽也可用灵魂扩容。</li>
+        </ul>
+        <button id="btn-guide-close" class="gothic-btn">开始狩猎</button>
+      </div>
     </div>
 
     <div id="evolution-banner" class="hidden">

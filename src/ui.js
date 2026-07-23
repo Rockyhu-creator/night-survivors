@@ -32,8 +32,11 @@ export class UIManager {
     this.bossBarFill = document.getElementById('boss-bar-fill');
     this.bossWarning = document.getElementById('boss-warning');
     this.warnName = document.getElementById('warn-name');
+    this.guideScreen = document.getElementById('guide-screen');
+    this.guideCloseBtn = document.getElementById('btn-guide-close');
     this.vignetteAlpha = 0;
     this.spawnTitleBats();
+    this.guideCloseBtn.addEventListener('click', () => { this.audio.uiClick(); this.hideGuide(); });
   }
 
   spawnTitleBats() {
@@ -73,6 +76,14 @@ export class UIManager {
     // 血裔：标题按钮显示当前选定血裔
     const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
     if (this.bloodlineBtnEl) this.bloodlineBtnEl.textContent = `血裔：${bl.name}`;
+    // 首启自动弹玩法说明（localStorage 记忆，仅首次）
+    if (!localStorage.getItem('ns_guide_seen')) this.showGuide();
+  }
+
+  showGuide() { this.guideScreen.classList.remove('hidden'); }
+  hideGuide() {
+    this.guideScreen.classList.add('hidden');
+    localStorage.setItem('ns_guide_seen', '1');
   }
 
   startGame() {

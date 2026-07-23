@@ -640,3 +640,12 @@ html, body {
 .altar-card.selected { border-color: var(--purple); box-shadow: 0 0 22px rgba(142,68,173,.7); }
 .altar-card .ac-buy.selected-btn { background: rgba(142,68,173,.35); border-color: var(--purple); color: var(--bone); }
 .touch-device #bloodline-content { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+
+/* 玩法说明弹窗（首启自动弹） */
+.guide-screen { background: linear-gradient(rgba(8,6,18,.82), rgba(8,6,18,.95)); z-index: 40; }
+.guide-card { width: min(560px, 92vw); background: rgba(24,18,40,.92); border: 1px solid var(--purple); border-radius: 12px; padding: 26px 30px; box-shadow: 0 0 40px rgba(142,68,173,.4); }
+.guide-title { color: var(--bone); font-size: 22px; letter-spacing: 3px; text-align: center; margin-bottom: 16px; }
+.guide-list { list-style: none; padding: 0; margin: 0 0 20px; }
+.guide-list li { color: #d8d0e8; font-size: 14px; line-height: 1.7; padding: 7px 0; border-bottom: 1px dashed rgba(142,68,173,.25); }
+.guide-list b { color: var(--purple); margin-right: 6px; }
+.guide-card .gothic-btn { display: block; margin: 0 auto; }
