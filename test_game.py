@@ -1,10 +1,17 @@
 from playwright.sync_api import sync_playwright
+import sys
 
 URL = 'http://localhost:5173/?debug'
 
+_failures = 0  # P1: 失败计数器，用于非零退出码
+
 def expect(name, cond):
-    print(('PASS' if cond else 'FAIL'), name)
-    return cond
+    global _failures
+    ok = bool(cond)
+    print(('PASS' if ok else 'FAIL'), name)
+    if not ok:
+        _failures += 1
+    return ok
 
 def dismiss_upgrades(page, halt=False):
     """玩家击杀敌人会触发 level up 进入 upgrading 状态，需主动清理。
@@ -479,4 +486,9 @@ with sync_playwright() as p:
     expect('标题显示当前血裔', page.evaluate("() => document.getElementById('btn-bloodline').textContent.includes('流浪者')"))
 
     print('控制台错误:', errors if errors else '无')
+    if _failures:
+        print(f'\nTOTAL FAILURES: {_failures}')
+    else:
+        print('\nALL PASS')
     browser.close()
+    sys.exit(1 if _failures else 0)

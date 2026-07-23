@@ -76,14 +76,16 @@ export class UIManager {
     // 血裔：标题按钮显示当前选定血裔
     const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
     if (this.bloodlineBtnEl) this.bloodlineBtnEl.textContent = `血裔：${bl.name}`;
-    // 首启自动弹玩法说明（localStorage 记忆，仅首次）
-    if (!localStorage.getItem('ns_guide_seen')) this.showGuide();
+    // 首启自动弹玩法说明（localStorage 记忆，仅首次）。try/catch 防隐私模式抛异常（P0）
+    let guideSeen = false;
+    try { guideSeen = localStorage.getItem('ns_guide_seen') === '1'; } catch (_) { /* 禁用则跳过 */ }
+    if (!guideSeen) this.showGuide();
   }
 
   showGuide() { this.guideScreen.classList.remove('hidden'); }
   hideGuide() {
     this.guideScreen.classList.add('hidden');
-    localStorage.setItem('ns_guide_seen', '1');
+    try { localStorage.setItem('ns_guide_seen', '1'); } catch (_) { /* 禁用则跳过 */ }
   }
 
   startGame() {

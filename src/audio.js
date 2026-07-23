@@ -6,8 +6,9 @@ export class AudioManager {
   constructor() {
     this.ctx = null;
     this.master = null;
-    // 默认静音：未开启过则等于 false（不读 localStorage 即 false）
-    this.enabled = localStorage.getItem(STORAGE_KEY) === '1';
+    // 默认静音：未开启过则等于 false。try/catch 防隐私模式/存储禁用导致构造器抛异常（P0）
+    try { this.enabled = localStorage.getItem(STORAGE_KEY) === '1'; }
+    catch (_) { this.enabled = false; }
     this._lastKillAt = 0;
   }
 
@@ -17,7 +18,8 @@ export class AudioManager {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      this.ctx = new AC();
+      this.ctx = (() => { try { return new AC(); } catch (_) { return null; } })();
+      if (!this.ctx) return null;
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.22; // 主音量，避免刺耳
       this.master.connect(this.ctx.destination);

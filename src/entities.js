@@ -299,7 +299,8 @@ export class EnemyManager {
     }
 
     const player = this.game.player;
-    const grid = this.buildGrid();
+    this._grid = this.buildGrid();  // 每帧构建一次网格，复用给 enemiesNear 与敌人推开
+    const grid = this._grid;
     const now = t;
 
     for (const e of this.enemies) {
@@ -424,7 +425,7 @@ export class EnemyManager {
   }
 
   enemiesNear(x, y, range) {
-    const grid = this.buildGrid();
+    const grid = this._grid;  // 复用 update() 中每帧只构建一次的网格，避免数百次全量重建（P0）
     const cell = CONFIG.GRID_CELL;
     const r = Math.ceil(range / cell);
     const gx = Math.floor(x / cell);
