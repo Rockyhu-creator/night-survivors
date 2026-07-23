@@ -51,13 +51,16 @@ export class UpgradeSystem {
     // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级装备权重大幅高于新装备，加速单 build 成型
     // isWeapon 标记武器向，供 rollOptions 做"每层至少1个武器"配额。权重 [PLACEHOLDER] 待真机微调
     const W = { weaponUp: 5, passiveUp: 3, weaponNew: 2, passiveNew: 1 };
+    // S3 武器计数含神器（同 player.weapons 数组），与 addWeapon 口径一致
+    const weaponCount = player.weapons.length;
     for (const def of Object.values(WEAPONS)) {
       if (this.banned.has(def.id)) continue;
       if (this.game.weapons.hasWeapon(def.id)) {
         if (this.game.weapons.weaponLevel(def.id) < def.maxLevel) {
           pool.push({ kind: 'weapon-up', id: def.id, def, weight: W.weaponUp, isWeapon: true });
         }
-      } else {
+      } else if (weaponCount < player.maxWeapons) {
+        // S3：满武器槽不再提供新武器卡（保留已有武器升级），逼出 build 取舍
         pool.push({ kind: 'weapon-new', id: def.id, def, weight: W.weaponNew, isWeapon: true });
       }
     }
@@ -65,6 +68,8 @@ export class UpgradeSystem {
       if (this.banned.has(def.id)) continue;
       const lv = player.passives.get(def.id) || 0;
       if (lv >= def.maxLevel) continue;
+      // S3：满被动槽时，只跳过尚未拥有的"新被动"；已拥有的被动升级照常（保留后期成长）
+      if (lv === 0 && player.passives.size >= player.maxPassives) continue;
       pool.push({ kind: 'passive', id: def.id, def, weight: lv > 0 ? W.passiveUp : W.passiveNew, isWeapon: false });
     }
     return pool;
