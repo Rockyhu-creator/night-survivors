@@ -36,6 +36,7 @@ export const ALTAR = [
   { id: 'soul_slot_weapon',  name: '扩容武器槽', icon: 'altar_slot_weapon',  cost: 150, desc: '武器槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxWeapons += 1; } },
   { id: 'soul_slot_passive', name: '扩容被动槽', icon: 'altar_slot_passive', cost: 150, desc: '被动槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxPassives += 1; } },
 ];
+if (typeof window !== 'undefined') window.__altar = ALTAR;
 
 // 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
 // spawnMul=刷怪频率倍率，bossCalm=Boss存活时刷怪量比例，bossGapMul=Boss间隔倍率

@@ -31,6 +31,23 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
 
+    # --- 新手指引：首启自动弹 + 常驻按钮（UX 改造，2026-07-23）---
+    guide_autoshow = page.evaluate("() => !document.getElementById('guide-screen').classList.contains('hidden')")
+    expect('首启自动弹出玩法说明', guide_autoshow)
+    if guide_autoshow:
+        page.click('#btn-guide-close')
+        page.wait_for_timeout(200)
+    expect('关闭后玩法说明隐藏', page.evaluate("() => document.getElementById('guide-screen').classList.contains('hidden')"))
+    page.click('#btn-guide')
+    page.wait_for_timeout(200)
+    expect('常驻按钮可再开说明', page.evaluate("() => !document.getElementById('guide-screen').classList.contains('hidden')"))
+    page.click('#btn-guide-close')
+    page.wait_for_timeout(200)
+
+    # --- 资产键存在性：立绘 + 祭坛图标（UX 改造）---
+    expect('6 角色全身立绘键存在', page.evaluate("""() => ['portrait_wanderer','portrait_saint','portrait_berserker','portrait_thunder','portrait_bloodthirsty','portrait_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    expect('7 祭坛专属图标键存在', page.evaluate("""() => ['altar_hp','altar_spd','altar_dmg','altar_gain','altar_dual','altar_slot_weapon','altar_slot_passive'].every(k => !!(window.__assets && window.__assets[k]))"""))
+
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')
     page.wait_for_timeout(400)
@@ -348,6 +365,13 @@ with sync_playwright() as p:
     page.wait_for_timeout(200)
     expect('主界面显示灵魂余额', page.evaluate("() => !document.getElementById('soul-balance').classList.contains('hidden')"))
 
+    # 祭坛卡片均用专属图标（不复用旧素材，UX 改造，2026-07-23）
+    page.evaluate("() => window.__game.ui.showAltar()")
+    page.wait_for_timeout(300)
+    expect('祭坛图标不复用旧素材(均为 altar_*)', page.evaluate("""() => window.__altar.every(a => a.icon.startsWith('altar_'))"""))
+    expect('祭坛卡片全部正常渲染', page.evaluate("""() => [...document.querySelectorAll('#altar-content .altar-card img')].every(img => img.complete && img.naturalWidth > 0)"""))
+    page.evaluate("() => window.__game.ui.hideAltar()")
+
     # --- 血裔系统：开局角色差异（S2）---
     # 重置灵魂存档为干净状态（含血裔字段），隔离前面祭坛/结算残留，余额给足用于解锁
     page.evaluate("() => window.__souls.saveSouls({balance:9999,spent:0,unlocks:[],cleared:['normal'],bloodlines:['wanderer'],selectedBloodline:'wanderer'})")
@@ -430,6 +454,7 @@ with sync_playwright() as p:
     }""")
     hidden_shown = page.evaluate("() => [...document.querySelectorAll('#bloodline-content .altar-card')].some(c => c.textContent.includes('永夜使徒'))")
     expect('隐藏血裔未解锁不显示', not hidden_shown)
+    expect('血裔卡含初始武器说明', page.evaluate("() => document.getElementById('bloodline-content').innerHTML.includes('初始武器')"))
     page.evaluate("() => window.__game.ui.hideBloodline()")  # 触发 showTitle 更新标签
     page.wait_for_timeout(150)
     expect('标题显示当前血裔', page.evaluate("() => document.getElementById('btn-bloodline').textContent.includes('流浪者')"))

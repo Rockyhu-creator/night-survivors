@@ -36,7 +36,7 @@ export class UIManager {
     this.guideCloseBtn = document.getElementById('btn-guide-close');
     this.vignetteAlpha = 0;
     this.spawnTitleBats();
-    this.guideCloseBtn.addEventListener('click', () => { this.audio.uiClick(); this.hideGuide(); });
+    this.guideCloseBtn.addEventListener('click', () => { this.game.audio.uiClick(); this.hideGuide(); });
   }
 
   spawnTitleBats() {
@@ -317,7 +317,7 @@ export class UIManager {
         btn.textContent = `👁 ${def.cost}`;
         btn.addEventListener('click', () => {
           if (buyUnlock(def.id)) {
-            this.audio.uiClick();
+            this.game.audio.uiClick();
             this.renderAltar();
           }
         });
@@ -374,7 +374,7 @@ export class UIManager {
         btn.textContent = '选择';
         btn.addEventListener('click', () => {
           if (this.game.setBloodline(def.id)) {
-            this.audio.uiClick();
+            this.game.audio.uiClick();
             this.renderBloodline();
           }
         });
@@ -382,7 +382,7 @@ export class UIManager {
         btn.textContent = `👁 ${def.cost} 解锁`;
         btn.addEventListener('click', () => {
           if (buyBloodlineUnlock(def.id) && this.game.setBloodline(def.id)) {
-            this.audio.uiClick();
+            this.game.audio.uiClick();
             this.renderBloodline();
           }
         });
