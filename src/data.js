@@ -32,6 +32,9 @@ export const ALTAR = [
   { id: 'soul_dmg', name: '嗜血诅咒', icon: 'blade',     cost: 130, desc: '所有伤害 +5%（永久）',        apply: (g) => { g.player.damageMul += 0.05; } },
   { id: 'soul_gain',name: '亡魂低语', icon: 'gemMedium', cost: 160, desc: '灵魂获取 +25%（永久）',       apply: (g) => { g.soulGainMul *= 1.25; } },
   { id: 'soul_dual',name: '双生武装', icon: 'holywater', cost: 220, desc: '开局额外获得「圣水洗礼」',     apply: (g) => { g.weapons.addWeapon('holywater'); } },
+  // S3 槽位上限扩容：花灵魂永久 +1 槽（上限 7），深化长期循环
+  { id: 'soul_slot_weapon',  name: '扩容武器槽', icon: 'blade',     cost: 150, desc: '武器槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxWeapons += 1; } },
+  { id: 'soul_slot_passive', name: '扩容被动槽', icon: 'gemMedium', cost: 150, desc: '被动槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxPassives += 1; } },
 ];
 
 // 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
