@@ -8,6 +8,7 @@ export class WeaponSystem {
     this.pools = [];
     this.bolts = [];
     this.slashes = [];
+    this.vials = [];
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -17,6 +18,7 @@ export class WeaponSystem {
     this.pools.length = 0;
     this.bolts.length = 0;
     this.slashes.length = 0;
+    this.vials.length = 0;
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -66,6 +68,7 @@ export class WeaponSystem {
     this.updateProjectiles(dt);
     this.updatePools(dt);
     this.updateBolts(dt);
+    this.updateVials(dt);
     this.updateSlashes(dt);
   }
 
@@ -222,33 +225,37 @@ export class WeaponSystem {
     if (enemies.length === 0) return;
 
     if (weapon.id === 'blade') {
-      for (let i = 0; i < s.count; i += 1) {
-        const target = this.pickTarget(i);
-        if (!target) return;
-        const dx = target.x - player.x;
-        const dy = target.y - player.y;
-        const d = Math.hypot(dx, dy) || 1;
+      // 忍者飞刀：以最近敌人为中心、count 片扇形连掷，像飞刀出手
+      const target = this.pickTarget(0) || enemies[0];
+      const base = Math.atan2(target.y - player.y, target.x - player.x);
+      const spread = 0.16;
+      const n = s.count;
+      for (let i = 0; i < n; i += 1) {
+        const ang = base + (i - (n - 1) / 2) * spread;
         this.projectiles.push({
           kind: 'blade',
           x: player.x, y: player.y,
-          vx: (dx / d) * s.speed, vy: (dy / d) * s.speed,
+          vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
           damage: s.damage * player.damageMul,
           pierce: s.pierce, life: 1.6, spin: 0, hitSet: new Set(),
         });
       }
     } else if (weapon.id === 'holywater') {
-      // 血裔·范围/持续：圣徒 areaMul 放大圣水领域
+      // 血裔·范围/持续：圣徒 areaMul 放大圣水领域；改为抛物线飞瓶，落地生成领域
       const area = player.areaMul || 1;
       for (let i = 0; i < s.count; i += 1) {
         const target = this.pickTarget(i) || enemies[0];
         const jx = target.x + (Math.random() * 2 - 1) * 40;
         const jy = target.y + (Math.random() * 2 - 1) * 40;
-        this.pools.push({
-          x: jx, y: jy,
+        const dist = Math.hypot(jx - player.x, jy - player.y);
+        this.vials.push({
+          x0: player.x, y0: player.y, x: player.x, y: player.y,
+          tx: jx, ty: jy,
+          t: 0,
+          dur: Math.max(0.34, Math.min(0.72, dist / 420)),
           radius: s.radius * area,
           damage: s.damage * player.damageMul,
-          duration: s.duration * area, tick: s.tick, tickTimer: 0,
-          age: 0,
+          duration: s.duration * area, tick: s.tick, tickTimer: 0, age: 0,
         });
       }
     } else if (weapon.id === 'axe') {
@@ -330,7 +337,7 @@ export class WeaponSystem {
         }
       }
     }
-    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.18, maxLife: 0.18 });
+    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.22, maxLife: 0.22, bow: (Math.random() < 0.5 ? -1 : 1) });
   }
 
   pickTarget(offset = 0) {
@@ -348,7 +355,8 @@ export class WeaponSystem {
   strikeLightning(startEnemy, s, hitSet) {
     const game = this.game;
     let current = startEnemy;
-    const points = [{ x: current.x, y: current.y }];
+    const firstX = current.x, firstY = current.y;
+    const points = [{ x: firstX, y: firstY - 360, sky: true }, { x: firstX, y: firstY }];
     let remaining = s.chains;
     hitSet.add(current);
     game.enemies.damageEnemy(current, s.damage * game.player.damageMul);
@@ -364,7 +372,7 @@ export class WeaponSystem {
       remaining -= 1;
     }
     this.bolts.push({ points, life: 0.22, maxLife: 0.22 });
-    game.fx.spawnSparks(points[0].x, points[0].y, '#f5d76e', 8);
+    game.fx.spawnSparks(firstX, firstY, '#f5d76e', 10);
   }
 
   updateProjectiles(dt) {
@@ -447,6 +455,28 @@ export class WeaponSystem {
     }
   }
 
+  updateVials(dt) {
+    const game = this.game;
+    for (let i = this.vials.length - 1; i >= 0; i -= 1) {
+      const v = this.vials[i];
+      v.t += dt / v.dur;
+      if (v.t >= 1) {
+        // 落地：生成圣水领域
+        this.pools.push({
+          x: v.tx, y: v.ty, radius: v.radius, damage: v.damage,
+          duration: v.duration, tick: v.tick, tickTimer: 0, age: 0,
+        });
+        game.fx.spawnSparks(v.tx, v.ty, '#a8d8ff', 8);
+        this.vials.splice(i, 1);
+        continue;
+      }
+      const e = v.t;
+      const arc = Math.sin(Math.PI * e) * Math.min(130, Math.hypot(v.tx - v.x0, v.ty - v.y0) * 0.3);
+      v.x = v.x0 + (v.tx - v.x0) * e;
+      v.y = v.y0 + (v.ty - v.y0) * e - arc;
+    }
+  }
+
   render(ctx, cam) {
     // 圣水领域
     for (const pool of this.pools) {
@@ -470,6 +500,20 @@ export class WeaponSystem {
       ctx.restore();
     }
 
+    // 圣水飞瓶（抛物线投掷）
+    for (const v of this.vials) {
+      const sx = v.x - cam.ox;
+      const sy = v.y - cam.oy;
+      const img = sprite('holywater');
+      const sz = 18;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(v.t * Math.PI * 1.6);
+      if (img) ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+      else { ctx.fillStyle = '#7ec8ff'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
+
     // 亡灵光环 + 长鞭横扫 + 寂灭结界（武器丰富化新增视觉）
     const auraW = this.game.player.weapons.find((w) => w.id === 'aura' && !w.artifact);
     if (auraW) {
@@ -478,14 +522,36 @@ export class WeaponSystem {
       const pulse = 0.85 + Math.sin(this.game.time * 4) * 0.1;
       const sx = this.game.player.x - cam.ox;
       const sy = this.game.player.y - cam.oy;
+      const rot = this.game.time * 0.6;
       ctx.save();
-      ctx.globalAlpha = 0.28;
-      ctx.fillStyle = '#7a3b6e';
-      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.7;
-      ctx.strokeStyle = '#c060a0';
+      ctx.translate(sx, sy);
+      // 红色圆环（脉冲）
+      ctx.globalAlpha = 0.30;
+      ctx.fillStyle = '#c0202a';
+      ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = '#e23b3b';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(226,59,59,0.8)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      // 内嵌六芒星（两等边三角形，缓慢旋转）
+      ctx.rotate(rot);
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#ff7a85';
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.stroke();
+      const R = r * 0.55;
+      for (let tri = 0; tri < 2; tri += 1) {
+        const off = tri * Math.PI;
+        ctx.beginPath();
+        for (let k = 0; k <= 3; k += 1) {
+          const ang = -Math.PI / 2 + off + (k % 3) * (Math.PI * 2 / 3);
+          const px = Math.cos(ang) * R, py = Math.sin(ang) * R;
+          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
       ctx.restore();
     }
     // 寂灭结界：更亮更大的光环
@@ -504,18 +570,45 @@ export class WeaponSystem {
       ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
-    // 长鞭横扫弧
+    // 长鞭横扫：锥形曲线鞭 + 末端裂响
+    const qbez = (x0, y0, cx, cy, x1, y1, u) => {
+      const m = 1 - u;
+      return {
+        x: m * m * x0 + 2 * m * u * cx + u * u * x1,
+        y: m * m * y0 + 2 * m * u * cy + u * u * y1,
+      };
+    };
     for (const sl of this.slashes) {
       const a = sl.life / sl.maxLife;
+      const t = 1 - a;
+      const grow = Math.min(1, t * 5);          // 快速挥出
+      const fade = a;
       ctx.save();
-      ctx.globalAlpha = a * 0.85;
       ctx.translate(sl.x - cam.ox, sl.y - cam.oy);
       ctx.rotate(sl.ang);
-      const grad = ctx.createLinearGradient(0, 0, sl.len, 0);
-      grad.addColorStop(0, 'rgba(192,96,160,0.1)');
-      grad.addColorStop(1, 'rgba(224,122,192,0.9)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, -sl.width / 2, sl.len, sl.width);
+      const tipX = sl.len * grow;
+      const bow = Math.sin(t * Math.PI) * sl.width * 0.55 * (sl.bow || 1);
+      ctx.lineCap = 'round';
+      const N = 16;
+      for (let i = 0; i < N; i += 1) {
+        const u0 = i / N, u1 = (i + 1) / N;
+        const p0 = qbez(0, 0, tipX * 0.5, bow, tipX, 0, u0);
+        const p1 = qbez(0, 0, tipX * 0.5, bow, tipX, 0, u1);
+        ctx.lineWidth = Math.max(1, sl.width * (1 - 0.82 * u0));
+        ctx.globalAlpha = fade * (0.95 - u0 * 0.35);
+        ctx.strokeStyle = i < N * 0.5 ? 'rgba(236,140,200,0.95)' : 'rgba(200,90,165,0.85)';
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+      }
+      if (grow >= 0.96) {
+        ctx.globalAlpha = fade * 0.9;
+        ctx.fillStyle = 'rgba(255,224,246,0.95)';
+        ctx.beginPath();
+        ctx.arc(tipX, 0, 3 + (1 - fade) * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 
@@ -573,7 +666,7 @@ export class WeaponSystem {
       ctx.restore();
     }
 
-    // 闪电
+    // 闪电（含天降落雷）
     for (const bolt of this.bolts) {
       const alpha = bolt.life / bolt.maxLife;
       ctx.save();
@@ -586,10 +679,27 @@ export class WeaponSystem {
       bolt.points.forEach((pt, idx) => {
         const sx = pt.x - cam.ox + (Math.random() * 2 - 1) * 4;
         const sy = pt.y - cam.oy + (Math.random() * 2 - 1) * 4;
-        if (idx === 0) ctx.moveTo(sx, sy - 40);
-        ctx.lineTo(sx, sy);
+        if (idx === 0) {
+          if (pt.sky) ctx.moveTo(sx, sy);
+          else ctx.moveTo(sx, sy - 40);
+        } else {
+          ctx.lineTo(sx, sy);
+        }
       });
       ctx.stroke();
+      // 落点爆闪（additive）
+      const impact = bolt.points.find((p) => !p.sky);
+      if (impact) {
+        const ix = impact.x - cam.ox, iy = impact.y - cam.oy;
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = alpha * 0.85;
+        ctx.fillStyle = 'rgba(255,245,180,0.9)';
+        ctx.beginPath();
+        ctx.arc(ix, iy, 5 + alpha * 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
       ctx.restore();
     }
   }

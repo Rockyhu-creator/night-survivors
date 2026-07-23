@@ -332,27 +332,45 @@ def gen_elite():
 
 # ---------- 武器图标 ----------
 def gen_blade():
+    # 忍者飞刀(kunai)：朝右(+x)尖刺刀身 + 护手 + 握柄环 + 镂孔 + 缠绳，体积光
     S = 40
     img, d = new_canvas(S)
-    body, edge, hi = (205, 58, 64, 255), (138, 20, 30, 255), (255, 158, 158, 255)
-    hilt, guard = (74, 42, 26, 255), (206, 172, 78, 255)
-    # 刀身：主对角线带，宽 6
-    for i in range(24):
-        t = i / 23
-        x = 9 + t * 22; y = 31 - t * 22
-        for w in range(-3, 4):
-            col = edge if abs(w) >= 3 else body
-            px(d, round(x) + w, round(y), col)
-    # 刀尖高光三角
+    steel_d, steel_m, steel_l = (64, 72, 92, 255), (150, 162, 188, 255), (228, 238, 252, 255)
+    ring_d, ring_m = (70, 74, 90, 255), (120, 126, 146, 255)
+    wrap = (150, 60, 60, 255)
+    cy = 20
+    # 刀身（朝右尖刺，上亮下暗）
+    for i in range(26):
+        x = 12 + i
+        t = i / 25
+        half = max(1, round(5 * (1 - t * 0.82)))
+        for w in range(-half, half + 1):
+            y = cy + w
+            col = steel_l if w < -half * 0.35 else (steel_m if w < 0 else steel_d)
+            px(d, x, y, col)
+    # 刀尖高光
     for i in range(7):
-        px(d, 26 + i, 14 - i, hi); px(d, 27 + i, 14 - i, hi)
-    # 刀脊高光（中线偏上）
-    for i in range(18):
-        t = i / 17
-        px(d, round(12 + t * 17), round(28 - t * 17) - 1, hi)
-    # 护手 + 握柄
-    rect(d, 6, 29, 14, 32, guard)
-    rect(d, 9, 32, 12, 38, hilt)
+        px(d, 33 + i, cy, steel_l)
+        px(d, 34 + i, cy - 1, steel_l)
+    # 护手（竖直短杠）
+    for y in range(cy - 8, cy + 9):
+        px(d, 10, y, ring_m); px(d, 11, y, ring_d)
+    # 握柄环（左端圆）
+    for y in range(cy - 6, cy + 7):
+        for x in range(4, 11):
+            dx = (x - 7) / 6.0; dy = (y - cy) / 6.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, ring_m if dx < 0.2 else ring_d)
+    # 镂孔（透明）
+    for y in range(cy - 3, cy + 4):
+        for x in range(5, 10):
+            dx = (x - 7) / 3.0; dy = (y - cy) / 3.0
+            if dx * dx + dy * dy <= 1:
+                px(d, x, y, (0, 0, 0, 0))
+    # 缠绳
+    for y in range(cy - 4, cy + 1):
+        for x in range(11, 14):
+            px(d, x, y, wrap)
     save(img, "weapon_blade.png", 2)
 
 def gen_holywater():
@@ -843,22 +861,29 @@ def gen_art_tempest():  # 雷劫（隐藏）：粗壮紫雷劈落裂纹地面
 
 
 # ---------- 武器丰富化：3 把新武器图标（2026-07-23） ----------
-def gen_weapon_aura():  # 亡灵光环：紫色双环 + 中心骷髅微光
+def gen_weapon_aura():  # 亡灵光环：红色圆环 + 六芒星
     S = 40
     img, d = new_canvas(S)
-    ring_m, ring_l = (150, 70, 180, 255), (210, 150, 230, 255)
     cx, cy = 20, 20
-    for r in (15, 12):
-        col = ring_l if r == 12 else ring_m
-        for a in range(0, 360, 4):
+    red_m, red_l = (190, 30, 44, 255), (240, 95, 105, 255)
+    # 外红环
+    for r in (16, 13):
+        col = red_m if r == 16 else red_l
+        for a in range(0, 360, 3):
             rad = math.radians(a)
             px(d, round(cx + math.cos(rad) * r), round(cy + math.sin(rad) * r), col)
-    for y in range(16, 25):  # 中心骷髅
-        for x in range(15, 26):
-            dx = (x - cx) / 6.0; dy = (y - cy) / 6.0
-            if dx * dx + dy * dy <= 1:
-                px(d, x, y, (40, 18, 55, 255))
-    px(d, 17, 19, (255, 80, 200)); px(d, 22, 19, (255, 80, 200))
+    # 六芒星：两个重叠等边三角形
+    R = 11
+    up = [(cx + math.cos(-math.pi / 2 + k * 2 * math.pi / 3) * R,
+           cy + math.sin(-math.pi / 2 + k * 2 * math.pi / 3) * R) for k in range(3)]
+    down = [(cx + math.cos(math.pi / 2 + k * 2 * math.pi / 3) * R,
+             cy + math.sin(math.pi / 2 + k * 2 * math.pi / 3) * R) for k in range(3)]
+    d.polygon([(round(x), round(y)) for (x, y) in up], fill=(150, 20, 32, 170))
+    d.polygon([(round(x), round(y)) for (x, y) in down], fill=(200, 50, 60, 150))
+    for poly in (up, down):
+        d.line([(round(x), round(y)) for (x, y) in poly] +
+               [(round(poly[0][0]), round(poly[0][1]))], fill=red_l, width=1)
+    px(d, cx, cy, red_l)
     save(img, "weapon_aura.png", 2)
 
 def gen_weapon_whip():  # 噬魂长鞭：弯曲鞭身 + 柄 + 尖
