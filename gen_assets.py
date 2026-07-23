@@ -1056,6 +1056,122 @@ def gen_portrait_apostle():
     gen_portrait('portrait_apostle.png', ((18, 12, 30), (45, 35, 65), (80, 65, 110)), ((30, 25, 45), (55, 48, 75), (90, 80, 120)), (120, 220, 255), _feat_apostle)
 
 
+# ---------- 祭坛专属图标（UX 改造，2026-07-23）：不复用任何现有素材 ----------
+def gen_altar_hp():  # 永恒之躯：心形护符
+    S = 40
+    img, d = new_canvas(S)
+    body, hi = (205, 32, 50, 255), (255, 120, 130, 255)
+    fill_ellipse_shaded(d, 14, 16, 7, 7, (body, body, hi))
+    fill_ellipse_shaded(d, 26, 16, 7, 7, (body, body, hi))
+    for y in range(20, 33):
+        half = int(14 - (y - 20) * 0.95)
+        if half < 0: half = 0
+        for x in range(20 - half, 20 + half + 1):
+            px(d, x, y, body if y < 28 else hi)
+    px(d, 11, 14, hi); px(d, 12, 13, hi)
+    save(img, "altar_hp.png", 2)
+
+def gen_altar_spd():  # 疾风之拥：风纹羽翼
+    S = 40
+    img, d = new_canvas(S)
+    wing = ((40, 150, 170), (90, 210, 225), (170, 240, 250))
+    for side in (-1, 1):
+        for i in range(16):
+            t = i / 15
+            x = 20 + side * 4 + side * t * 14
+            y = 20 - (t - 0.5) * 10 - abs(t - 0.5) * 6
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, wing[2] if i % 4 == 0 else wing[1])
+            px(d, xi, yi + 1, wing[0])
+    save(img, "altar_spd.png", 2)
+
+def gen_altar_dmg():  # 嗜血诅咒：滴血獠牙
+    S = 40
+    img, d = new_canvas(S)
+    tooth = (245, 245, 250, 255)
+    blood = ((150, 15, 30), (205, 32, 50))
+    for y in range(10, 30):
+        half = int((y - 10) * 0.7) + 2
+        for x in range(20 - half, 20 + half + 1):
+            px(d, x, y, tooth if x in (20 - half, 20 + half) else (235, 235, 242, 255))
+    for y in range(28, 36):
+        half = int(3 - (y - 28) * 0.3)
+        if half < 0: half = 0
+        for x in range(20 - half, 20 + half + 1):
+            px(d, x, y, blood[1])
+    px(d, 20, 35, blood[0])
+    save(img, "altar_dmg.png", 2)
+
+def gen_altar_gain():  # 亡魂低语：低语鬼脸
+    S = 40
+    img, d = new_canvas(S)
+    ghost = ((120, 80, 170), (160, 120, 210), (200, 170, 240))
+    eye = (225, 205, 255, 255)
+    fill_ellipse_shaded(d, 20, 16, 11, 12, ghost)
+    for x in (15, 16, 24, 25): px(d, x, 15, eye)
+    for x in range(10, 31):
+        y = 30 if (x // 4) % 2 == 0 else 27
+        for yy in range(26, y + 1):
+            px(d, x, yy, ghost[1])
+    save(img, "altar_gain.png", 2)
+
+def gen_altar_dual():  # 双生武装：交叉双匕
+    S = 40
+    img, d = new_canvas(S)
+    metal, hi, grip = (176, 186, 216, 255), (226, 236, 255, 255), (96, 60, 32, 255)
+    for off in (-1, 1):
+        for i in range(22):
+            t = i / 21
+            x = 20 + off * (t - 0.5) * 26
+            y = 20 + (t - 0.5) * 26
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, hi if i % 3 == 0 else metal)
+            px(d, xi + off, yi, metal)
+        px(d, 20 + off, 19, grip); px(d, 20 + off, 20, grip)
+    save(img, "altar_dual.png", 2)
+
+def _tablet(d, inner):
+    gold, edge = (212, 175, 55, 255), (150, 120, 35, 255)
+    for y in range(7, 33):
+        w = 14 if 11 < y < 29 else 10
+        for x in range(20 - w, 20 + w + 1):
+            px(d, x, y, gold)
+    for y in range(7, 33):
+        ex = 14 if 11 < y < 29 else 10
+        px(d, 20 - ex, y, edge); px(d, 20 + ex, y, edge)
+    inner(d)
+    for x in range(6, 12): px(d, x, 6, (255, 80, 80, 255))   # 加号横
+    for y in range(3, 9): px(d, 8, y, (255, 80, 80, 255))    # 加号竖
+
+def _draw_sword(d):
+    blade, hi, guard = (200, 200, 220, 255), (240, 240, 255, 255), (180, 140, 60, 255)
+    for y in range(13, 27): px(d, 20, y, hi if y % 2 == 0 else blade)
+    px(d, 19, 13, hi); px(d, 21, 13, hi)
+    rect(d, 16, 27, 24, 29, guard)
+    rect(d, 19, 29, 21, 33, (96, 60, 32, 255))
+
+def _draw_shield(d):
+    shield = (200, 200, 220, 255)
+    for y in range(13, 30):
+        half = int(9 - abs(y - 21) * 0.4)
+        if half < 0: half = 0
+        for x in range(20 - half, 20 + half + 1):
+            px(d, x, y, (240, 240, 255, 255) if (17 < x < 23 and y < 24) else shield)
+    px(d, 20, 17, (255, 255, 255, 255))
+
+def gen_altar_slot_weapon():  # 扩容武器槽：符文牌 + 剑
+    S = 40
+    img, d = new_canvas(S)
+    _tablet(d, _draw_sword)
+    save(img, "altar_slot_weapon.png", 2)
+
+def gen_altar_slot_passive():  # 扩容被动槽：符文牌 + 盾
+    S = 40
+    img, d = new_canvas(S)
+    _tablet(d, _draw_shield)
+    save(img, "altar_slot_passive.png", 2)
+
+
 gen_player()
 gen_bat()
 gen_skeleton()
@@ -1095,4 +1211,11 @@ gen_portrait_berserker()
 gen_portrait_thunder()
 gen_portrait_bloodthirsty()
 gen_portrait_apostle()
+gen_altar_hp()
+gen_altar_spd()
+gen_altar_dmg()
+gen_altar_gain()
+gen_altar_dual()
+gen_altar_slot_weapon()
+gen_altar_slot_passive()
 print("---- 全部素材生成完成 ----")

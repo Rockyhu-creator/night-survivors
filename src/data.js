@@ -27,14 +27,14 @@ export const SOUL_REWARDS = {
 // 祭坛解锁表：永久增益，花灵魂购买。apply(game) 在 startRun 注入。
 // cost 全部 [PLACEHOLDER]，真机按投放速率与通胀阈值调。
 export const ALTAR = [
-  { id: 'soul_hp',  name: '永恒之躯', icon: 'gemLarge',  cost: 60,  desc: '生命上限 +30（永久）',       apply: (g) => { g.player.maxHp += 30; } },
-  { id: 'soul_spd', name: '疾风之拥', icon: 'player',    cost: 90,  desc: '移动速度 +6%（永久）',        apply: (g) => { g.player.speedMul += 0.06; } },
-  { id: 'soul_dmg', name: '嗜血诅咒', icon: 'blade',     cost: 130, desc: '所有伤害 +5%（永久）',        apply: (g) => { g.player.damageMul += 0.05; } },
-  { id: 'soul_gain',name: '亡魂低语', icon: 'gemMedium', cost: 160, desc: '灵魂获取 +25%（永久）',       apply: (g) => { g.soulGainMul *= 1.25; } },
-  { id: 'soul_dual',name: '双生武装', icon: 'holywater', cost: 220, desc: '开局额外获得「圣水洗礼」',     apply: (g) => { g.weapons.addWeapon('holywater'); } },
+  { id: 'soul_hp',  name: '永恒之躯', icon: 'altar_hp',  cost: 60,  desc: '生命上限 +30（永久）',       apply: (g) => { g.player.maxHp += 30; } },
+  { id: 'soul_spd', name: '疾风之拥', icon: 'altar_spd',    cost: 90,  desc: '移动速度 +6%（永久）',        apply: (g) => { g.player.speedMul += 0.06; } },
+  { id: 'soul_dmg', name: '嗜血诅咒', icon: 'altar_dmg',     cost: 130, desc: '所有伤害 +5%（永久）',        apply: (g) => { g.player.damageMul += 0.05; } },
+  { id: 'soul_gain',name: '亡魂低语', icon: 'altar_gain', cost: 160, desc: '灵魂获取 +25%（永久）',       apply: (g) => { g.soulGainMul *= 1.25; } },
+  { id: 'soul_dual',name: '双生武装', icon: 'altar_dual', cost: 220, desc: '开局额外获得「圣水洗礼」',     apply: (g) => { g.weapons.addWeapon('holywater'); } },
   // S3 槽位上限扩容：花灵魂永久 +1 槽（上限 7），深化长期循环
-  { id: 'soul_slot_weapon',  name: '扩容武器槽', icon: 'blade',     cost: 150, desc: '武器槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxWeapons += 1; } },
-  { id: 'soul_slot_passive', name: '扩容被动槽', icon: 'gemMedium', cost: 150, desc: '被动槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxPassives += 1; } },
+  { id: 'soul_slot_weapon',  name: '扩容武器槽', icon: 'altar_slot_weapon',  cost: 150, desc: '武器槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxWeapons += 1; } },
+  { id: 'soul_slot_passive', name: '扩容被动槽', icon: 'altar_slot_passive', cost: 150, desc: '被动槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxPassives += 1; } },
 ];
 
 // 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
