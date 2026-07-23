@@ -7,6 +7,9 @@ export const CONFIG = {
   ENEMY_CAP: 400,
   GRID_CELL: 64,
   BEST_KEY: 'night_survivors_best',
+  // S3 槽位上限（基础上限，祭坛可 +1）
+  MAX_WEAPONS: 6,
+  MAX_PASSIVES: 6,
 };
 
 // ---------- 灵魂货币（长期循环 / 元进度）----------

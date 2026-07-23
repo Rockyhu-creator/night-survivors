@@ -26,6 +26,9 @@ export class Player {
     this.exp = 0;
     this.weapons = [];
     this.passives = new Map();
+    // S3 槽位上限（基础上限，startRun 时由祭坛解锁 +1）
+    this.maxWeapons = CONFIG.MAX_WEAPONS;
+    this.maxPassives = CONFIG.MAX_PASSIVES;
     this.iframes = 0;
     this.facing = 1;
     this.walkTime = 0;
