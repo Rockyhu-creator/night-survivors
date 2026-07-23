@@ -51,6 +51,9 @@ with sync_playwright() as p:
     expect('A1 3 Boss 专属精灵键存在', page.evaluate("""() => ['boss_baron','boss_queen','boss_overlord'].every(k => !!(window.__assets && window.__assets[k]))"""))
     expect('A2 宝箱专属精灵键存在', page.evaluate("() => !!(window.__assets && window.__assets['chest'])"))
     expect('A4 6 玩家血裔精灵键存在', page.evaluate("""() => ['player_wanderer','player_saint','player_berserker','player_thunder','player_bloodthirsty','player_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    expect('D1 亡灵光环半径随等级增长', page.evaluate("() => window.__weapons.aura.levels[4].radius > window.__weapons.aura.levels[0].radius"))
+    expect('D1 圣水洗礼半径随等级增长', page.evaluate("() => window.__weapons.holywater.levels[4].radius > window.__weapons.holywater.levels[0].radius"))
+    expect('D3 音效 zap/splash 方法存在', page.evaluate("() => typeof window.__game.audio.zap === 'function' && typeof window.__game.audio.splash === 'function'"))
     # Boss 精灵真被数据引用（不靠打满 180 秒实战）
     expect('A1 数据 BOSSES 各自指向 boss_* 精灵', page.evaluate("""() => window.__bosses.every(b => b.sprite.startsWith('boss_'))"""))
 

@@ -373,6 +373,7 @@ export class WeaponSystem {
     }
     this.bolts.push({ points, life: 0.22, maxLife: 0.22 });
     game.fx.spawnSparks(firstX, firstY, '#f5d76e', 10);
+    game.audio.zap();
   }
 
   updateProjectiles(dt) {
@@ -467,6 +468,7 @@ export class WeaponSystem {
           duration: v.duration, tick: v.tick, tickTimer: 0, age: 0,
         });
         game.fx.spawnSparks(v.tx, v.ty, '#a8d8ff', 8);
+        game.audio.splash();
         this.vials.splice(i, 1);
         continue;
       }
@@ -475,6 +477,40 @@ export class WeaponSystem {
       v.x = v.x0 + (v.tx - v.x0) * e;
       v.y = v.y0 + (v.ty - v.y0) * e - arc;
     }
+  }
+
+  // 红环（脉冲）+ 缓慢旋转六芒星：亡灵光环 / 寂灭结界共用，统一视觉语言
+  drawRedAuraRing(ctx, sx, sy, r, time, alphaMul = 1) {
+    const pulse = 0.85 + Math.sin(time * 4) * 0.1;
+    const rot = time * 0.6;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.globalAlpha = 0.30 * alphaMul;
+    ctx.fillStyle = '#c0202a';
+    ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.85 * alphaMul;
+    ctx.strokeStyle = '#e23b3b';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(226,59,59,0.8)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.rotate(rot);
+    ctx.globalAlpha = 0.55 * alphaMul;
+    ctx.strokeStyle = '#ff7a85';
+    ctx.lineWidth = 2;
+    const R = r * 0.55;
+    for (let tri = 0; tri < 2; tri += 1) {
+      const off = tri * Math.PI;
+      ctx.beginPath();
+      for (let k = 0; k <= 3; k += 1) {
+        const ang = -Math.PI / 2 + off + (k % 3) * (Math.PI * 2 / 3);
+        const px = Math.cos(ang) * R, py = Math.sin(ang) * R;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   render(ctx, cam) {
@@ -519,56 +555,15 @@ export class WeaponSystem {
     if (auraW) {
       const st = this.stats(auraW);
       const r = st.radius * (this.game.player.areaMul || 1);
-      const pulse = 0.85 + Math.sin(this.game.time * 4) * 0.1;
       const sx = this.game.player.x - cam.ox;
       const sy = this.game.player.y - cam.oy;
-      const rot = this.game.time * 0.6;
-      ctx.save();
-      ctx.translate(sx, sy);
-      // 红色圆环（脉冲）
-      ctx.globalAlpha = 0.30;
-      ctx.fillStyle = '#c0202a';
-      ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.85;
-      ctx.strokeStyle = '#e23b3b';
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(226,59,59,0.8)';
-      ctx.shadowBlur = 8;
-      ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.stroke();
-      ctx.shadowBlur = 0;
-      // 内嵌六芒星（两等边三角形，缓慢旋转）
-      ctx.rotate(rot);
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = '#ff7a85';
-      ctx.lineWidth = 2;
-      const R = r * 0.55;
-      for (let tri = 0; tri < 2; tri += 1) {
-        const off = tri * Math.PI;
-        ctx.beginPath();
-        for (let k = 0; k <= 3; k += 1) {
-          const ang = -Math.PI / 2 + off + (k % 3) * (Math.PI * 2 / 3);
-          const px = Math.cos(ang) * R, py = Math.sin(ang) * R;
-          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.stroke();
-      }
-      ctx.restore();
+      this.drawRedAuraRing(ctx, sx, sy, r, this.game.time);
     }
-    // 寂灭结界：更亮更大的光环
+    // 寂灭结界：与亡灵光环统一的红环 + 六芒星
     if (this.hasArtifact('sepulcher')) {
       const sx = this.game.player.x - cam.ox;
       const sy = this.game.player.y - cam.oy;
-      const r = 150;
-      const pulse = 0.85 + Math.sin(this.game.time * 4) * 0.1;
-      ctx.save();
-      ctx.globalAlpha = 0.32;
-      ctx.fillStyle = '#8a2f5a';
-      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.8;
-      ctx.strokeStyle = '#e07ac0';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
+      this.drawRedAuraRing(ctx, sx, sy, 150, this.game.time, 1.15);
     }
     // 长鞭横扫：锥形曲线鞭 + 末端裂响
     const qbez = (x0, y0, cx, cy, x1, y1, u) => {

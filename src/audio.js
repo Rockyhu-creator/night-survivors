@@ -112,4 +112,19 @@ export class AudioManager {
   uiClick() {
     this.blip({ type: 'square', f0: 880, dur: 0.05, vol: 0.25 });
   }
+
+  // 雷霆命中：电裂短音（节流防 stormcall 一次 6 连刷屏）
+  zap() {
+    const now = performance.now();
+    if (now - (this._lastZapAt || 0) < 70) return;
+    this._lastZapAt = now;
+    this.blip({ type: 'square', f0: 900 + Math.random() * 200, f1: 180, dur: 0.12, vol: 0.5 });
+    this.blip({ type: 'sawtooth', f0: 220, f1: 90, dur: 0.1, vol: 0.3, delay: 0.01 });
+  }
+
+  // 圣水落瓶：水花轻响
+  splash() {
+    this.blip({ type: 'sine', f0: 520, f1: 240, dur: 0.14, vol: 0.4 });
+    this.blip({ type: 'triangle', f0: 300, f1: 160, dur: 0.1, vol: 0.25, delay: 0.03 });
+  }
 }

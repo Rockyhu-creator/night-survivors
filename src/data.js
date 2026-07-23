@@ -93,10 +93,10 @@ export const WEAPONS = {
     desc: '在随机敌群处泼洒圣水,留下灼烧领域',
     levels: [
       { damage: 8, cooldown: 3.2, count: 1, radius: 60, duration: 2.4, tick: 0.5 },
-      { damage: 11, cooldown: 3.0, count: 1, radius: 70, duration: 2.6, tick: 0.5 },
-      { damage: 14, cooldown: 2.8, count: 2, radius: 78, duration: 2.8, tick: 0.5 },
-      { damage: 18, cooldown: 2.6, count: 2, radius: 88, duration: 3.0, tick: 0.45 },
-      { damage: 24, cooldown: 2.3, count: 3, radius: 100, duration: 3.4, tick: 0.4 },
+      { damage: 11, cooldown: 3.0, count: 1, radius: 82, duration: 2.6, tick: 0.5 },
+      { damage: 14, cooldown: 2.8, count: 2, radius: 106, duration: 2.8, tick: 0.5 },
+      { damage: 18, cooldown: 2.6, count: 2, radius: 132, duration: 3.0, tick: 0.45 },
+      { damage: 24, cooldown: 2.3, count: 3, radius: 160, duration: 3.4, tick: 0.4 },
     ],
   },
   axe: {
@@ -127,10 +127,10 @@ export const WEAPONS = {
     desc: '周身脉冲光环,踏入之敌持续受腐蚀',
     levels: [
       { damage: 6,  cooldown: 0.6,  radius: 70 },
-      { damage: 9,  cooldown: 0.6,  radius: 85 },
-      { damage: 13, cooldown: 0.55, radius: 100 },
-      { damage: 18, cooldown: 0.5,  radius: 115 },
-      { damage: 24, cooldown: 0.5,  radius: 130 },
+      { damage: 9,  cooldown: 0.6,  radius: 90 },
+      { damage: 13, cooldown: 0.55, radius: 112 },
+      { damage: 18, cooldown: 0.5,  radius: 136 },
+      { damage: 24, cooldown: 0.5,  radius: 162 },
     ],
   },
   whip: {
@@ -156,6 +156,8 @@ export const WEAPONS = {
     ],
   },
 };
+
+if (typeof window !== 'undefined') window.__weapons = WEAPONS;
 
 export const PASSIVES = {
   boots: { id: 'boots', name: '疾行之靴', icon: 'player', maxLevel: 5, desc: '移动速度 +8%', apply: (p) => { p.speedMul += 0.08; } },
