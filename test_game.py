@@ -47,6 +47,12 @@ with sync_playwright() as p:
     # --- 资产键存在性：立绘 + 祭坛图标（UX 改造）---
     expect('6 角色全身立绘键存在', page.evaluate("""() => ['portrait_wanderer','portrait_saint','portrait_berserker','portrait_thunder','portrait_bloodthirsty','portrait_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
     expect('7 祭坛专属图标键存在', page.evaluate("""() => ['altar_hp','altar_spd','altar_dmg','altar_gain','altar_dual','altar_slot_weapon','altar_slot_passive'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    # --- 实体美术 A1/A2/A4：新精灵键存在 + 数据接线 ---
+    expect('A1 3 Boss 专属精灵键存在', page.evaluate("""() => ['boss_baron','boss_queen','boss_overlord'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    expect('A2 宝箱专属精灵键存在', page.evaluate("() => !!(window.__assets && window.__assets['chest'])"))
+    expect('A4 6 玩家血裔精灵键存在', page.evaluate("""() => ['player_wanderer','player_saint','player_berserker','player_thunder','player_bloodthirsty','player_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    # Boss 精灵真被数据引用（不靠打满 180 秒实战）
+    expect('A1 数据 BOSSES 各自指向 boss_* 精灵', page.evaluate("""() => window.__bosses.every(b => b.sprite.startsWith('boss_'))"""))
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')
@@ -90,6 +96,7 @@ with sync_playwright() as p:
     warn_shown = page.evaluate("() => document.getElementById('warn-name').textContent")
     expect('Boss 生成', boss_spawned)
     expect('登场警告显示"血色男爵"', warn_shown == '血色男爵')
+    expect('A1 Boss 实例用 boss_baron 精灵', page.evaluate("""() => window.__game.enemies.enemies.some(e => e.isBoss && e.type && e.type.sprite === 'boss_baron')"""))
     page.screenshot(path='/tmp/e2e_boss_warn.png')
 
     # 等警告消失，血条出现
@@ -137,6 +144,15 @@ with sync_playwright() as p:
     expect('Boss 死亡血条隐藏', page.evaluate("() => document.getElementById('boss-bar-wrap').classList.contains('hidden')"))
     boss_chest = page.evaluate("() => window.__game.pickups.gems.some(g => g.boss)")
     expect('Boss 掉落强化宝箱', boss_chest)
+    expect('A2 Boss 宝箱用 chest 精灵键', page.evaluate("""() => window.__game.pickups.gems.some(g => g.boss && g.def.key === 'chest')"""))
+    # 普通宝箱键接线（原子操作：drop + 断言 + 立即移除，避免自动拾取干扰后续）
+    expect('A2 普通宝箱用 chest 精灵键', page.evaluate("""() => {
+      const g = window.__game;
+      g.pickups.dropChest(g.player.x, g.player.y);
+      const ok = g.pickups.gems.some(x => x.chest && x.def.key === 'chest');
+      g.pickups.gems = g.pickups.gems.filter(x => !x.chest);
+      return ok;
+    }"""))
 
     # 拾取强化宝箱 → 补偿（已进化完圣水配方，其余无满级武器 → 走补偿路径）
     # 直接同步调用 onChestOpened 避免拾取时序不确定性
