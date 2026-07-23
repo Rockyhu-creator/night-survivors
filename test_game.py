@@ -179,6 +179,48 @@ with sync_playwright() as p:
     expect('每层至少1个武器向(配额)', weighted['weaponHits'] == weighted['N'])
     expect('加权倾向已有武器(blade命中率>35%)', weighted['bladeHits'] > weighted['N'] * 0.35)
 
+    # --- S3 槽位上限：满 6 武器后新武器卡消失，但已有武器升级卡仍在 ---
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.player.level = 999;
+      g.player.weapons = [];
+      g.player.passives = new Map();
+      g.upgrade.banned.clear();
+      // 塞满 6 把武器（blade 进 LV2 未满级，用于验证升级卡仍在）
+      const ids = ['blade','axe','holywater','lightning','aura','whip'];
+      for (const id of ids) g.weapons.addWeapon(id);
+      g.weapons.upgradeWeapon('blade');
+    }""")
+    capped = page.evaluate("""() => {
+      const g = window.__game;
+      let newW = 0, upW = 0;
+      for (let i = 0; i < 200; i++) {
+        const opts = g.upgrade.rollOptions();
+        for (const o of opts) {
+          if (o.kind === 'weapon-new') newW++;
+          if (o.kind === 'weapon-up') upW++;
+        }
+      }
+      return { newW, upW, count: g.player.weapons.length, max: g.player.maxWeapons };
+    }""")
+    expect('S3 满武器槽(6)新武器卡=0', capped['newW'] == 0)
+    expect('S3 已满武器仍可升级(weapon-up>0)', capped['upW'] > 0)
+    expect('S3 武器数=上限', capped['count'] == capped['max'])
+
+    # 祭坛 +1 槽：购买后 startRun 注入上限提升
+    page.evaluate("""() => {
+      window.__souls.saveSouls({balance:9999,spent:0,unlocks:[],cleared:['normal']});
+      window.__souls.buyUnlock('soul_slot_weapon');
+      window.__souls.buyUnlock('soul_slot_passive');
+      window.__game.startRun();
+    }""")
+    expect('S3 祭坛 +1 武器槽(上限7)', page.evaluate("() => window.__game.player.maxWeapons == 7"))
+    expect('S3 祭坛 +1 被动槽(上限7)', page.evaluate("() => window.__game.player.maxPassives == 7"))
+    # 回退灵魂存档，避免污染后续断言（图鉴/结算/血裔段依赖干净存档）
+    page.evaluate("() => window.__souls.saveSouls({balance:0,spent:0,unlocks:[],cleared:[],bloodlines:['wanderer'],selectedBloodline:'wanderer'})")
+
     # --- 新武器：可装备 + 开火命中（武器丰富化，2026-07-23）---
     page.evaluate("""() => {
       const g = window.__game;
