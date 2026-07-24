@@ -6,14 +6,14 @@ import { sprite } from './assets.js';
 const MONSTER_LORE = {
   bat: '高速直冲,成群结队,单体孱弱',
   skeleton: '直线追击的骷髅,基础杂兵',
-  slime: '缓慢但厚实,死亡时可能引爆',
+  slime: '缓慢但厚实,成群蠕动',
   elite: '周期降临的精英,高血高伤,优先清理',
   shadow_hunter: '进入 250px 后蓄力冲刺,突进极快',
   gargoyle: '免疫击退的肉盾,缓慢却坚硬',
   baron: '首位降临的 Boss,召唤蝙蝠并弹幕',
   queen: '苍白女王,多重弹幕与位移',
   overlord: '永夜君王,半场后狂暴',
-  avatar: '终局化身,击杀即通关',
+  avatar: '终局化身,存活至 12 分钟降临,击杀即通关',
 };
 
 export class UIManager {
@@ -450,10 +450,20 @@ export class UIManager {
     root.innerHTML = '';
     const lore = MONSTER_LORE;
     const fmtTime = (s) => (s >= 60 ? `${Math.floor(s / 60)}分` : `${s}秒`);
+    // 词缀变种（独立条目，key 区别于 base slime/skeleton，不与普通怪重合）
+    const AFFIX_MONSTERS = [
+      { key: 'volatile_slime', name: '爆破史莱姆', sprite: 'slime', hp: 90, damage: 20,
+        affix: '爆破', affixColor: '#e67e22',
+        lore: '史莱姆被「爆破」词缀侵蚀,死亡瞬间引爆范围伤害,务必远离' },
+      { key: 'shielded_skeleton', name: '护盾骷髅', sprite: 'skeleton', hp: 34, damage: 14,
+        affix: '护盾', affixColor: '#3498db',
+        lore: '骷髅被「护盾」词缀加持,受到伤害大幅降低,需集火破除' },
+    ];
     const groups = [
-      { title: '夜行小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) < 540, color: 'purple' },
-      { title: '永夜小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) >= 540, color: 'purple' },
-      { title: 'Boss', filter: (k, t) => Array.isArray(t.skills), color: 'gold' },
+      { id: 'noct', title: '夜行小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) < 540, color: 'purple', source: 'bestiary' },
+      { id: 'night', title: '永夜小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) >= 540, color: 'purple', source: 'bestiary' },
+      { id: 'boss', title: 'Boss', filter: (k, t) => Array.isArray(t.skills), color: 'gold', source: 'bestiary' },
+      { id: 'affix', title: '词缀变种', color: 'purple', source: 'affix' },
     ];
     for (const g of groups) {
       const sec = document.createElement('div');
@@ -463,11 +473,16 @@ export class UIManager {
       sec.appendChild(h);
       const grid = document.createElement('div');
       grid.className = 'codex-grid';
-      for (const [key, t] of Object.entries({ ...ENEMY_TYPES, ...BOSSES })) {
-        if (!g.filter(key, t)) continue;
-        const info = lore[key] || {};
+      const entries = g.source === 'affix'
+        ? AFFIX_MONSTERS.map((t) => [t.key, t])
+        : Object.entries({ ...ENEMY_TYPES, ...BOSSES });
+      for (const [key, t] of entries) {
+        if (g.filter && !g.filter(key, t)) continue;
+        const isAffix = g.source === 'affix';
+        const info = isAffix ? t : (lore[key] || {});
         const card = document.createElement('div');
         card.className = `codex-card cat-${g.color}`;
+        if (isAffix) card.style.borderLeft = `4px solid ${t.affixColor}`;
         const img = document.createElement('img');
         img.src = this.iconURL(t.sprite || 'icon_skull');
         img.alt = t.name || key;
@@ -476,11 +491,16 @@ export class UIManager {
         name.textContent = t.name || key;
         const stats = document.createElement('p');
         stats.className = 'cc-hint';
-        const unlock = t.unlockAt ? `首现 ${fmtTime(t.unlockAt)}` : '开局';
-        stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · ${unlock}`;
+        let unlock = t.unlockAt ? `首现 ${fmtTime(t.unlockAt)}` : '开局';
+        if (t.id === 'avatar') unlock = '终局 12 分降临';
+        if (isAffix) {
+          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · 词缀${t.affix}`;
+        } else {
+          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · ${unlock}`;
+        }
         const desc = document.createElement('p');
         desc.className = 'cc-hint';
-        desc.textContent = info.desc || '';
+        desc.textContent = isAffix ? (t.lore || '') : (info.desc || '');
         card.append(img, name, stats, desc);
         grid.appendChild(card);
       }

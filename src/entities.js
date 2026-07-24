@@ -1,6 +1,24 @@
 import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
 import { sprite } from './assets.js';
 
+// 词缀着色缓存：离屏 canvas + source-atop 只染精灵形状本体，避免染到透明区域
+const affixTintCache = {};
+function tintedEnemySprite(base, color, key) {
+  const ck = key + '|' + color;
+  if (affixTintCache[ck]) return affixTintCache[ck];
+  const c = document.createElement('canvas');
+  c.width = base.width; c.height = base.height;
+  const cx = c.getContext('2d');
+  cx.drawImage(base, 0, 0);
+  cx.globalCompositeOperation = 'source-atop';
+  cx.globalAlpha = 0.85;
+  cx.fillStyle = color;
+  cx.fillRect(0, 0, c.width, c.height);
+  cx.globalCompositeOperation = 'source-over';
+  affixTintCache[ck] = c;
+  return c;
+}
+
 export class Player {
   constructor() { this.reset(); }
 
@@ -271,7 +289,7 @@ export class EnemyManager {
       this.bossSummon(e, skill.enemyType, skill.count, skill.affix);
     }
     if (skill.type === 'barrage' || skill.type === 'summon_barrage' || skill.type === 'dash_barrage') {
-      this.bossBarrage(e, skill.barrageCount || skill.count, skill.speed, skill.damage);
+      this.bossBarrage(e, skill.barrageCount || skill.count, skill.speed, skill.damage, skill.waves || 1);
     }
     if (skill.type === 'dash' || skill.type === 'dash_barrage') {
       const dx = player.x - e.x;
@@ -300,22 +318,22 @@ export class EnemyManager {
     }
   }
 
-  bossBarrage(e, count, speed, damage) {
+  bossBarrage(e, count, speed, damage, waves = 1) {
     const player = this.game.player;
     const base = Math.atan2(player.y - e.y, player.x - e.x);
     const spread = (40 * Math.PI) / 180;
-    for (let i = 0; i < count; i += 1) {
-      const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
-      const angle = base + t * spread;
-      this.enemyProjectiles.push({
-        x: e.x,
-        y: e.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        damage,
-        life: 4,
-        radius: 5,
-      });
+    const waveStep = (18 * Math.PI) / 180;
+    for (let w = 0; w < waves; w += 1) {
+      const wbase = base + (w - (waves - 1) / 2) * waveStep;
+      for (let i = 0; i < count; i += 1) {
+        const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+        const angle = wbase + t * spread;
+        this.enemyProjectiles.push({
+          x: e.x, y: e.y,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          damage, life: 4, radius: 5,
+        });
+      }
     }
   }
 
@@ -323,7 +341,7 @@ export class EnemyManager {
     const scale = this.statScale(false);
     const t = this.game.time;
     const diff = this.game.difficulty;
-    // 终局 Boss：永夜化身（15 分钟降临，击杀=通关）。登场时清掉现有 Boss
+    // 终局 Boss：永夜化身（12 分钟降临，击杀=通关）。登场时清掉现有 Boss
     if (t >= ENDGAME_BOSS_TIME && !this.bossSpawned.has('avatar')) {
       this.bossSpawned.add('avatar');
       for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
@@ -582,7 +600,8 @@ export class EnemyManager {
       const sx = Math.round(e.x - cam.ox);
       const sy = Math.round(e.y - cam.oy);
       if (sx < -120 || sy < -120 || sx > CONFIG.LOGICAL_WIDTH + 120 || sy > CONFIG.LOGICAL_HEIGHT + 120) continue;
-      const img = sprite(e.type.sprite);
+      let img = sprite(e.type.sprite);
+      if (e.affixDef && e.affixDef.color && img) img = tintedEnemySprite(img, e.affixDef.color, e.type.sprite);
       const wobbleY = e.type === ENEMY_TYPES.bat ? Math.sin(e.wobble) * 3 : 0;
       const size = e.spriteSize;
       // 脚下阴影

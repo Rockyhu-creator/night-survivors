@@ -55,6 +55,7 @@ const files = {
   codex_monsters: 'codex_monsters.png',
   codex_weapons: 'codex_weapons.png',
   codex_book: 'codex_book.png',
+  codex_menu: 'codex_menu.png',
   altar_menu: 'altar_menu.png',
   shadow_hunter: 'enemy_shadow_hunter.png',
   gargoyle: 'enemy_gargoyle.png',

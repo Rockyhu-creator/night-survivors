@@ -489,6 +489,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     expect('怪物图鉴 含 Boss 分组与卡片', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('血色男爵')"))
     expect('怪物图鉴 含石像鬼', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('石像鬼')"))
+    # 永夜化身卡时间文案回归（ui.js 改用 t.id 匹配 avatar）：应显示「终局 12 分降临」而非「首现 1666分」
+    expect('怪物图鉴 永夜化身卡显示「终局 12 分降临」', page.evaluate("""() => {
+        const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '永夜化身'; });
+        if (!card) return false;
+        const stats = card.querySelector('.cc-hint');
+        const txt = stats ? stats.textContent : '';
+        return txt.includes('终局 12 分降临') && !txt.includes('首现 1666分');
+    }"""))
     page.evaluate("() => window.__game.ui.hideCodex()")
     page.wait_for_timeout(200)
     expect('图鉴关闭后回到标题', page.evaluate("() => document.getElementById('codex-hub').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))
@@ -723,6 +732,11 @@ with sync_playwright() as p:
     # --- 主菜单入口图标（双端功能暗示）---
     expect('祭坛入口含功能图标', page.evaluate("() => { const b = document.getElementById('btn-altar'); return !!b.querySelector('img.menu-btn-icon'); }"))
     expect('血裔入口含角色头像图标', page.evaluate("() => { const b = document.getElementById('btn-bloodline'); return !!document.getElementById('btn-bloodline-icon') && b.querySelector('img').src.includes('portrait_'); }"))
+    # 首页「游戏图鉴」按钮图标（/assets/codex_menu.png 正常加载，不空白）
+    expect('游戏图鉴按钮图标 codex_menu.png 已加载', page.evaluate("""() => {
+        const img = document.querySelector('#btn-codex img.menu-btn-icon');
+        return !!img && img.complete && img.naturalWidth > 0 && img.getAttribute('src') === '/assets/codex_menu.png';
+    }"""))
 
     # --- 战利品指引：屏外→边缘方向箭头；屏内→精确脉冲环（2026-07-24）---
     page.evaluate("""() => {
@@ -765,6 +779,32 @@ with sync_playwright() as p:
     }""")
     page.wait_for_timeout(150)
 
+    # --- 词缀怪渲染回归（entities.js const→let）：场上出现 爆破/护盾 怪时，敌怪绘制每帧调用
+    #     tintedEnemySprite 并对 img 重赋值；原 const img 会每帧抛 Assignment to constant variable. ---
+    err_before_affix = len(errors)
+    page.evaluate("""() => {
+        const g = window.__game;
+        g.state = 'playing';
+        g.enemies.enemies = [];
+        g.expQueue = 0;
+        const ls = document.getElementById('levelup-screen');
+        if (ls) ls.classList.add('hidden');
+        g.player.hp = g.player.maxHp = 9999;
+        const scale = g.enemies.statScale(false);
+        const typeA = g.enemies.pickType();
+        const typeB = g.enemies.pickType();
+        const v = g.enemies.createEnemy(typeA, scale, g.player.x + 60, g.player.y, 'volatile');
+        const s = g.enemies.createEnemy(typeB, scale, g.player.x - 60, g.player.y, 'shielded');
+        g.enemies.enemies.push(v, s);
+    }""")
+    page.wait_for_timeout(900)  # 多帧渲染，触发 affix 着色分支
+    has_affix = page.evaluate("() => window.__game.enemies.enemies.some(e => e.affixDef && (e.affix === 'volatile' || e.affix === 'shielded'))")
+    expect('场上出现词缀怪(爆破/护盾)', has_affix)
+    expect('词缀怪渲染无控制台报错', len(errors) == err_before_affix)
+    page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.state = 'title'; }")
+
+    # --- P1 质量门控：控制台无报错（原仅 print，导致词缀怪每帧抛错能"带病通过"）---
+    expect('无控制台报错', len(errors) == 0)
     print('控制台错误:', errors if errors else '无')
     if _failures:
         print(f'\nTOTAL FAILURES: {_failures}')

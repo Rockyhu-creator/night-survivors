@@ -444,8 +444,8 @@ export const BOSSES = [
     hp: 1800, speed: 38, damage: 40, exp: 120,
     radius: 34, spriteSize: 128, knockResist: 0.98,
     skills: [
-      { at: 0.7, cooldown: 10, type: 'summon', enemyType: 'bat', count: 4 },
-      { at: 0.4, cooldown: 9, type: 'barrage', count: 8, speed: 130, damage: 15 },
+      { at: 0.7, cooldown: 6, type: 'summon', enemyType: 'bat', count: 4 },
+      { at: 0.4, cooldown: 5, type: 'barrage', count: 8, speed: 150, damage: 20, waves: 3 },
     ],
   },
   {
@@ -453,8 +453,8 @@ export const BOSSES = [
     hp: 4500, speed: 42, damage: 55, exp: 300,
     radius: 36, spriteSize: 140, knockResist: 0.98,
     skills: [
-      { at: 0.6, cooldown: 9, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
-      { at: 0.3, cooldown: 8, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 140, damage: 18 },
+      { at: 0.6, cooldown: 5, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
+      { at: 0.3, cooldown: 5, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 160, damage: 24, waves: 3 },
     ],
   },
   {
@@ -462,9 +462,9 @@ export const BOSSES = [
     hp: 9000, speed: 46, damage: 70, exp: 600,
     radius: 40, spriteSize: 156, knockResist: 0.99,
     skills: [
-      { at: 0.75, cooldown: 10, type: 'summon', enemyType: 'bat', count: 5 },
-      { at: 0.5, cooldown: 8, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
-      { at: 0.25, cooldown: 12, type: 'enrage', speedMul: 1.6, once: true },
+      { at: 0.75, cooldown: 6, type: 'summon', enemyType: 'bat', count: 5 },
+      { at: 0.5, cooldown: 5, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 170, damage: 30, waves: 3 },
+      { at: 0.25, cooldown: 8, type: 'enrage', speedMul: 1.6, once: true },
     ],
   },
   // 终局 Boss：永夜化身（12 分钟降临，击杀=通关结算）。三段变身见 GDD §3.3
@@ -474,12 +474,12 @@ export const BOSSES = [
     radius: 44, spriteSize: 168, knockResist: 0.99,
     isEndgame: true,
     skills: [
-      { at: 0.70, cooldown: 7, type: 'summon', enemyType: 'shadow_hunter', count: 5 },
-      { at: 0.70, cooldown: 9, type: 'barrage', count: 12, speed: 140, damage: 18 },
-      { at: 0.35, cooldown: 7, type: 'dash_barrage', speedMul: 4.2, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
-      { at: 0.35, cooldown: 11, type: 'summon', enemyType: 'gargoyle', count: 3 },
-      { at: 0.15, cooldown: 8, type: 'enrage', speedMul: 1.6, once: true },
-      { at: 0.15, cooldown: 9, type: 'summon', enemyType: 'slime', count: 4, affix: 'volatile' },
+      { at: 0.70, cooldown: 5, type: 'summon', enemyType: 'shadow_hunter', count: 5 },
+      { at: 0.70, cooldown: 5, type: 'barrage', count: 12, speed: 160, damage: 26, waves: 3 },
+      { at: 0.35, cooldown: 5, type: 'dash_barrage', speedMul: 4.2, duration: 0.5, barrageCount: 12, speed: 170, damage: 30, waves: 3 },
+      { at: 0.35, cooldown: 7, type: 'summon', enemyType: 'gargoyle', count: 3 },
+      { at: 0.15, cooldown: 6, type: 'enrage', speedMul: 1.6, once: true },
+      { at: 0.15, cooldown: 6, type: 'summon', enemyType: 'slime', count: 4, affix: 'volatile' },
     ],
   },
 ];
