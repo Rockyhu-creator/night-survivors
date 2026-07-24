@@ -5,6 +5,13 @@
 
 ---
 
+## v0.14（2026-07-24 · `78a7414`）
+
+### 修复
+- **被动专属图标**：消除「武器 / 被动 / 角色」跨类目重复贴图。新增 8 个程序化像素图标（`passive_boots` 靴 / `passive_heart` 心脏 / `passive_tome` 魔典 / `passive_magnet` 磁铁 / `passive_rage` 交叉双刃 / `passive_swift` 青翼 / `passive_greed` 金币 / `passive_guard` 钢盾），9 个被动现已使用 9 张互不重复、也不与武器 / 角色 / 宝石撞车的贴图。风格对齐现有 altar / art 图标管线，`gen_assets.py` 新增对应生成函数且避开 AI_OWNED 碰撞集。
+
+---
+
 ## v0.13（2026-07-24 · `3087273`）
 
 ### 新增
