@@ -270,7 +270,7 @@ export class Game {
     if (this.player.hp <= 0) this.gameOver();
     // 15 分钟硬上限：终局 Boss 已降临且到点仍未击败 → 超时失败
     if (this.state === 'playing' && this.time >= GAME_HARD_CAP
-        && !this.avatarDefeated && this.entities.bossSpawned?.has('avatar')) {
+        && !this.avatarDefeated && this.enemies.bossSpawned?.has('avatar')) {
       this.gameOver('timeout');
     }
   }

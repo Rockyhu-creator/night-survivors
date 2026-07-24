@@ -45,22 +45,22 @@ export const DIFFICULTIES = {
   easy: {
     id: 'easy', name: '夜行者', desc: '敌人较弱,节奏舒缓,适合休闲上手',
     hpSlope: 0.18, dmgSlope: 0.10, spawnMul: 0.55, bossCalm: 0.3, bossGapMul: 1.5,
-    nightBase: 1.22, artifactCounter: 0.08, bossHpMul: 0.7, affixMul: 0.5,
+    nightBase: 1.12, artifactCounter: 0.08, bossHpMul: 0.7, affixMul: 0.5,
     packMin: 4, packMax: 6, expMul: 1.0, soulMul: 0.8,
     bossSkillCdMul: 1.3, // 高难<1 缩短 Boss 技能 CD、低难>1 延长
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
-    hpSlope: 0.26, dmgSlope: 0.15, spawnMul: 0.80, bossCalm: 0.5, bossGapMul: 1.0,
-    nightBase: 1.35, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
+    hpSlope: 0.26, dmgSlope: 0.14, spawnMul: 0.70, bossCalm: 0.5, bossGapMul: 1.0,
+    nightBase: 1.22, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
     packMin: 6, packMax: 10, expMul: 1.0, soulMul: 1.0,
     bossSkillCdMul: 1.0,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
-    hpSlope: 0.38, dmgSlope: 0.22, spawnMul: 1.05, bossCalm: 0.7, bossGapMul: 0.85,
-    nightBase: 1.50, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.75,
-    packMin: 8, packMax: 14, expMul: 1.3, soulMul: 1.5,
+    hpSlope: 0.38, dmgSlope: 0.18, spawnMul: 0.85, bossCalm: 0.7, bossGapMul: 0.85,
+    nightBase: 1.32, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.20,
+    packMin: 6, packMax: 10, expMul: 1.3, soulMul: 1.5,
     bossSkillCdMul: 0.75,
   },
 };
