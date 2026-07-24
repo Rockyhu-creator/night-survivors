@@ -5,6 +5,17 @@
 
 ---
 
+## v0.18（2026-07-24 · `f8a4f7b`）
+
+### 新增
+- **图鉴分类 / 入口 / 祭坛菜单独立图标（5 张程序化像素图）**：新增 `codex_artifacts`（暗金符文圆盘 + 中央悬浮棱面钻石 + 8 向 rune 刻痕）、`codex_monsters`（恶魔眼印记·双犄角 + 发光裂瞳）、`codex_weapons`（剑 + 斧异型交叉成 X + 血红魂芯铆钉）、`codex_book`（中性炭灰闭合魔典 + 金属搭扣 + 发光书页）、`altar_menu`（阶梯式石台 + 上方悬浮幽蓝/紫灵魂火）。均为 `gen_assets.py` 程序化专属、**不加入 `AI_OWNED`**，菜单图标统一 scale=2（codex_book 用 48×48 → 96×96），与现有 `altar_*` / `passive_tome` / `weapon_*` 等明显区分。
+
+### 修复
+- **游戏图鉴一级菜单三张卡片 icon 不显示**：`showCodex()` 原引用未注册的 key（`art_sword` / `icon_skull` / `weapon_blade`），`sprite()` 返回 null → `<img src="">` 空白。现改为新注册的 `codex_artifacts` / `codex_monsters` / `codex_weapons`，并在 `src/assets.js` 的 `files` 注册这 5 个新 key（含 `codex_book` / `altar_menu`）。
+- **灵魂祭坛主菜单按钮 icon 改为祭坛造型**：`index.html` `#btn-altar` 的 `<img>` 由复用的 `altar_hp` 升级图标改为独立 `altar_menu` 祭坛建筑图标；`#codex-hub` 顶部新增 `codex_book` 书本徽记（`src/style.css` 补 `.codex-hub-book` 样式与 `.touch-device` 适配）。
+
+---
+
 ## v0.17（2026-07-24 · `4ea9889`）
 
 ### 调整
