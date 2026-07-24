@@ -1,23 +1,5 @@
 import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
-import { sprite } from './assets.js';
-
-// 词缀着色缓存：离屏 canvas + source-atop 只染精灵形状本体，避免染到透明区域
-const affixTintCache = {};
-function tintedEnemySprite(base, color, key) {
-  const ck = key + '|' + color;
-  if (affixTintCache[ck]) return affixTintCache[ck];
-  const c = document.createElement('canvas');
-  c.width = base.width; c.height = base.height;
-  const cx = c.getContext('2d');
-  cx.drawImage(base, 0, 0);
-  cx.globalCompositeOperation = 'source-atop';
-  cx.globalAlpha = 0.85;
-  cx.fillStyle = color;
-  cx.fillRect(0, 0, c.width, c.height);
-  cx.globalCompositeOperation = 'source-over';
-  affixTintCache[ck] = c;
-  return c;
-}
+import { sprite, tintedEnemySprite } from './assets.js';
 
 export class Player {
   constructor() { this.reset(); }
@@ -230,6 +212,7 @@ export class EnemyManager {
       knockResist: type.immuneKnockback ? 1 : type.knockResist,
       expValue,
       flash: 0,
+      flashCd: 0,
       affix: affix || null,
       affixDef,
       // 暗影猎手冲刺状态
@@ -456,6 +439,7 @@ export class EnemyManager {
       e.kx *= decay;
       e.ky *= decay;
       e.flash = Math.max(0, e.flash - dt);
+      e.flashCd = Math.max(0, (e.flashCd || 0) - dt);
       e.hitCooldown = Math.max(0, e.hitCooldown - dt);
       e.wobble += dt * 6;
 
@@ -638,7 +622,7 @@ export class EnemyManager {
       // 词缀 / 精英标识层（不换主体 sprite，仅渲染提示）
       const t = this.game.time;
       if (e.affix === 'volatile' || e.affix === 'shielded') {
-        const affixColor = e.affix === 'volatile' ? '#e67e22' : '#3498db';
+        const affixColor = (e.affixDef && e.affixDef.color) || (e.affix === 'volatile' ? '#e67e22' : '#3498db');
         const pulse = e.affix === 'volatile'
           ? 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * Math.PI * 3))    // ~1.5Hz
           : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6)); // ~0.8Hz
@@ -716,7 +700,11 @@ export class EnemyManager {
     // 护盾词缀：受到的伤害 ×dmgTakenMul（完整正背面减伤留 PLACEHOLDER，先用全时减伤）
     const dmg = rawDamage * (e.dmgTakenMul || 1);
     e.hp -= dmg;
-    e.flash = 0.12;
+    // 白闪冷却门控：仅在冷却结束后才重新点亮，避免持续受击时白闪常驻满格把精灵糊成白色
+    if ((e.flashCd || 0) <= 0) {
+      e.flash = 0.12;
+      e.flashCd = 0.14;
+    }
     const kb = 90 * (1 - e.knockResist);
     e.kx += knockX * kb;
     e.ky += knockY * kb;

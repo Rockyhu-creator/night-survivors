@@ -498,6 +498,23 @@ with sync_playwright() as p:
         const txt = stats ? stats.textContent : '';
         return txt.includes('终局 12 分降临') && !txt.includes('首现 1666分');
     }"""))
+    # 词缀变种卡：着色精灵(data:image 非底色素材) + 彩色边框，确认「图鉴也换颜色」真实生效
+    expect('词缀卡 爆破史莱姆 着色精灵+橙边', page.evaluate("""() => {
+        const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '爆破史莱姆'; });
+        if (!card) return false;
+        const img = card.querySelector('img');
+        const border = card.style.borderLeftColor || '';
+        return !!img && (img.getAttribute('src')||'').startsWith('data:image') && border.includes('rgb(230, 126, 34)');
+    }"""))
+    expect('词缀卡 护盾骷髅 着色精灵+蓝边', page.evaluate("""() => {
+        const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '护盾骷髅'; });
+        if (!card) return false;
+        const img = card.querySelector('img');
+        const border = card.style.borderLeftColor || '';
+        return !!img && (img.getAttribute('src')||'').startsWith('data:image') && border.includes('rgb(52, 152, 219)');
+    }"""))
     page.evaluate("() => window.__game.ui.hideCodex()")
     page.wait_for_timeout(200)
     expect('图鉴关闭后回到标题', page.evaluate("() => document.getElementById('codex-hub').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))

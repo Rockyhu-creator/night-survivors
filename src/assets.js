@@ -155,6 +155,24 @@ function trimTransparent(img, padding = 2) {
   return out;
 }
 
+// 词缀着色：离屏 canvas + source-atop 只染精灵形状本体，避免染到透明区域；按 key|color 缓存
+const affixTintCache = {};
+export function tintedEnemySprite(base, color, key) {
+  const ck = key + '|' + color;
+  if (affixTintCache[ck]) return affixTintCache[ck];
+  const c = document.createElement('canvas');
+  c.width = base.width; c.height = base.height;
+  const cx = c.getContext('2d');
+  cx.drawImage(base, 0, 0);
+  cx.globalCompositeOperation = 'source-atop';
+  cx.globalAlpha = 0.85;
+  cx.fillStyle = color;
+  cx.fillRect(0, 0, c.width, c.height);
+  cx.globalCompositeOperation = 'source-over';
+  affixTintCache[ck] = c;
+  return c;
+}
+
 export function sprite(key) {
   const img = images[key];
   if (!img) return null;

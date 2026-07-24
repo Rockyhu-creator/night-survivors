@@ -1,6 +1,6 @@
 import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
-import { sprite } from './assets.js';
+import { sprite, tintedEnemySprite } from './assets.js';
 
 // 怪物图鉴描述（基于实际行为，不剧透公式）
 const MONSTER_LORE = {
@@ -484,7 +484,12 @@ export class UIManager {
         card.className = `codex-card cat-${g.color}`;
         if (isAffix) card.style.borderLeft = `4px solid ${t.affixColor}`;
         const img = document.createElement('img');
-        img.src = this.iconURL(t.sprite || 'icon_skull');
+        if (isAffix && t.affixColor) {
+          const base = sprite(t.sprite);
+          img.src = base ? tintedEnemySprite(base, t.affixColor, t.sprite).toDataURL() : this.iconURL(t.sprite || 'icon_skull');
+        } else {
+          img.src = this.iconURL(t.sprite || 'icon_skull');
+        }
         img.alt = t.name || key;
         const name = document.createElement('p');
         name.className = 'cc-name';
