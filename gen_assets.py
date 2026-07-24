@@ -1594,6 +1594,179 @@ def gen_passive_guard():  # 钢铁意志：钢盾 + 十字 + 高光
     save(img, "passive_guard.png", 2)
 
 
+# ---------- 游戏图鉴 / 灵魂祭坛 专属图标（ENG-CODEX-ICONS-02）：程序化专属，非 AI_OWNED ----------
+def _diag(d, x0, y0, x1, y1, color, w=1):
+    """沿两点连线画像素斜线（武器交叉用），w 控制粗细。"""
+    steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2) + 1
+    for i in range(steps):
+        t = i / steps
+        x = round(x0 + (x1 - x0) * t)
+        y = round(y0 + (y1 - y0) * t)
+        px(d, x, y, color)
+        if w > 1:
+            px(d, x + 1, y, color); px(d, x, y + 1, color)
+
+
+def gen_codex_artifacts():  # 神器图鉴卡：暗金符文圆盘 + 中央悬浮棱面钻石
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    gold = ((150, 120, 35, 255), (212, 175, 55, 255), (255, 230, 140, 255))
+    diamond = ((200, 170, 90, 255), (240, 215, 150, 255), (255, 248, 220, 255))
+    # 环形符文圆盘（仅保留 r∈[13,16] 环带，其余透明 → 悬浮圣物感）
+    for y in range(2, 38):
+        for x in range(2, 38):
+            pd = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if 13 <= pd <= 16:
+                f = (x - cx) / 16.0 + (y - cy) / 16.0
+                col = gold[2] if f < -0.35 else (gold[0] if f > 0.35 else gold[1])
+                px(d, x, y, col)
+    # 8 向 rune 刻痕（环外缘）
+    for k in range(8):
+        a = math.radians(k * 45)
+        tx, ty = round(cx + math.cos(a) * 17.5), round(cy + math.sin(a) * 17.5)
+        px(d, tx, ty, gold[2]); px(d, tx + 1, ty, gold[2])
+    # 中央悬浮棱面钻石（r≈9，与环留出透明间隙）
+    for y in range(11, 30):
+        half = 9 - abs(y - cy)
+        if half < 0:
+            half = 0
+        for x in range(cx - half, cx + half + 1):
+            f = (x - cx) + (y - cy)
+            col = diamond[2] if f < -3 else (diamond[0] if f > 3 else diamond[1])
+            px(d, x, y, col)
+    px(d, cx, cy, diamond[2]); px(d, cx - 1, cy - 1, diamond[2]); px(d, cx + 1, cy - 1, diamond[2])
+    save(img, "codex_artifacts.png", 2)
+
+
+def gen_codex_monsters():  # 怪物图鉴卡：恶魔眼印记（双犄角 + 发光裂瞳）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    purple = ((80, 30, 110, 255), (142, 68, 173, 255), (220, 160, 255, 255))
+    horn = (220, 160, 255, 255)
+    bone = (233, 227, 206, 255)
+    # 紫框 lozenge 印记（菱形外框，非完整颅骨）
+    for y in range(8, 33):
+        hw = round(11 * (1 - abs(y - cy) / 12.0))
+        if hw < 2:
+            continue
+        for x in (cx - hw, cx - hw + 1, cx + hw - 1, cx + hw):
+            t = (x - (cx - hw)) / (2 * hw)
+            col = purple[2] if t < 0.35 else (purple[0] if t > 0.7 else purple[1])
+            px(d, x, y, col)
+    # 顶部双犄角（从框顶向斜上外扩，差异化关键）
+    for side in (-1, 1):
+        for i in range(7):
+            x = round(cx + side * (7 + i * 0.9))
+            y = 9 - i
+            px(d, x, y, horn); px(d, x, y - 1, horn)
+    # 中央发光裂瞳（细长竖缝 + 亮核 + 一道裂纹）
+    for y in range(14, 27):
+        for x in (cx - 1, cx, cx + 1):
+            px(d, x, y, (200, 245, 255, 200 if x == cx else 150))
+    for y in range(15, 26):
+        px(d, cx, y, (235, 250, 255, 255))            # 亮核
+    px(d, cx + 1, 16, (150, 90, 255, 200)); px(d, cx + 1, 19, (150, 90, 255, 200)); px(d, cx + 1, 22, (150, 90, 255, 200))  # 裂纹
+    # 底部小獠牙
+    for y in range(28, 32):
+        px(d, cx - 4, y, bone); px(d, cx + 3, y, bone)
+    save(img, "codex_monsters.png", 2)
+
+
+def gen_codex_weapons():  # 武器图鉴卡：剑 + 斧异型交叉成 X
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    steel = ((64, 72, 92, 255), (150, 162, 188, 255), (228, 238, 252, 255))
+    red = ((120, 15, 25, 255), (205, 32, 50, 255), (255, 120, 130, 255))
+    wood = (96, 60, 32, 255)
+    # 长剑：剑尖朝左上 (7,7) → 护手(center) → 短柄到 (25,25)
+    _diag(d, 7, 7, 18, 18, steel[1], 2)          # 剑身
+    _diag(d, 7, 7, 18, 18, steel[2], 1)          # 高光
+    _diag(d, 6, 8, 17, 19, red[1], 1)            # 红刃口光
+    for k in range(-3, 4):                        # 护手（垂直于剑身的小横档）
+        x = round(18 - k * 0.7); y = round(18 + k * 0.7)
+        px(d, x, y, steel[0])
+    _diag(d, 19, 19, 25, 25, wood, 1)            # 短柄
+    fill_ellipse_shaded(d, 26, 26, 2, 2, ((120, 80, 50), (150, 110, 70), (190, 150, 100)))  # 柄头
+    # 战斧：木柄 (20,20) → 右下 (33,33)，弯刃在右下（异型交叉，区别于被动_rage 双同匕）
+    _diag(d, 20, 20, 33, 33, wood, 1)
+    for i in range(9):                            # 斧头弯刃（自柄端向上左延展）
+        bx = round(26 + i * 0.65); by = round(26 + i * 0.65)
+        px(d, bx, by - 3, steel[2]); px(d, bx, by - 2, steel[1])
+        px(d, bx - 1, by, steel[1]); px(d, bx + 1, by, red[1])
+    # 中心血红魂芯铆钉
+    fill_ellipse_shaded(d, cx, cy, 3, 3, red)
+    px(d, cx, cy, (255, 150, 160, 255))
+    save(img, "codex_weapons.png", 2)
+
+
+def gen_codex_book():  # 图鉴入口书本：中性炭灰闭合魔典 + 金属搭扣 + 发光书页
+    S = 48
+    img, d = new_canvas(S)
+    charcoal = ((40, 38, 46, 255), (70, 66, 82, 255), (110, 104, 120, 255))
+    gold = ((150, 120, 35, 255), (212, 175, 55, 255), (255, 230, 140, 255))
+    # 书身（炭灰封面，左亮右暗分面，非紫 → 区别于 passive_tome）
+    for y in range(10, 41):
+        for x in range(10, 40):
+            t = (x - 10) / 30.0
+            col = charcoal[2] if t < 0.28 else (charcoal[1] if t < 0.72 else charcoal[0])
+            px(d, x, y, col)
+    # 书脊（左侧窄条，更亮）
+    for y in range(10, 41):
+        for x in range(10, 15):
+            px(d, x, y, charcoal[2] if x < 13 else charcoal[1])
+    # 顶高光 / 底投影
+    for x in range(10, 40):
+        px(d, x, 10, charcoal[2]); px(d, x, 11, charcoal[2])
+        px(d, x, 39, charcoal[0]); px(d, x, 40, charcoal[0])
+    # 中央金属搭扣 / 锁扣
+    for y in range(20, 31):
+        for x in range(20, 30):
+            px(d, x, y, gold[1])
+    px(d, 20, 20, gold[2]); px(d, 29, 20, gold[2]); px(d, 20, 30, gold[0]); px(d, 29, 30, gold[0])
+    px(d, 24, 22, gold[2]); px(d, 25, 22, gold[2]); px(d, 24, 27, gold[0]); px(d, 25, 27, gold[0])
+    # 露出的发光书页（右侧 / 底部辉光，半透明）
+    for y in range(13, 38):
+        for x in range(40, 43):
+            px(d, x, y, (220, 235, 255, 150))
+    for x in range(15, 40):
+        for y in range(41, 44):
+            px(d, x, y, (220, 235, 255, 130))
+    save(img, "codex_book.png", 2)
+
+
+def gen_altar_menu():  # 灵魂祭坛主菜单按钮：阶梯石台 + 上方悬浮灵魂火
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    stone = ((70, 64, 92, 255), (110, 100, 130, 255), (150, 140, 170, 255))
+    soul = ((120, 90, 200, 255), (150, 90, 255, 255), (210, 170, 255, 255))
+    # 阶梯式石台（3 层收窄，左亮右暗；区别于 7 个 altar_* 单属性符号）
+    tiers = [(6, 30, 34, 38), (10, 24, 30, 30), (14, 18, 26, 24)]
+    for (x0, y0, x1, y1) in tiers:
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                t = (x - x0) / (x1 - x0)
+                col = stone[2] if t < 0.34 else (stone[1] if t < 0.7 else stone[0])
+                px(d, x, y, col)
+        for x in range(x0, x1 + 1):
+            px(d, x, y0, stone[2])            # 顶缘高光
+    for x in range(18, 23):                   # 坛顶刻纹 / 凹槽
+        px(d, x, 19, stone[0]); px(d, x, 20, stone[0])
+    # 上方悬浮灵魂火（上尖下宽，与石台留透明间隙）
+    for y in range(4, 17):
+        hw = round(1 + (y - 4) * 0.7)
+        for x in range(cx - hw, cx + hw + 1):
+            px(d, x, y, (120, 200, 255, 170))
+    px(d, cx, 3, (210, 170, 255, 220))        # 火尖
+    fill_ellipse_shaded(d, cx, 11, 4, 6, soul)  # 亮芯
+    for (sx, sy) in ((cx + 5, 5), (cx - 5, 7), (cx + 3, 2), (cx - 2, 4)):  # 火星粒子
+        px(d, sx, sy, (220, 180, 255, 200))
+    save(img, "altar_menu.png", 2)
+
+
 gen_passive_boots()
 gen_passive_heart()
 gen_passive_tome()
@@ -1602,4 +1775,9 @@ gen_passive_rage()
 gen_passive_swift()
 gen_passive_greed()
 gen_passive_guard()
+gen_codex_artifacts()
+gen_codex_monsters()
+gen_codex_weapons()
+gen_codex_book()
+gen_altar_menu()
 print("---- 全部素材生成完成 ----")

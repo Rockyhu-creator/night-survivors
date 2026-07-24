@@ -461,6 +461,11 @@ with sync_playwright() as p:
     # 游戏图鉴 一级菜单：3 张分类卡片
     expect('游戏图鉴一级菜单可见', page.evaluate("() => !document.getElementById('codex-hub').classList.contains('hidden')"))
     expect('图鉴一级菜单 3 张分类卡', page.evaluate("() => document.querySelectorAll('#codex-hub-grid .codex-hub-card').length == 3"))
+    # 三卡 icon 已加载（验证资源缺失导致的空白卡片已修复：iconURL 返回非空 data URL 且实际绘制）
+    expect('图鉴三卡 icon 已加载(非空白)', page.evaluate("""() => {
+        const imgs = [...document.querySelectorAll('#codex-hub-grid .codex-hub-card img')];
+        return imgs.length === 3 && imgs.every(i => (i.getAttribute('src')||'').startsWith('data:image') && i.naturalWidth > 0);
+    }"""))
     # 点「武器图鉴」→ 武器/被动/神器 共 25 张 + 分类配色标签
     page.click('#codex-hub-grid .codex-hub-card[data-target="weapons"]')
     page.wait_for_timeout(300)

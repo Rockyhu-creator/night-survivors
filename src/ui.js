@@ -364,9 +364,9 @@ export class UIManager {
     const root = document.getElementById('codex-hub-grid');
     root.innerHTML = '';
     const cats = [
-      { id: 'artifacts', icon: 'art_sword', name: '神器图鉴', sub: '合成配方', color: 'gold' },
-      { id: 'monsters', icon: 'icon_skull', name: '怪物图鉴', sub: '夜行造物', color: 'purple' },
-      { id: 'weapons', icon: 'weapon_blade', name: '武器图鉴', sub: '武器/被动/神器', color: 'red' },
+      { id: 'artifacts', icon: 'codex_artifacts', name: '神器图鉴', sub: '合成配方', color: 'gold' },
+      { id: 'monsters', icon: 'codex_monsters', name: '怪物图鉴', sub: '夜行造物', color: 'purple' },
+      { id: 'weapons', icon: 'codex_weapons', name: '武器图鉴', sub: '武器/被动/神器', color: 'red' },
     ];
     for (const c of cats) {
       const card = document.createElement('button');

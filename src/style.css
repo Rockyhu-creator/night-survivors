@@ -346,6 +346,7 @@ html, body {
 .codex-hub-card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgb(0 0 0 / .35); }
 .codex-hub-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .codex-hub-card img { width: 64px; height: 64px; object-fit: cover; image-rendering: pixelated; background: #000; border: 1px solid rgba(232,224,208,.2); }
+.codex-hub-book { display: block; width: 72px; height: 72px; margin: 0 auto 6px; object-fit: cover; image-rendering: pixelated; background: #000; border: 1px solid rgba(232,224,208,.25); border-radius: 6px; }
 .codex-hub-card .chc-name { font-size: 17px; letter-spacing: 3px; color: var(--bone); }
 .codex-hub-card .chc-sub { font-size: 11px; letter-spacing: 2px; opacity: .6; }
 .codex-hub-card.cat-gold { border-color: rgba(212,175,55,.7); }
@@ -590,6 +591,7 @@ html, body {
 .touch-device .codex-hub-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .touch-device .codex-hub-card img { width: 52px; height: 52px; }
 .touch-device .codex-title { font-size: 30px; letter-spacing: 8px; }
+.touch-device .codex-hub-book { width: 56px; height: 56px; }
 .touch-device .codex-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
 .touch-device .codex-card { padding: 10px 6px; }
 .touch-device .codex-card img { width: 42px; height: 42px; }
