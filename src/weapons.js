@@ -299,12 +299,12 @@ export class WeaponSystem {
         : (player.facing >= 0 ? 0 : Math.PI);
       this.applyWhip(player, ang, s);
     } else if (weapon.id === 'cross') {
-      // 黎明圣印：多向放射（4/6/8 方向），复用 blade 投射物渲染
+      // 黎明圣印：多向放射（4/6/8 方向），独立 kind:'cross'，金色圣印贴图渲染
       const n = s.count;
       for (let i = 0; i < n; i += 1) {
         const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
         this.projectiles.push({
-          kind: 'blade', x: player.x, y: player.y,
+          kind: 'cross', x: player.x, y: player.y,
           vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
           damage: s.damage * player.damageMul,
           pierce: s.pierce, life: 1.6, spin: 0, hitSet: new Set(),
@@ -648,15 +648,26 @@ export class WeaponSystem {
     for (const p of this.projectiles) {
       const sx = p.x - cam.ox;
       const sy = p.y - cam.oy;
-      const img = sprite(p.kind === 'blade' ? 'blade' : 'axe');
-      const size = p.kind === 'blade' ? 26 : 34;
       ctx.save();
       ctx.translate(sx, sy);
-      ctx.rotate(p.kind === 'blade' ? Math.atan2(p.vy, p.vx) : p.spin);
-      if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
-      else {
-        ctx.fillStyle = p.kind === 'blade' ? '#e74c3c' : '#9fc5ff';
-        ctx.fillRect(-size / 2, -3, size, 6);
+      if (p.kind === 'cross') {
+        // 黎明圣印：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分
+        const img = sprite('weapon_cross');
+        const size = 30;
+        ctx.rotate((p.spin || 0) + (this.game.time || 0) * 1.5);
+        ctx.shadowColor = '#ffe08a';
+        ctx.shadowBlur = 10;
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        else { ctx.fillStyle = '#ffd76a'; ctx.fillRect(-size / 2, -3, size, 6); }
+      } else {
+        const img = sprite(p.kind === 'blade' ? 'blade' : 'axe');
+        const size = p.kind === 'blade' ? 26 : 34;
+        ctx.rotate(p.kind === 'blade' ? Math.atan2(p.vy, p.vx) : p.spin);
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        else {
+          ctx.fillStyle = p.kind === 'blade' ? '#e74c3c' : '#9fc5ff';
+          ctx.fillRect(-size / 2, -3, size, 6);
+        }
       }
       ctx.restore();
     }

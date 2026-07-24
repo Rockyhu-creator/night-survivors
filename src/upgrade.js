@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, unlockInCollection } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, NIGHT_START, unlockInCollection } from './data.js';
 import { sprite } from './assets.js';
 
 export class UpgradeSystem {
@@ -52,9 +52,17 @@ export class UpgradeSystem {
   buildPool() {
     const player = this.game.player;
     const pool = [];
+    // 后期偏置：t>=NIGHT_START(540) 起渐强，至 ENDGAME(900) 满档；前期 late=0 与现状完全一致。
+    const t = this.game.time || 0;
+    const late = Math.max(0, Math.min(1, (t - NIGHT_START) / 360));
     // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级装备权重大幅高于新装备，加速单 build 成型
-    // isWeapon 标记武器向，供 rollOptions 做"每层至少1个武器"配额。权重 [PLACEHOLDER] 待真机微调
-    const W = { weaponUp: 5, passiveUp: 3, weaponNew: 2, passiveNew: 1 };
+    // 后期压低"再拿新武器"概率、抬升被动，避免 build 失衡；前期不动。权重 [PLACEHOLDER] 待真机微调
+    const W = {
+      weaponUp: 5,
+      passiveUp: 3 * (1 + 0.5 * late),
+      weaponNew: 2 * (1 - 0.85 * late),
+      passiveNew: 1 * (1 + 1.0 * late),
+    };
     // S3 武器计数含神器（同 player.weapons 数组），与 addWeapon 口径一致
     const weaponCount = player.weapons.length;
     for (const def of Object.values(WEAPONS)) {

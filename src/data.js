@@ -272,8 +272,8 @@ export const BLOODLINES = [
   },
   {
     id: 'bloodthirsty', name: '嗜血者', icon: 'portrait_bloodthirsty',
-    desc: '飞刃起手 · 命中回血 + 伤害 +5%',
-    weapon: 'blade', cost: 200, hidden: false,
+    desc: '长鞭起手 · 命中回血 + 伤害 +5%',
+    weapon: 'whip', cost: 200, hidden: false,
     apply: (g) => { g.player.lifesteal += 1.5; g.player.damageMul += 0.05; },
   },
   {

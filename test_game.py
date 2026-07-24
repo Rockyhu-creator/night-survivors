@@ -252,6 +252,30 @@ with sync_playwright() as p:
     expect('S3 已满武器仍可升级(weapon-up>0)', capped['upW'] > 0)
     expect('S3 武器数=上限', capped['count'] == capped['max'])
 
+    # --- 后期偏置：t>=540 时新武器权重下降、被动新权重上升（前期不变）---
+    lateW = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.player.weapons = [{ id: 'blade', level: 1, timer: 0.4 }];
+      g.player.passives = new Map([['boots', 1]]);
+      g.player.maxWeapons = 6; g.player.maxPassives = 6;
+      g.upgrade.banned.clear();
+      g.time = 0;   const early = g.upgrade.buildPool();
+      g.time = 900; const late = g.upgrade.buildPool();
+      const wnE = early.find(o => o.kind === 'weapon-new').weight;
+      const wnL = late.find(o => o.kind === 'weapon-new').weight;
+      // 被动统一 kind:'passive'，用"未拥有的被动(非 boots)"取 passiveNew 权重
+      const newP = (pool) => pool.find(o => o.kind === 'passive' && o.id !== 'boots').weight;
+      const pnE = newP(early), pnL = newP(late);
+      return { wnE, wnL, pnE, pnL };
+    }""")
+    expect('前期新武器权重=2(未动)', lateW['wnE'] == 2)
+    expect('后期新武器权重下降(<1)', lateW['wnL'] < 1)
+    expect('后期被动新权重上升(>前期)', lateW['pnL'] > lateW['pnE'])
+    # 回退 time，避免污染后续
+    page.evaluate("() => { window.__game.time = 0; }")
+
     # 祭坛 +1 槽：购买后 startRun 注入上限提升
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:9999,spent:0,unlocks:[],cleared:['normal']});
@@ -299,6 +323,47 @@ with sync_playwright() as p:
     expect('新武器开火命中敌人', fired['dmgHappened'])
     # 清理靶子与敌人，避免影响后续断言
     page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.expQueue = 0; }")
+
+    # --- 黎明圣印投射物独立 kind:'cross'（修复与红飞刃共用 blade 贴图）---
+    crossKind = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.player.weapons = [];
+      g.weapons.addWeapon('cross');
+      g.enemies.enemies = [];
+      const type = g.enemies.pickType();
+      const dummy = g.enemies.createEnemy(type, g.enemies.statScale(), g.player.x + 30, g.player.y);
+      dummy.hp = 9999; dummy.maxHp = 9999; dummy.speed = 0;
+      g.enemies.enemies.push(dummy);
+      g.weapons.projectiles.length = 0;
+      for (let i = 0; i < 12; i++) g.weapons.update(0.1);  // 推进让 cross 多次开火
+      return {
+        hasCross: g.weapons.projectiles.some(p => p.kind === 'cross'),
+        hasBlade: g.weapons.projectiles.some(p => p.kind === 'blade'),
+      };
+    }""")
+    expect('黎明圣印投射物 kind=cross', crossKind['hasCross'])
+    expect('黎明圣印不再复用 blade 贴图', not crossKind['hasBlade'])
+    page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.weapons.projectiles.length = 0; }")
+
+    # --- 血瓶掉率下调：约 2.5%（远低于旧的 7%）---
+    potion = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.pickups.gems.length = 0;
+      const N = 600; let potions = 0;
+      for (let i = 0; i < N; i++) {
+        const before = g.pickups.gems.length;
+        g.onEnemyKilled({ isBoss: false, x: 100, y: 100, expValue: 1, hp: 1 });
+        for (let k = before; k < g.pickups.gems.length; k++) {
+          if (g.pickups.gems[k].potion) potions++;
+        }
+      }
+      return { potions, N };
+    }""")
+    expect('血瓶掉率约2.5%(<5%, 防回归0.07)', potion['potions'] < potion['N'] * 0.05)
+    page.evaluate("() => { window.__game.pickups.gems.length = 0; }")
 
     # --- 新配方进化：武器满级+被动 → 神器（武器丰富化，2026-07-23）---
     for wid, pid, aid in [('aura','heart','sepulcher'), ('whip','boots','eternalwhip'), ('cross','tome','matrix')]:
@@ -448,7 +513,7 @@ with sync_playwright() as p:
     expect('雷巫起手 雷霆审判', th['weapons'] == ['lightning'])
     expect('雷巫 冷却缩减<1', th['cd'] < 1)
 
-    # 嗜血者：飞刃起手 + 命中回血>0 + 伤害>1
+    # 嗜血者：长鞭起手 + 命中回血>0 + 伤害>1
     bt = page.evaluate("""() => {
       window.__bloodlines.buyBloodlineUnlock('bloodthirsty');
       window.__bloodlines.setBloodline('bloodthirsty');
@@ -456,7 +521,7 @@ with sync_playwright() as p:
       const p = window.__game.player;
       return { weapons: p.weapons.map(w=>w.id), ls: p.lifesteal, dmg: p.damageMul };
     }""")
-    expect('嗜血者起手 血之飞刃', bt['weapons'] == ['blade'])
+    expect('嗜血者起手 噬魂长鞭', bt['weapons'] == ['whip'])
     expect('嗜血者 命中回血>0', bt['ls'] > 0)
     expect('嗜血者 伤害>1', bt['dmg'] > 1)
 
