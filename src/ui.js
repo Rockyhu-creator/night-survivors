@@ -1,6 +1,20 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite } from './assets.js';
+
+// 怪物图鉴描述（基于实际行为，不剧透公式）
+const MONSTER_LORE = {
+  bat: '高速直冲,成群结队,单体孱弱',
+  skeleton: '直线追击的骷髅,基础杂兵',
+  slime: '缓慢但厚实,死亡时可能引爆',
+  elite: '周期降临的精英,高血高伤,优先清理',
+  shadow_hunter: '进入 250px 后蓄力冲刺,突进极快',
+  gargoyle: '免疫击退的肉盾,缓慢却坚硬',
+  baron: '首位降临的 Boss,召唤蝙蝠并弹幕',
+  queen: '苍白女王,多重弹幕与位移',
+  overlord: '永夜君王,半场后狂暴',
+  avatar: '终局化身,击杀即通关',
+};
 
 export class UIManager {
   constructor(game) {
@@ -83,9 +97,14 @@ export class UIManager {
     const souls = loadSouls();
     this.soulBalanceEl.classList.remove('hidden');
     this.soulBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
-    // 血裔：标题按钮显示当前选定血裔
+    // 血裔：标题按钮显示当前选定血裔 + 角色头像图标
     const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
-    if (this.bloodlineBtnEl) this.bloodlineBtnEl.textContent = `血裔：${bl.name}`;
+    if (this.bloodlineBtnEl) {
+      const span = this.bloodlineBtnEl.querySelector('span');
+      if (span) span.textContent = `血裔：${bl.name}`;
+      const icon = document.getElementById('btn-bloodline-icon');
+      if (icon) icon.src = `/assets/${bl.icon}.png`;
+    }
     // 首启自动弹玩法说明（localStorage 记忆，仅首次）。try/catch 防隐私模式抛异常（P0）
     let guideSeen = false;
     try { guideSeen = localStorage.getItem('ns_guide_seen') === '1'; } catch (_) { /* 禁用则跳过 */ }
@@ -340,10 +359,45 @@ export class UIManager {
     this.victoryScreen.classList.remove('hidden');
   }
 
+  // 游戏图鉴 一级菜单：三个分类卡片
   showCodex() {
+    const root = document.getElementById('codex-hub-grid');
+    root.innerHTML = '';
+    const cats = [
+      { id: 'artifacts', icon: 'art_sword', name: '神器图鉴', sub: '合成配方', color: 'gold' },
+      { id: 'monsters', icon: 'icon_skull', name: '怪物图鉴', sub: '夜行造物', color: 'purple' },
+      { id: 'weapons', icon: 'weapon_blade', name: '武器图鉴', sub: '武器/被动/神器', color: 'red' },
+    ];
+    for (const c of cats) {
+      const card = document.createElement('button');
+      card.className = `codex-hub-card cat-${c.color}`;
+      card.dataset.target = c.id;
+      const img = document.createElement('img');
+      img.src = this.iconURL(c.icon);
+      img.alt = c.name;
+      const name = document.createElement('p');
+      name.className = 'chc-name';
+      name.textContent = c.name;
+      const sub = document.createElement('p');
+      sub.className = 'chc-sub';
+      sub.textContent = c.sub;
+      card.append(img, name, sub);
+      card.addEventListener('click', () => {
+        if (c.id === 'artifacts') this.renderCodexArtifacts();
+        else if (c.id === 'monsters') this.renderCodexMonsters();
+        else if (c.id === 'weapons') this.renderCodexWeapons();
+      });
+      root.appendChild(card);
+    }
+    this.hideAllScreens();
+    document.getElementById('codex-hub').classList.remove('hidden');
+  }
+
+  // 神器图鉴（合成配方，原合成图鉴内容）
+  renderCodexArtifacts() {
     const { unlocked } = loadCollection();
     const data = buildCollectionData(unlocked);
-    const root = document.getElementById('codex-content');
+    const root = document.getElementById('codex-artifacts-content');
     root.innerHTML = '';
     const sections = [['武器', data.weapons], ['被动道具', data.passives], ['神器', data.artifacts]];
     for (const [title, items] of sections) {
@@ -364,29 +418,128 @@ export class UIManager {
         name.className = 'cc-name';
         name.textContent = item.name;
         card.append(img, name);
-        if (item.hint) {
-          const hint = document.createElement('p');
-          hint.className = 'cc-hint';
-          hint.textContent = item.hint;
-          card.appendChild(hint);
-        } else if (item.desc && item.unlocked) {
-          const desc = document.createElement('p');
-          desc.className = 'cc-hint';
-          desc.textContent = item.desc;
-          card.appendChild(desc);
-        }
+        const desc = document.createElement('p');
+        desc.className = 'cc-hint';
+        desc.textContent = item.hint || (item.desc && item.unlocked ? item.desc : '');
+        card.appendChild(desc);
         grid.appendChild(card);
       }
       sec.appendChild(grid);
       root.appendChild(sec);
     }
-    document.getElementById('codex-screen').classList.remove('hidden');
-    document.getElementById('title-screen').classList.add('hidden');
+    this.hideAllScreens();
+    document.getElementById('codex-artifacts').classList.remove('hidden');
+  }
+
+  // 怪物图鉴：夜行小怪 / 永夜小怪 / Boss
+  renderCodexMonsters() {
+    const root = document.getElementById('codex-monsters-content');
+    root.innerHTML = '';
+    const lore = MONSTER_LORE;
+    const fmtTime = (s) => (s >= 60 ? `${Math.floor(s / 60)}分` : `${s}秒`);
+    const groups = [
+      { title: '夜行小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) < 540, color: 'purple' },
+      { title: '永夜小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) >= 540, color: 'purple' },
+      { title: 'Boss', filter: (k, t) => Array.isArray(t.skills), color: 'gold' },
+    ];
+    for (const g of groups) {
+      const sec = document.createElement('div');
+      sec.className = 'codex-section';
+      const h = document.createElement('h3');
+      h.textContent = g.title;
+      sec.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'codex-grid';
+      for (const [key, t] of Object.entries({ ...ENEMY_TYPES, ...BOSSES })) {
+        if (!g.filter(key, t)) continue;
+        const info = lore[key] || {};
+        const card = document.createElement('div');
+        card.className = `codex-card cat-${g.color}`;
+        const img = document.createElement('img');
+        img.src = this.iconURL(t.sprite || 'icon_skull');
+        img.alt = t.name || key;
+        const name = document.createElement('p');
+        name.className = 'cc-name';
+        name.textContent = t.name || key;
+        const stats = document.createElement('p');
+        stats.className = 'cc-hint';
+        const unlock = t.unlockAt ? `首现 ${fmtTime(t.unlockAt)}` : '开局';
+        stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · ${unlock}`;
+        const desc = document.createElement('p');
+        desc.className = 'cc-hint';
+        desc.textContent = info.desc || '';
+        card.append(img, name, stats, desc);
+        grid.appendChild(card);
+      }
+      if (grid.children.length) {
+        sec.appendChild(grid);
+        root.appendChild(sec);
+      }
+    }
+    this.hideAllScreens();
+    document.getElementById('codex-monsters').classList.remove('hidden');
+  }
+
+  // 武器图鉴：武器/被动/神器 分类配色标签（⑤）
+  renderCodexWeapons() {
+    const { unlocked } = loadCollection();
+    const data = buildCollectionData(unlocked);
+    const root = document.getElementById('codex-weapons-content');
+    root.innerHTML = '';
+    const sections = [
+      { title: '武器', items: data.weapons, cat: 'red' },
+      { title: '被动', items: data.passives, cat: 'cyan' },
+      { title: '神器', items: data.artifacts, cat: 'gold' },
+    ];
+    for (const s of sections) {
+      const sec = document.createElement('div');
+      sec.className = 'codex-section';
+      const h = document.createElement('h3');
+      h.textContent = s.title;
+      sec.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'codex-grid';
+      for (const item of s.items) {
+        const card = document.createElement('div');
+        card.className = `codex-card cat-${s.cat} ${item.unlocked ? '' : 'locked'} ${item.rarity === 'hidden' ? 'hidden-item' : ''}`;
+        const img = document.createElement('img');
+        img.src = this.iconURL(item.icon);
+        img.alt = item.name;
+        const tag = document.createElement('span');
+        tag.className = `cat-tag tag-${s.cat}`;
+        tag.textContent = s.title;
+        const name = document.createElement('p');
+        name.className = 'cc-name';
+        name.textContent = item.name;
+        const desc = document.createElement('p');
+        desc.className = 'cc-hint';
+        desc.textContent = item.hint || (item.desc && item.unlocked ? item.desc : '');
+        card.append(tag, img, name, desc);
+        grid.appendChild(card);
+      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
+    this.hideAllScreens();
+    document.getElementById('codex-weapons').classList.remove('hidden');
+  }
+
+  // 图鉴各子屏统一回退到一级菜单
+  backToCodexHub() {
+    this.hideAllScreens();
+    document.getElementById('codex-hub').classList.remove('hidden');
   }
 
   hideCodex() {
-    document.getElementById('codex-screen').classList.add('hidden');
+    this.hideAllScreens();
     document.getElementById('title-screen').classList.remove('hidden');
+  }
+
+  // 隐藏所有图鉴相关屏 + 主菜单，避免残留
+  hideAllScreens() {
+    for (const id of ['codex-hub', 'codex-artifacts', 'codex-monsters', 'codex-weapons']) {
+      document.getElementById(id).classList.add('hidden');
+    }
   }
 
   showAltar() {

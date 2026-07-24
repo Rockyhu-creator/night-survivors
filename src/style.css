@@ -92,6 +92,11 @@ html, body {
 .gothic-btn.ghost { border-color: #4a3f5e; font-size: 12px; padding: 12px 30px; }
 .gothic-btn.ghost:hover { background: #4a3f5e; box-shadow: 0 0 18px rgba(142,68,173,.5); }
 
+/* 主菜单入口按钮：图标 + 文字，桌面端横排 */
+.menu-btn { display: inline-flex; align-items: center; gap: 10px; }
+.menu-btn .menu-btn-icon { width: 30px; height: 30px; object-fit: cover; image-rendering: pixelated; border: 1px solid rgba(232,224,208,.3); background: #000; flex: none; }
+.menu-btn span { white-space: nowrap; }
+
 /* 难度选择 */
 #difficulty-select { margin-top: 20px; text-align: center; }
 .diff-label {
@@ -321,19 +326,41 @@ html, body {
 }
 
 /* 图鉴界面 */
-#codex-screen { background: rgba(8,5,16,.97); z-index: 30; overflow-y: auto; padding: 40px 20px; justify-content: flex-start; }
+#codex-hub, #codex-artifacts, #codex-monsters, #codex-weapons { background: rgba(8,5,16,.97); z-index: 30; overflow-y: auto; padding: 40px 20px; justify-content: flex-start; }
+.codex-content { width: min(880px, 92vw); }
 .codex-title { font-family: var(--body-font); font-weight: 900; font-size: 44px; letter-spacing: 12px; color: var(--gold); text-shadow: 0 0 26px rgba(212,175,55,.5); margin-top: 20px; }
 .codex-sub { margin: 10px 0 26px; letter-spacing: 5px; opacity: .7; }
-#codex-content { width: min(880px, 92vw); }
 .codex-section h3 { font-size: 20px; letter-spacing: 6px; color: var(--blood-bright); margin: 22px 0 12px; border-bottom: 1px solid rgba(212,175,55,.3); padding-bottom: 6px; }
 .codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-.codex-card { background: rgba(20,14,32,.9); border: 2px solid rgba(212,175,55,.4); padding: 14px 10px; text-align: center; }
+.codex-card { position: relative; background: rgba(20,14,32,.9); border: 2px solid rgba(212,175,55,.4); padding: 14px 10px; text-align: center; }
 .codex-card img { width: 52px; height: 52px; object-fit: cover; image-rendering: pixelated; border: 1px solid rgba(232,224,208,.2); background: #000; }
 .codex-card .cc-name { margin-top: 8px; font-size: 14px; letter-spacing: 1px; }
 .codex-card .cc-hint { margin-top: 6px; font-size: 11px; line-height: 1.5; opacity: .7; }
 .codex-card.locked { opacity: .38; filter: grayscale(1); }
 .codex-card.hidden-item { border-color: rgba(142,68,173,.5); }
-#codex-screen .gothic-btn { margin-top: 28px; }
+#codex-hub .gothic-btn, #codex-artifacts .gothic-btn, #codex-monsters .gothic-btn, #codex-weapons .gothic-btn { margin-top: 28px; }
+
+/* 游戏图鉴 一级菜单：分类卡片网格 */
+.codex-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 18px; width: min(880px, 92vw); margin-bottom: 28px; }
+.codex-hub-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 16px; background: rgba(20,14,32,.9); border: 2px solid rgba(212,175,55,.4); cursor: pointer; transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
+.codex-hub-card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgb(0 0 0 / .35); }
+.codex-hub-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.codex-hub-card img { width: 64px; height: 64px; object-fit: cover; image-rendering: pixelated; background: #000; border: 1px solid rgba(232,224,208,.2); }
+.codex-hub-card .chc-name { font-size: 17px; letter-spacing: 3px; color: var(--bone); }
+.codex-hub-card .chc-sub { font-size: 11px; letter-spacing: 2px; opacity: .6; }
+.codex-hub-card.cat-gold { border-color: rgba(212,175,55,.7); }
+.codex-hub-card.cat-purple { border-color: rgba(142,68,173,.7); }
+.codex-hub-card.cat-red { border-color: rgba(231,76,60,.7); }
+
+/* 分类配色标签（⑤）：武器=红 / 被动=青 / 神器=金 / 怪物=紫 */
+.cat-tag { position: absolute; top: 6px; right: 6px; font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.tag-red { color: #e74c3c; background: rgba(231,76,60,.12); }
+.tag-cyan { color: #5ad1e6; background: rgba(90,209,230,.12); }
+.tag-gold { color: #d4af37; background: rgba(212,175,55,.12); }
+.codex-card.cat-red { border-color: rgba(231,76,60,.5); }
+.codex-card.cat-cyan { border-color: rgba(90,209,230,.5); }
+.codex-card.cat-gold { border-color: rgba(212,175,55,.5); }
+.codex-card.cat-purple { border-color: rgba(142,68,173,.5); }
 
 #boss-bar-wrap {
   position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
@@ -559,7 +586,9 @@ html, body {
 .touch-device #boss-name { font-size: 14px; letter-spacing: 4px; }
 
 /* 图鉴界面 */
-.touch-device #codex-screen { padding: calc(20px + env(safe-area-inset-top, 0px)) 12px calc(20px + env(safe-area-inset-bottom, 0px)); }
+.touch-device #codex-hub, .touch-device #codex-artifacts, .touch-device #codex-monsters, .touch-device #codex-weapons { padding: calc(20px + env(safe-area-inset-top, 0px)) 12px calc(20px + env(safe-area-inset-bottom, 0px)); }
+.touch-device .codex-hub-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.touch-device .codex-hub-card img { width: 52px; height: 52px; }
 .touch-device .codex-title { font-size: 30px; letter-spacing: 8px; }
 .touch-device .codex-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
 .touch-device .codex-card { padding: 10px 6px; }
@@ -615,6 +644,10 @@ html, body {
   text-shadow: 0 0 12px rgba(142,68,173,.7); letter-spacing: 2px;
 }
 .title-btns { display: flex; gap: 16px; margin-top: 24px; justify-content: center; }
+/* 双端适配：触屏/窄屏入口按钮改为图标在上、文字在下，触控区更大 */
+.touch-device .menu-btn { flex-direction: column; gap: 6px; padding: 12px 18px; min-width: 96px; min-height: 72px; justify-content: center; }
+.touch-device .menu-btn .menu-btn-icon { width: 38px; height: 38px; }
+.touch-device .title-btns { flex-wrap: wrap; gap: 12px; }
 
 #altar-screen {
   background:

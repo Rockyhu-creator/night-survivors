@@ -116,7 +116,7 @@ export class EnemyManager {
     this.enemyProjectiles = [];
   }
 
-  statScale() {
+  statScale(isBoss = false) {
     const t = this.game.time;
     const diff = this.game.difficulty;
     const linear = {
@@ -126,8 +126,10 @@ export class EnemyManager {
     };
     // 永夜加深（9 分钟后指数增长）：敌人 HP/伤害 = 线性 × nightBase^D × (1 + 神器数×artifactCounter×D)
     // 速度不乘永夜指数，避免后期怪变成不可风筝的子弹
+    // 非 Boss（小怪/精英）永夜伤害指数减半（D/2），避免后期指数秒杀；Boss 保持全额威慑
     const D = Math.max(0, (t - NIGHT_START) / 60);
-    const nightMult = Math.pow(diff.nightBase, D);
+    const exp = isBoss ? D : D / 2;
+    const nightMult = Math.pow(diff.nightBase, exp);
     const artifacts = this.game.player.weapons.filter((w) => w.artifact).length;
     const artifactMult = 1 + diff.artifactCounter * artifacts * D;
     const endMult = nightMult * artifactMult;
@@ -288,7 +290,7 @@ export class EnemyManager {
   bossSummon(e, enemyType, count, affix) {
     const type = ENEMY_TYPES[enemyType];
     if (!type) return;
-    const scale = this.statScale();
+    const scale = this.statScale(false);
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
       const x = e.x + Math.cos(angle) * 60;
@@ -317,7 +319,7 @@ export class EnemyManager {
   }
 
   update(dt) {
-    const scale = this.statScale();
+    const scale = this.statScale(false);
     const t = this.game.time;
     const diff = this.game.difficulty;
     // 终局 Boss：永夜化身（15 分钟降临，击杀=通关）。登场时清掉现有 Boss
@@ -439,9 +441,14 @@ export class EnemyManager {
 
       // 触碰玩家
       if (dist < e.radius + player.radius && e.hitCooldown <= 0) {
-        const touchDamage = e.isBoss && e.dashing > 0
+        let touchDamage = e.isBoss && e.dashing > 0
           ? e.damage + (e.dashBonusDamage || 0)
           : e.damage;
+        // 非 Boss 单次触碰伤害上限 = 35% 最大生命，避免后期小怪一次秒杀（Boss 保持全额威慑）
+        if (!e.isBoss) {
+          const cap = player.maxHp * 0.35;
+          if (touchDamage > cap) touchDamage = cap;
+        }
         if (player.takeDamage(touchDamage)) {
           this.game.onPlayerHit();
         }

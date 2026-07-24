@@ -458,21 +458,32 @@ with sync_playwright() as p:
     dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    # 图鉴卡片 = 武器(7) + 被动道具(9) + 神器(9) = 25，随 data.js 新增条目需同步更新此处
+    # 游戏图鉴 一级菜单：3 张分类卡片
+    expect('游戏图鉴一级菜单可见', page.evaluate("() => !document.getElementById('codex-hub').classList.contains('hidden')"))
+    expect('图鉴一级菜单 3 张分类卡', page.evaluate("() => document.querySelectorAll('#codex-hub-grid .codex-hub-card').length == 3"))
+    # 点「武器图鉴」→ 武器/被动/神器 共 25 张 + 分类配色标签
+    page.click('#codex-hub-grid .codex-hub-card[data-target="weapons"]')
+    page.wait_for_timeout(300)
     codex = page.evaluate("""() => {
-      const secs = [...document.querySelectorAll('.codex-section')];
+      const secs = [...document.querySelectorAll('#codex-weapons .codex-section')];
       const byTitle = {};
-      for (const s of secs) {
-        const t = s.querySelector('h3').textContent;
-        byTitle[t] = s.querySelectorAll('.codex-card').length;
-      }
-      return { total: document.querySelectorAll('.codex-card').length, byTitle };
+      for (const s of secs) byTitle[s.querySelector('h3').textContent] = s.querySelectorAll('.codex-card').length;
+      return { total: document.querySelectorAll('#codex-weapons .codex-card').length, byTitle,
+               tags: document.querySelectorAll('#codex-weapons .cat-tag').length };
     }""")
-    expect('图鉴卡片总数 25 (7武器+9被动+9神器)', codex['total'] == 25)
-    expect('图鉴 武器7张', codex['byTitle'].get('武器') == 7)
-    expect('图鉴 被动道具9张', codex['byTitle'].get('被动道具') == 9)
-    expect('图鉴 神器9张', codex['byTitle'].get('神器') == 9)
-    expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('.codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
+    expect('武器图鉴 卡片总数 25 (7武器+9被动+9神器)', codex['total'] == 25)
+    expect('武器图鉴 武器7张', codex['byTitle'].get('武器') == 7)
+    expect('武器图鉴 被动9张', codex['byTitle'].get('被动') == 9)
+    expect('武器图鉴 神器9张', codex['byTitle'].get('神器') == 9)
+    expect('武器图鉴 分类配色标签 25 个', codex['tags'] == 25)
+    expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('#codex-weapons .codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
+    # 怪物图鉴
+    page.click('#btn-codex-weapons-topback')
+    page.wait_for_timeout(200)
+    page.click('#codex-hub-grid .codex-hub-card[data-target="monsters"]')
+    page.wait_for_timeout(300)
+    expect('怪物图鉴 含 Boss 分组与卡片', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('血色男爵')"))
+    expect('怪物图鉴 含石像鬼', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('石像鬼')"))
     page.screenshot(path='/tmp/e2e_codex_final.png')
 
     # --- 灵魂货币：结算发灵魂 + 祭坛解锁（长期循环）---
@@ -498,6 +509,45 @@ with sync_playwright() as p:
     expect('结算灵魂=145(含首通)', soul['run'] == 145)
     expect('灵魂已持久化且等于本局', soul['stored'] == soul['run'])
     expect('难度首通已记录', 'normal' in soul['cleared'])
+
+    # 灵魂货币公式（v0.17）：floor((time/900)*500)+level，收敛到 2~3 把毕业
+    cur = page.evaluate("""() => {
+      const g = window.__game;
+      g.difficulty = g.difficulty; g.soulGainMul = 1; g.player.level = 20; g.time = 900;
+      return g.computeSoulReward(false);
+    }""")
+    expect('通关结算≈520(500+等级20)', cur == 520)
+    short = page.evaluate("""() => {
+      const g = window.__game; g.player.level = 5; g.time = 60; return g.computeSoulReward(false);
+    }""")
+    expect('短局结算≈38(收敛不通胀)', short == 38)
+
+    # 石像鬼基础伤害下调 40→22（④）
+    expect('石像鬼基础伤害=22', page.evaluate("() => window.__enemyTypes.gargoyle.damage === 22"))
+
+    # 永夜加深：非Boss 伤害指数减半（D/2），避免后期指数秒杀
+    night = page.evaluate("""() => {
+      const g = window.__game; g.time = 900;  // D = (900-540)/60 = 6
+      const mobScale = g.enemies.statScale(false);
+      const bossScale = g.enemies.statScale(true);
+      return { mob: mobScale.damage, boss: bossScale.damage };
+    }""")
+    expect('非Boss永夜指数减半(小怪伤害<Boss)', night['mob'] < night['boss'])
+
+    # 非Boss 单次触碰伤害上限 = 35% 最大生命（防后期一击秒杀）
+    cap = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.time = 0; g.enemies.enemies = [];
+      g.player.hp = g.player.maxHp = 200; g.player.iframes = 0;
+      const type = g.enemies.pickType();
+      const e = g.enemies.createEnemy(type, g.enemies.statScale(false), g.player.x, g.player.y);
+      e.damage = 99999; e.isBoss = false; e.hitCooldown = 0;
+      g.enemies.enemies.push(e);
+      g.enemies._grid = g.enemies.buildGrid();
+      g.enemies.update(0.016);
+      return { hpLost: 200 - g.player.hp };
+    }""")
+    expect('非Boss触碰伤害封顶≤35%最大生命', cap['hpLost'] <= 200 * 0.35 + 1)
 
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
@@ -634,14 +684,18 @@ with sync_playwright() as p:
     expect('点击左上返回→祭坛隐藏/回主界', page.evaluate("() => document.getElementById('altar-screen').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))
     page.evaluate("() => window.__game.ui.showCodex()")
     page.wait_for_timeout(200)
-    page.click('#btn-codex-topback')
+    page.click('#btn-codex-hub-topback')
     page.wait_for_timeout(200)
-    expect('点击左上返回→图鉴隐藏/回主界', page.evaluate("() => document.getElementById('codex-screen').classList.contains('hidden')"))
+    expect('点击左上返回→图鉴隐藏/回主界', page.evaluate("() => document.getElementById('codex-hub').classList.contains('hidden')"))
     page.evaluate("() => window.__game.ui.showBloodline()")
     page.wait_for_timeout(200)
     page.click('#btn-bloodline-topback')
     page.wait_for_timeout(200)
     expect('点击左上返回→血裔隐藏/回主界', page.evaluate("() => document.getElementById('bloodline-screen').classList.contains('hidden')"))
+
+    # --- 主菜单入口图标（双端功能暗示）---
+    expect('祭坛入口含功能图标', page.evaluate("() => { const b = document.getElementById('btn-altar'); return !!b.querySelector('img.menu-btn-icon'); }"))
+    expect('血裔入口含角色头像图标', page.evaluate("() => { const b = document.getElementById('btn-bloodline'); return !!document.getElementById('btn-bloodline-icon') && b.querySelector('img').src.includes('portrait_'); }"))
 
     # --- 战利品指引：屏外→边缘方向箭头；屏内→精确脉冲环（2026-07-24）---
     page.evaluate("""() => {

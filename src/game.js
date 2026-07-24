@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, ENDGAME_BOSS_TIME, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -360,16 +360,13 @@ export class Game {
     this.audio.hit();
   }
 
-  // 结算灵魂：存活/击杀/等级/Boss + 难度首通（一次性）+ 通关奖励
-  computeSoulReward(win = false) {
+  // 结算灵魂：按坚持时间进度与等级。（坚持时间/通关总时间）×500 + 等级×1
+  // 通关时 time≈ENDGAME_BOSS_TIME → 约 500 + 等级；中途阵亡按实际存活时间折算。
+  // 保留难度倍率 soulMul 与祭坛投资 soulGainMul 乘区；首通收敛为一次性奖励。
+  computeSoulReward(_win = false) {
     const r = SOUL_REWARDS;
-    let reward =
-      Math.floor(this.time / 30) * r.per30s +
-      Math.floor(this.kills / 20) * r.per20Kills +
-      this.player.level * r.perLevel +
-      this.bossKills * r.perBoss;
-    if (win) reward += 200; // 通关固定奖励 [PLACEHOLDER]
-    // 难度首通（一次性）：写入 cleared 并持久化，余额不变
+    let reward = Math.floor((this.time / ENDGAME_BOSS_TIME) * 500) + this.player.level * 1;
+    // 难度首通（一次性，收敛奖励）：写入 cleared 并持久化
     const souls = loadSouls();
     if (!souls.cleared.includes(this.difficulty.id)) {
       souls.cleared.push(this.difficulty.id);

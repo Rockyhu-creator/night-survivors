@@ -52,9 +52,15 @@
           <div class="how-item"><span class="how-key">拾取宝石</span><span>升级并三选一强化</span></div>
         </div>
         <div class="title-btns">
-          <button id="btn-bloodline" class="gothic-btn ghost">血裔：流浪者</button>
-          <button id="btn-altar" class="gothic-btn ghost">灵魂祭坛</button>
-          <button id="btn-codex" class="gothic-btn ghost">合成图鉴</button>
+          <button id="btn-bloodline" class="gothic-btn ghost menu-btn">
+            <img class="menu-btn-icon" id="btn-bloodline-icon" src="/assets/portrait_wanderer.png" alt="角色" />
+            <span>血裔：流浪者</span>
+          </button>
+          <button id="btn-altar" class="gothic-btn ghost menu-btn">
+            <img class="menu-btn-icon" src="/assets/altar_hp.png" alt="祭坛" />
+            <span>灵魂祭坛</span>
+          </button>
+          <button id="btn-codex" class="gothic-btn ghost">游戏图鉴</button>
           <button id="btn-guide" class="gothic-btn ghost">玩法说明</button>
         </div>
       </div>
@@ -92,15 +98,48 @@
       </div>
     </div>
 
-    <!-- 图鉴界面 -->
-    <div id="codex-screen" class="screen hidden">
-      <button class="top-back" id="btn-codex-topback" aria-label="返回">
+    <!-- 游戏图鉴 一级菜单 -->
+    <div id="codex-hub" class="screen hidden">
+      <button class="top-back" id="btn-codex-hub-topback" aria-label="返回">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <p class="codex-title">合成图鉴</p>
-      <p class="codex-sub">集齐神器,对抗永夜</p>
-      <div id="codex-content"></div>
-      <button id="btn-codex-back" class="gothic-btn">返回</button>
+      <p class="codex-title">游 戏 图 鉴</p>
+      <p class="codex-sub">夜裔世界的造物与造物者</p>
+      <div id="codex-hub-grid" class="codex-hub-grid"></div>
+      <button id="btn-codex-hub-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- 神器图鉴 -->
+    <div id="codex-artifacts" class="screen hidden">
+      <button class="top-back" id="btn-codex-artifacts-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="codex-title">神 器 图 鉴</p>
+      <p class="codex-sub">集齐神器，对抗永夜</p>
+      <div id="codex-artifacts-content" class="codex-content"></div>
+      <button id="btn-codex-artifacts-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- 怪物图鉴 -->
+    <div id="codex-monsters" class="screen hidden">
+      <button class="top-back" id="btn-codex-monsters-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="codex-title">怪 物 图 鉴</p>
+      <p class="codex-sub">永夜中的造物</p>
+      <div id="codex-monsters-content" class="codex-content"></div>
+      <button id="btn-codex-monsters-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- 武器图鉴 -->
+    <div id="codex-weapons" class="screen hidden">
+      <button class="top-back" id="btn-codex-weapons-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="codex-title">武 器 图 鉴</p>
+      <p class="codex-sub">武器 · 被动 · 神器</p>
+      <div id="codex-weapons-content" class="codex-content"></div>
+      <button id="btn-codex-weapons-back" class="gothic-btn">返回</button>
     </div>
 
     <!-- 灵魂祭坛界面 -->
