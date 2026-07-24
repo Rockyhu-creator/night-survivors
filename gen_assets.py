@@ -1445,4 +1445,161 @@ gen_altar_gain()
 gen_altar_dual()
 gen_altar_slot_weapon()
 gen_altar_slot_passive()
+
+
+# ---------- 被动专属图标（2026-07-24）：消除「武器/被动/角色」跨类目复用贴图 ----------
+def gen_passive_boots():  # 疾行之靴 / 极速猎手：圆头靴
+    S = 40
+    img, d = new_canvas(S)
+    leather_d, leather_m, leather_l = (70, 44, 30, 255), (120, 84, 56, 255), (180, 132, 92, 255)
+    sole = (34, 22, 16, 255)
+    for y in range(11, 31):
+        for x in range(13, 23):          # 靴筒
+            t = (x - 13) / 10
+            px(d, x, y, leather_l if t < 0.3 else (leather_m if t < 0.7 else leather_d))
+    for y in range(31, 34):
+        for x in range(13, 35):          # 靴趾
+            px(d, x, y, leather_m)
+    for y in range(34, 37):
+        for x in range(12, 36):          # 鞋底
+            px(d, x, y, sole)
+    px(d, 14, 11, leather_l); px(d, 15, 11, leather_l)  # 筒口高光
+    px(d, 13, 33, leather_l)             # 趾尖高光
+    save(img, "passive_boots.png", 2)
+
+
+def gen_passive_heart():  # 巨人之心 / 钢铁意志：血红心脏（胸口）
+    S = 40
+    img, d = new_canvas(S)
+    body, hi = (205, 32, 50, 255), (255, 120, 130, 255)
+    fill_ellipse_shaded(d, 14, 17, 7, 7, (body, body, hi))
+    fill_ellipse_shaded(d, 26, 17, 7, 7, (body, body, hi))
+    for y in range(21, 34):
+        half = int(14 - (y - 21) * 0.95)
+        if half < 0:
+            half = 0
+        for x in range(20 - half, 20 + half + 1):
+            px(d, x, y, body if y < 29 else hi)
+    px(d, 11, 15, hi); px(d, 12, 14, hi)
+    save(img, "passive_heart.png", 2)
+
+
+def gen_passive_tome():  # 秘法魔典：紫色魔法书 + 金边 + 符文
+    S = 40
+    img, d = new_canvas(S)
+    cover = ((80, 40, 120), (120, 70, 165), (165, 110, 205))
+    gold, rune = (235, 200, 92, 255), (180, 230, 255, 255)
+    for y in range(9, 31):
+        for x in range(11, 29):          # 书身
+            t = (x - 11) / 18
+            px(d, x, y, cover[2] if t < 0.25 else (cover[1] if t < 0.7 else cover[0]))
+    for y in range(9, 31):
+        px(d, 11, y, gold); px(d, 28, y, gold)   # 书脊/封边
+    px(d, 11, 9, gold); px(d, 28, 9, gold); px(d, 11, 30, gold); px(d, 28, 30, gold)
+    for y in range(14, 27):
+        px(d, 15, y, rune); px(d, 17, y, rune); px(d, 23, y, rune); px(d, 25, y, rune)  # 符文竖纹
+    px(d, 21, 13, rune); px(d, 19, 18, rune); px(d, 23, 18, rune)  # 符文辉光
+    save(img, "passive_tome.png", 2)
+
+
+def gen_passive_magnet():  # 引力宝珠 / 财富之魂：红色 U 型磁铁 + 灰极 + 引力球
+    S = 40
+    img, d = new_canvas(S)
+    red, red_hi = (205, 40, 50, 255), (245, 120, 130, 255)
+    pole_d, pole_m, pole_l = (72, 74, 86, 255), (150, 154, 168, 255), (220, 224, 236, 255)
+    orb = (255, 180, 90, 255)
+    rw = {12: (15, 24), 13: (14, 25), 14: (13, 26), 15: (12, 27), 16: (12, 28),
+          17: (12, 28), 18: (12, 27), 19: (13, 26), 20: (14, 25), 21: (15, 24)}
+    for y, (x0, x1) in rw.items():
+        for x in range(x0, x1 + 1):
+            px(d, x, y, red_hi if x in (x0, x1) else red)
+    for x in (15, 16, 17):      # 左极
+        px(d, x, 21, pole_l if x == 16 else pole_m); px(d, x, 22, pole_d); px(d, x, 23, pole_d)
+    for x in (22, 23, 24):      # 右极
+        px(d, x, 21, pole_l if x == 23 else pole_m); px(d, x, 22, pole_d); px(d, x, 23, pole_d)
+    fill_ellipse_shaded(d, 20, 14, 4, 4, ((200, 120, 50), (235, 170, 90), orb))  # 引力球
+    save(img, "passive_magnet.png", 2)
+
+
+def gen_passive_rage():  # 战斗狂热：交叉双刃 + 火花
+    S = 40
+    img, d = new_canvas(S)
+    metal, hi, grip, spark = (176, 186, 216, 255), (226, 236, 255, 255), (96, 60, 32, 255), (255, 120, 90, 255)
+    for off in (-1, 1):
+        for i in range(22):
+            t = i / 21
+            x = 20 + off * (t - 0.5) * 26
+            y = 20 - (t - 0.5) * 26
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, hi if i % 3 == 0 else metal)
+            px(d, xi + off, yi, metal)
+        px(d, 20 + off, 19, grip); px(d, 20 + off, 20, grip)
+    px(d, 20, 10, spark); px(d, 19, 11, spark); px(d, 21, 11, spark)
+    px(d, 20, 30, spark); px(d, 19, 29, spark); px(d, 21, 29, spark)
+    save(img, "passive_rage.png", 2)
+
+
+def gen_passive_swift():  # 极速猎手：青翼 + 速度线
+    S = 40
+    img, d = new_canvas(S)
+    wing = ((40, 150, 170), (90, 210, 225), (170, 240, 250))
+    streak = (220, 240, 255, 200)
+    for side in (-1, 1):
+        for i in range(16):
+            t = i / 15
+            x = 20 + side * 4 + side * t * 14
+            y = 20 - (t - 0.5) * 10 - abs(t - 0.5) * 6
+            xi, yi = round(x), round(y)
+            px(d, xi, yi, wing[2] if i % 4 == 0 else wing[1])
+            px(d, xi, yi + 1, wing[0])
+    for y in (14, 18, 22, 26):
+        for x in range(6, 13):
+            px(d, x, y, streak)
+    save(img, "passive_swift.png", 2)
+
+
+def gen_passive_greed():  # 财富之魂：金币 + 宝石火花
+    S = 40
+    img, d = new_canvas(S)
+    gold_d, gold_m, gold_l = (212, 175, 55, 255), (235, 200, 90, 255), (255, 230, 140, 255)
+    fill_ellipse_shaded(d, 20, 20, 13, 13, (gold_d, gold_m, gold_l))
+    for y in range(13, 28):
+        for x in range(13, 28):
+            if (x - 20) ** 2 + (y - 20) ** 2 < 70:   # 内圈
+                px(d, x, y, gold_m if (x + y) % 3 else gold_d)
+    px(d, 18, 17, gold_l); px(d, 19, 17, gold_l); px(d, 18, 18, gold_l)  # 币面高光
+    px(d, 23, 12, (255, 120, 160, 255)); px(d, 24, 12, (255, 120, 160, 255))  # 宝石火花
+    save(img, "passive_greed.png", 2)
+
+
+def gen_passive_guard():  # 钢铁意志：钢盾 + 十字 + 高光
+    S = 40
+    img, d = new_canvas(S)
+    shield_d, shield_m, shield_l = (70, 80, 110, 255), (120, 130, 160, 255), (200, 210, 235, 255)
+    gold = (212, 175, 55, 255)
+    for y in range(8, 32):
+        half = int(13 - abs(y - 20) * 0.45)
+        if half < 0:
+            half = 0
+        for x in range(20 - half, 20 + half + 1):
+            t = (x - (20 - half)) / (half * 2 + 1)
+            px(d, x, y, shield_l if t < 0.25 else (shield_m if t < 0.7 else shield_d))
+    for y in range(16, 26):
+        for x in range(18, 23):
+            px(d, x, y, gold)             # 竖
+    for x in range(14, 27):
+        for y in range(18, 23):
+            px(d, x, y, gold)             # 横
+    px(d, 13, 9, shield_l); px(d, 14, 9, shield_l)  # 盾顶高光
+    save(img, "passive_guard.png", 2)
+
+
+gen_passive_boots()
+gen_passive_heart()
+gen_passive_tome()
+gen_passive_magnet()
+gen_passive_rage()
+gen_passive_swift()
+gen_passive_greed()
+gen_passive_guard()
 print("---- 全部素材生成完成 ----")

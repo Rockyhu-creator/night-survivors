@@ -204,15 +204,15 @@ export const WEAPONS = {
 if (typeof window !== 'undefined') window.__weapons = WEAPONS;
 
 export const PASSIVES = {
-  boots: { id: 'boots', name: '疾行之靴', icon: 'player', maxLevel: 5, desc: '移动速度 +8%', apply: (p) => { p.speedMul += 0.08; } },
-  heart: { id: 'heart', name: '巨人之心', icon: 'gemLarge', maxLevel: 5, desc: '生命上限 +20,并回复 20', apply: (p) => { p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20); } },
-  tome: { id: 'tome', name: '秘法魔典', icon: 'lightning', maxLevel: 5, desc: '所有伤害 +10%', apply: (p) => { p.damageMul += 0.1; } },
-  magnet: { id: 'magnet', name: '引力宝珠', icon: 'gemMedium', maxLevel: 5, desc: '拾取范围 +25%', apply: (p) => { p.magnetMul += 0.25; } },
+  boots: { id: 'boots', name: '疾行之靴', icon: 'passive_boots', maxLevel: 5, desc: '移动速度 +8%', apply: (p) => { p.speedMul += 0.08; } },
+  heart: { id: 'heart', name: '巨人之心', icon: 'passive_heart', maxLevel: 5, desc: '生命上限 +20,并回复 20', apply: (p) => { p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20); } },
+  tome: { id: 'tome', name: '秘法魔典', icon: 'passive_tome', maxLevel: 5, desc: '所有伤害 +10%', apply: (p) => { p.damageMul += 0.1; } },
+  magnet: { id: 'magnet', name: '引力宝珠', icon: 'passive_magnet', maxLevel: 5, desc: '拾取范围 +25%', apply: (p) => { p.magnetMul += 0.25; } },
   // 无限成长被动：20+ 级后期每次升级依然有意义
-  rage: { id: 'rage', name: '战斗狂热', icon: 'blade', maxLevel: 99, desc: '所有伤害 +3%', apply: (p) => { p.damageMul += 0.03; } },
-  swift: { id: 'swift', name: '极速猎手', icon: 'player', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
-  greed: { id: 'greed', name: '财富之魂', icon: 'gemMedium', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
-  guard: { id: 'guard', name: '钢铁意志', icon: 'gemLarge', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
+  rage: { id: 'rage', name: '战斗狂热', icon: 'passive_rage', maxLevel: 99, desc: '所有伤害 +3%', apply: (p) => { p.damageMul += 0.03; } },
+  swift: { id: 'swift', name: '极速猎手', icon: 'passive_swift', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
+  greed: { id: 'greed', name: '财富之魂', icon: 'passive_greed', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
+  guard: { id: 'guard', name: '钢铁意志', icon: 'passive_guard', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
   // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 [PLACEHOLDER] 满级 4 HP/s
   regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
 };
