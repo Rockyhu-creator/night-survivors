@@ -4,6 +4,8 @@ const GEM_DEFS = [
   { key: 'gemSmall', min: 1, size: 16, color: '#2ecc71' },
   { key: 'gemMedium', min: 3, size: 20, color: '#4aa3df' },
   { key: 'gemLarge', min: 10, size: 26, color: '#8e44ad' },
+  { key: 'gemGold', min: 25, size: 30, color: '#d4af37' }, // 金宝石：精英/石像鬼掉落
+  { key: 'gemRed', min: 50, size: 34, color: '#e74c3c' },   // 红宝石：暗影猎手/终局召唤
 ];
 
 export class PickupSystem {
@@ -18,8 +20,10 @@ export class PickupSystem {
     let rest = expValue;
     while (rest > 0) {
       let def = GEM_DEFS[0];
-      if (rest >= 10) def = GEM_DEFS[2];
-      else if (rest >= 3) def = GEM_DEFS[1];
+      if (rest >= 50) def = GEM_DEFS[4];        // 红宝石
+      else if (rest >= 25) def = GEM_DEFS[3];   // 金宝石
+      else if (rest >= 10) def = GEM_DEFS[2];   // 紫宝石
+      else if (rest >= 3) def = GEM_DEFS[1];    // 蓝宝石
       this.gems.push({
         x: x + (Math.random() * 2 - 1) * 14,
         y: y + (Math.random() * 2 - 1) * 14,

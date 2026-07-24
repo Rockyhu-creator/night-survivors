@@ -38,24 +38,38 @@ export const ALTAR = [
 ];
 if (typeof window !== 'undefined') window.__altar = ALTAR;
 
-// 难度配置：hpSlope=敌人HP每分钟增长率，dmgSlope=敌人伤害增长率，
-// spawnMul=刷怪频率倍率，bossCalm=Boss存活时刷怪量比例，bossGapMul=Boss间隔倍率
+// 难度配置：hpSlope/dmgSlope=线性段敌我成长斜率；spawnMul=刷怪频率倍率；
+// bossCalm=boss存活时刷怪比例；bossGapMul=boss间隔倍率；
+// nightBase=永夜指数底数(敌人在永夜阶段HP/伤害乘 1.35^D 等)；artifactCounter=神器反制系数；
+// bossHpMul=终局Boss基础HP缩放；affixMul=词缀怪出现概率倍率；packMin/Max=狼群规模；
+// expMul=难度经验补偿(硬难度击杀慢，补偿升级频率)；soulMul=灵魂倍率(高难高回报)
 // 2026-07 难度下修 [PLACEHOLDER 待真机验证]：原三档敌人成长斜率远超玩家离散升级的成长，
-// 中期形成"清不动→吃不到经验→更打不动"的死亡螺旋。全面放缓 hp/dmg/spawn 曲线。
+// 中期形成"清不动→吃不到经验→更打不动"的死亡螺旋。全面放缓 hp/dmg/spawn 线性曲线。
+// 2026-07-24 终局平衡：三难度保持结构一致(同机制同公式)，仅数值区分(见 GDD §6)。
 export const DIFFICULTIES = {
   easy: {
     id: 'easy', name: '夜行者', desc: '敌人较弱,节奏舒缓,适合休闲上手',
     hpSlope: 0.18, dmgSlope: 0.10, spawnMul: 0.55, bossCalm: 0.3, bossGapMul: 1.5,
+    nightBase: 1.22, artifactCounter: 0.08, bossHpMul: 0.7, affixMul: 0.5,
+    packMin: 4, packMax: 6, expMul: 1.0, soulMul: 0.8,
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
     hpSlope: 0.26, dmgSlope: 0.15, spawnMul: 0.80, bossCalm: 0.5, bossGapMul: 1.0,
+    nightBase: 1.35, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
+    packMin: 6, packMax: 10, expMul: 1.0, soulMul: 1.0,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
     hpSlope: 0.38, dmgSlope: 0.22, spawnMul: 1.05, bossCalm: 0.7, bossGapMul: 0.85,
+    nightBase: 1.50, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.75,
+    packMin: 8, packMax: 14, expMul: 1.3, soulMul: 1.5,
   },
 };
+
+// 终局时间节点（秒）
+export const NIGHT_START = 540;   // 9 分钟：永夜加深触发
+export const ENDGAME_BOSS_TIME = 900; // 15 分钟：永夜化身降临
 
 export const ENEMY_TYPES = {
   bat: {
@@ -73,6 +87,36 @@ export const ENEMY_TYPES = {
   elite: {
     sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
     radius: 26, spriteSize: 96, knockResist: 0.95, unlockAt: 180, weight: 0,
+  },
+  // 后期新怪（永夜阶段解锁）
+  shadow_hunter: {
+    sprite: 'bat', hp: 120, speed: 80, damage: 25, exp: 8,
+    radius: 14, spriteSize: 40, knockResist: 0.2, unlockAt: 540, weight: 2,
+    // 行为：进入 250px 后蓄力 dashCharge 秒，再以 dashSpeed×速度冲刺
+    dashRange: 250, dashCharge: 0.5, dashSpeed: 3, tint: '#9b59b6',
+  },
+  gargoyle: {
+    sprite: 'elite', hp: 500, speed: 20, damage: 40, exp: 15,
+    radius: 26, spriteSize: 96, knockResist: 1.0, unlockAt: 600, weight: 1,
+    immuneKnockback: true, tint: '#7f8c8d',
+  },
+};
+
+// 词缀（叠加在现有怪上，制造行为多样化，低成本高产出）
+export const AFFIXES = {
+  pack: {
+    id: 'pack', name: '狼群', expMul: 2, color: '#aab7c4',
+    // 从同一方向一次刷 packCount 只，扇形包抄。packCount 取难度 packMin/Max
+  },
+  volatile: {
+    id: 'volatile', name: '爆破', expMul: 1.6, color: '#e67e22',
+    // 死亡时对玩家造成爆炸范围伤害
+    blastRadius: 70, blastDamage: 18, // [PLACEHOLDER]
+  },
+  shielded: {
+    id: 'shielded', name: '护盾', expMul: 2, color: '#3498db',
+    // 受到的伤害 ×0.3（正面180°减伤70%的完整版留 PLACEHOLDER，先用全时减伤简化）
+    dmgTakenMul: 0.3,
   },
 };
 
@@ -175,6 +219,12 @@ export const PASSIVES = {
 
 export function expForLevel(level) {
   return Math.floor(4 + (level - 1) * 3 + Math.pow(level - 1, 1.7) * 2);
+}
+
+// 经验时间缩放：保证后期升级频率不衰减。1 + (t/60)*0.08 → 10min×1.8, 15min×2.6
+// [PLACEHOLDER] 系数 0.08 待真机校准
+export function expScaleForTime(t) {
+  return 1 + (t / 60) * 0.08;
 }
 
 export function loadBest() {
@@ -416,6 +466,21 @@ export const BOSSES = [
       { at: 0.75, type: 'summon', enemyType: 'bat', count: 5 },
       { at: 0.5, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
       { at: 0.25, type: 'enrage', speedMul: 1.6 },
+    ],
+  },
+  // 终局 Boss：永夜化身（15 分钟降临，击杀=通关结算）。三段变身见 GDD §3.3
+  {
+    id: 'avatar', name: '永夜化身', sprite: 'boss_overlord', unlockAt: 99999,
+    hp: 15000, speed: 50, damage: 80, exp: 1000,
+    radius: 44, spriteSize: 168, knockResist: 0.99,
+    isEndgame: true,
+    skills: [
+      { at: 0.7, type: 'summon', enemyType: 'shadow_hunter', count: 5 },
+      { at: 0.7, type: 'barrage', count: 12, speed: 140, damage: 18 },
+      { at: 0.35, type: 'dash_barrage', speedMul: 4.2, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
+      { at: 0.35, type: 'summon', enemyType: 'gargoyle', count: 3 },
+      { at: 0.15, type: 'enrage', speedMul: 1.6 },
+      { at: 0.15, type: 'summon', enemyType: 'slime', count: 4, affix: 'volatile' },
     ],
   },
 ];

@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -302,7 +302,9 @@ export class Game {
   }
 
   gainExp(amount) {
-    this.player.exp += amount * (this.player.expMul || 1);
+    // 经验缩放：难度补偿(expMul) × 时间缩放(expScaleForTime) × 玩家 expMul(祭坛等)
+    const mul = (this.player.expMul || 1) * expScaleForTime(this.time) * this.difficulty.expMul;
+    this.player.exp += amount * mul;
   }
 
   onEnemyKilled(enemy) {
@@ -328,6 +330,8 @@ export class Game {
     this.pickups.dropBossChest(e.x, e.y);
     this.fx.spawnSparks(e.x, e.y, '#d4af37', 40);
     this.camera.addShake(1);
+    // 终局 Boss 击杀 = 通关
+    if (e.type && e.type.isEndgame) this.gameWin();
   }
 
   onChestOpened(chest = {}) {
@@ -356,14 +360,15 @@ export class Game {
     this.audio.hit();
   }
 
-  // 结算灵魂：存活/击杀/等级/Boss + 难度首通（一次性）
-  computeSoulReward() {
+  // 结算灵魂：存活/击杀/等级/Boss + 难度首通（一次性）+ 通关奖励
+  computeSoulReward(win = false) {
     const r = SOUL_REWARDS;
     let reward =
       Math.floor(this.time / 30) * r.per30s +
       Math.floor(this.kills / 20) * r.per20Kills +
       this.player.level * r.perLevel +
       this.bossKills * r.perBoss;
+    if (win) reward += 200; // 通关固定奖励 [PLACEHOLDER]
     // 难度首通（一次性）：写入 cleared 并持久化，余额不变
     const souls = loadSouls();
     if (!souls.cleared.includes(this.difficulty.id)) {
@@ -371,7 +376,7 @@ export class Game {
       reward += r.firstClear[this.difficulty.id] || 0;
       saveSouls(souls);
     }
-    return Math.floor(reward * (this.soulGainMul || 1));
+    return Math.floor(reward * (this.soulGainMul || 1) * this.difficulty.soulMul);
   }
 
   gameOver() {
@@ -381,6 +386,17 @@ export class Game {
     this.runSouls = reward;
     this.totalSouls = loadSouls().balance;
     this.ui.showGameOver();
+    this.audio.gameover();
+  }
+
+  // 终局通关：击杀永夜化身后结算
+  gameWin() {
+    this.state = 'victory';
+    const reward = this.computeSoulReward(true);
+    addSouls(reward);
+    this.runSouls = reward;
+    this.totalSouls = loadSouls().balance;
+    this.ui.showVictory();
     this.audio.gameover();
   }
 

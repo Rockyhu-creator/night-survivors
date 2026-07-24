@@ -260,6 +260,9 @@ html, body {
   font-family: var(--body-font); font-weight: 900; font-size: 52px; letter-spacing: 10px;
   color: var(--blood-bright); text-shadow: 0 0 30px rgba(192,57,43,.7);
 }
+.victory-title {
+  color: var(--gold); text-shadow: 0 0 36px rgba(212,175,55,.9);
+}
 .new-record {
   margin-top: 16px; font-family: var(--pixel-font); font-size: 15px; color: var(--gold);
   animation: blink 1s steps(2) infinite;

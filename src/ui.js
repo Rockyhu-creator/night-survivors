@@ -18,6 +18,9 @@ export class UIManager {
     this.bestRecordEl = document.getElementById('best-record');
     this.newRecordEl = document.getElementById('new-record');
     this.finalStatsEl = document.getElementById('final-stats');
+    this.victoryScreen = document.getElementById('victory-screen');
+    this.victoryNewRecordEl = document.getElementById('victory-new-record');
+    this.victoryStatsEl = document.getElementById('victory-stats');
     this.soulBalanceEl = document.getElementById('soul-balance');
     this.altarScreen = document.getElementById('altar-screen');
     this.altarBalanceEl = document.getElementById('altar-balance');
@@ -223,6 +226,36 @@ export class UIManager {
       this.finalStatsEl.appendChild(div);
     }
     this.gameoverScreen.classList.remove('hidden');
+  }
+
+  showVictory() {
+    const game = this.game;
+    this.hud.classList.add('hidden');
+    const result = { time: Math.floor(game.time), kills: game.kills, level: game.player.level };
+    const prev = loadBest();
+    const isRecord = !prev || result.time > prev.time;
+    if (isRecord) saveBest(result);
+    this.victoryNewRecordEl.classList.toggle('hidden', !isRecord);
+    this.victoryStatsEl.innerHTML = '';
+    const lines = [
+      ['通关时间', formatTime(result.time)],
+      ['击杀怪物', `${result.kills}`],
+      ['抵达等级', `LV.${result.level}`],
+      ['最佳纪录', formatTime((isRecord ? result : prev).time)],
+      ['获得灵魂', `${game.runSouls}`],
+      ['灵魂累计', `${game.totalSouls}`],
+    ];
+    for (const [label, value] of lines) {
+      const div = document.createElement('div');
+      div.className = 'stat-line';
+      const b = document.createElement('b');
+      b.textContent = label;
+      const span = document.createElement('span');
+      span.textContent = value;
+      div.append(b, span);
+      this.victoryStatsEl.appendChild(div);
+    }
+    this.victoryScreen.classList.remove('hidden');
   }
 
   showCodex() {

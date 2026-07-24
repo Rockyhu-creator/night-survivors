@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES, BOSSES } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
 import { sprite } from './assets.js';
 
 export class Player {
@@ -119,10 +119,22 @@ export class EnemyManager {
   statScale() {
     const t = this.game.time;
     const diff = this.game.difficulty;
-    return {
+    const linear = {
       hp: 1 + (t / 60) * diff.hpSlope,
       speed: 1 + Math.min(0.5, (t / 60) * 0.06),
       damage: 1 + (t / 60) * diff.dmgSlope,
+    };
+    // 永夜加深（9 分钟后指数增长）：敌人 HP/伤害 = 线性 × nightBase^D × (1 + 神器数×artifactCounter×D)
+    // 速度不乘永夜指数，避免后期怪变成不可风筝的子弹
+    const D = Math.max(0, (t - NIGHT_START) / 60);
+    const nightMult = Math.pow(diff.nightBase, D);
+    const artifacts = this.game.player.weapons.filter((w) => w.artifact).length;
+    const artifactMult = 1 + diff.artifactCounter * artifacts * D;
+    const endMult = nightMult * artifactMult;
+    return {
+      hp: linear.hp * endMult,
+      speed: linear.speed,
+      damage: linear.damage * endMult,
     };
   }
 
@@ -138,7 +150,7 @@ export class EnemyManager {
     return pool[0];
   }
 
-  spawnAt(type, scale) {
+  spawnAt(type, scale, affix) {
     const cam = this.game.camera;
     const w = CONFIG.LOGICAL_WIDTH;
     const h = CONFIG.LOGICAL_HEIGHT;
@@ -150,11 +162,43 @@ export class EnemyManager {
     else if (side === 1) { x = cam.ox + w + margin; y = cam.oy + Math.random() * h; }
     else if (side === 2) { x = cam.ox + Math.random() * w; y = cam.oy - margin; }
     else { x = cam.ox + Math.random() * w; y = cam.oy + h + margin; }
-    this.enemies.push(this.createEnemy(type, scale, x, y));
+    this.enemies.push(this.createEnemy(type, scale, x, y, affix));
   }
 
-  createEnemy(type, scale, x, y) {
-    return {
+  // 狼群词缀：从同一方向一次刷一队扇形包抄
+  spawnPack(type, scale) {
+    const cam = this.game.camera;
+    const w = CONFIG.LOGICAL_WIDTH;
+    const h = CONFIG.LOGICAL_HEIGHT;
+    const margin = 60;
+    const side = Math.floor(Math.random() * 4);
+    let baseX;
+    let baseY;
+    if (side === 0) { baseX = cam.ox - margin; baseY = cam.oy + Math.random() * h; }
+    else if (side === 1) { baseX = cam.ox + w + margin; baseY = cam.oy + Math.random() * h; }
+    else if (side === 2) { baseX = cam.ox + Math.random() * w; baseY = cam.oy - margin; }
+    else { baseX = cam.ox + Math.random() * w; baseY = cam.oy + h + margin; }
+    const diff = this.game.difficulty;
+    const count = diff.packMin + Math.floor(Math.random() * (diff.packMax - diff.packMin + 1));
+    for (let i = 0; i < count && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
+      const ox = (Math.random() * 2 - 1) * 40;
+      const oy = (Math.random() * 2 - 1) * 40;
+      this.enemies.push(this.createEnemy(type, scale, baseX + ox, baseY + oy, 'pack'));
+    }
+  }
+
+  // 随机词缀（非 pack，单怪属性型）。概率 = 0.20 × 难度 affixMul
+  rollSingleAffix() {
+    const diff = this.game.difficulty;
+    if (Math.random() > 0.20 * diff.affixMul) return null;
+    const keys = Object.keys(AFFIXES).filter((k) => k !== 'pack');
+    return keys[Math.floor(Math.random() * keys.length)];
+  }
+
+  createEnemy(type, scale, x, y, affix) {
+    const affixDef = affix ? AFFIXES[affix] : null;
+    const expValue = Math.round(type.exp * (affixDef ? affixDef.expMul : 1));
+    const e = {
       type,
       x, y,
       hp: type.hp * scale.hp,
@@ -163,14 +207,23 @@ export class EnemyManager {
       damage: type.damage * scale.damage,
       radius: type.radius,
       spriteSize: type.spriteSize,
-      knockResist: type.knockResist,
-      expValue: type.exp,
+      knockResist: type.immuneKnockback ? 1 : type.knockResist,
+      expValue,
       flash: 0,
+      affix: affix || null,
+      affixDef,
+      // 暗影猎手冲刺状态
+      dashState: 'idle', // idle | charging | dashing
+      dashTimer: 0,
+      dashVx: 0, dashVy: 0,
+      dashSpeed: type.dashSpeed || 0,
+      dmgTakenMul: affixDef && affixDef.dmgTakenMul ? affixDef.dmgTakenMul : 1,
       kx: 0, ky: 0,
       hitCooldown: 0,
       wobble: Math.random() * Math.PI * 2,
       dotAccumulator: 0,
     };
+    return e;
   }
 
   spawnBoss(def) {
@@ -183,8 +236,8 @@ export class EnemyManager {
       type: def,
       x: cam.ox + w / 2 + Math.cos(angle) * dist,
       y: cam.oy + h / 2 + Math.sin(angle) * dist,
-      hp: def.hp,
-      maxHp: def.hp,
+      hp: def.isEndgame ? def.hp * this.game.difficulty.bossHpMul : def.hp,
+      maxHp: def.isEndgame ? def.hp * this.game.difficulty.bossHpMul : def.hp,
       speed: def.speed,
       damage: def.damage,
       radius: def.radius,
@@ -212,7 +265,7 @@ export class EnemyManager {
   triggerBossSkill(e, skill) {
     const player = this.game.player;
     if (skill.type === 'summon' || skill.type === 'summon_barrage') {
-      this.bossSummon(e, skill.enemyType, skill.count);
+      this.bossSummon(e, skill.enemyType, skill.count, skill.affix);
     }
     if (skill.type === 'barrage' || skill.type === 'summon_barrage' || skill.type === 'dash_barrage') {
       this.bossBarrage(e, skill.barrageCount || skill.count, skill.speed, skill.damage);
@@ -232,7 +285,7 @@ export class EnemyManager {
     }
   }
 
-  bossSummon(e, enemyType, count) {
+  bossSummon(e, enemyType, count, affix) {
     const type = ENEMY_TYPES[enemyType];
     if (!type) return;
     const scale = this.statScale();
@@ -240,7 +293,7 @@ export class EnemyManager {
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
       const x = e.x + Math.cos(angle) * 60;
       const y = e.y + Math.sin(angle) * 60;
-      this.enemies.push(this.createEnemy(type, scale, x, y));
+      this.enemies.push(this.createEnemy(type, scale, x, y, affix));
     }
   }
 
@@ -267,12 +320,26 @@ export class EnemyManager {
     const scale = this.statScale();
     const t = this.game.time;
     const diff = this.game.difficulty;
-    for (const def of BOSSES) {
-      const unlockAt = Math.round(def.unlockAt * diff.bossGapMul);
-      if (t >= unlockAt && !this.bossSpawned.has(def.id)) {
-        this.bossSpawned.add(def.id);
-        this.activeBoss = this.spawnBoss(def);
-        this.game.onBossSpawn?.(def);
+    // 终局 Boss：永夜化身（15 分钟降临，击杀=通关）。登场时清掉现有 Boss
+    if (t >= ENDGAME_BOSS_TIME && !this.bossSpawned.has('avatar')) {
+      this.bossSpawned.add('avatar');
+      for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
+        if (this.enemies[i].isBoss) this.enemies.splice(i, 1);
+      }
+      this.activeBoss = null;
+      const avatarDef = BOSSES.find((d) => d.id === 'avatar');
+      this.activeBoss = this.spawnBoss(avatarDef);
+      this.game.onBossSpawn?.(avatarDef);
+    }
+    // 终局已触发则不再生成其他 Boss（避免 time 跳变时早期 Boss 一次性全刷）
+    if (!this.bossSpawned.has('avatar')) {
+      for (const def of BOSSES) {
+        const unlockAt = Math.round(def.unlockAt * diff.bossGapMul);
+        if (t >= unlockAt && !this.bossSpawned.has(def.id)) {
+          this.bossSpawned.add(def.id);
+          this.activeBoss = this.spawnBoss(def);
+          this.game.onBossSpawn?.(def);
+        }
       }
     }
     const interval = Math.max(0.18, 0.9 - t / 160) / diff.spawnMul;
@@ -282,11 +349,19 @@ export class EnemyManager {
       // Boss 存活时降低刷怪量，让玩家集中火力打 Boss
       const bossCalm = this.activeBoss ? diff.bossCalm : 1;
       if (this.enemies.length < CONFIG.ENEMY_CAP) {
-        this.spawnAt(this.pickType(), scale);
+        if (Math.random() < 0.20 * diff.affixMul) {
+          this.spawnPack(this.pickType(), scale); // 狼群波次
+        } else {
+          this.spawnAt(this.pickType(), scale, this.rollSingleAffix());
+        }
         const extra = t > 120 ? 2 : (t > 60 ? 1 : 0);
         const adjustedExtra = Math.round(extra * bossCalm);
         for (let i = 0; i < adjustedExtra && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
-          this.spawnAt(this.pickType(), scale);
+          if (Math.random() < 0.20 * diff.affixMul) {
+            this.spawnPack(this.pickType(), scale);
+          } else {
+            this.spawnAt(this.pickType(), scale, this.rollSingleAffix());
+          }
         }
       }
     }
@@ -311,7 +386,27 @@ export class EnemyManager {
         e.x += e.dashVx * dt;
         e.y += e.dashVy * dt;
         e.dashing -= dt;
+      } else if (e.dashState === 'dashing') {
+        // 暗影猎手冲刺中：高速直线冲
+        e.x += e.dashVx * dt;
+        e.y += e.dashVy * dt;
+        e.dashTimer -= dt;
+        if (e.dashTimer <= 0) e.dashState = 'idle';
+      } else if (e.dashState === 'charging') {
+        // 蓄力中：原地不动
+        e.dashTimer -= dt;
+        if (e.dashTimer <= 0) {
+          e.dashState = 'dashing';
+          e.dashTimer = 0.35;
+          e.dashVx = (dx / dist) * e.speed * e.dashSpeed;
+          e.dashVy = (dy / dist) * e.speed * e.dashSpeed;
+        }
       } else {
+        // 暗影猎手：进入射程后开始蓄力
+        if (e.type.dashSpeed && dist < e.type.dashRange && dist > 1) {
+          e.dashState = 'charging';
+          e.dashTimer = e.type.dashCharge;
+        }
         e.x += (dx / dist) * e.speed * dt + e.kx * dt;
         e.y += (dy / dist) * e.speed * dt + e.ky * dt;
       }
@@ -358,6 +453,13 @@ export class EnemyManager {
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i];
       if (e.hp <= 0) {
+        // 爆破词缀：死亡时对附近玩家造成范围伤害
+        if (e.affix === 'volatile') {
+          const bd = Math.hypot(player.x - e.x, player.y - e.y);
+          if (bd < AFFIXES.volatile.blastRadius) {
+            if (player.takeDamage(AFFIXES.volatile.blastDamage)) this.game.onPlayerHit();
+          }
+        }
         this.game.onEnemyKilled(e);
         if (e.isBoss) {
           if (this.activeBoss === e) this.activeBoss = null;
@@ -523,7 +625,9 @@ export class EnemyManager {
   }
 
   damageEnemy(e, rawDamage, knockX = 0, knockY = 0) {
-    e.hp -= rawDamage;
+    // 护盾词缀：受到的伤害 ×dmgTakenMul（完整正背面减伤留 PLACEHOLDER，先用全时减伤）
+    const dmg = rawDamage * (e.dmgTakenMul || 1);
+    e.hp -= dmg;
     e.flash = 0.12;
     const kb = 90 * (1 - e.knockResist);
     e.kx += knockX * kb;
