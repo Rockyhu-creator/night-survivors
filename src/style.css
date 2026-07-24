@@ -259,7 +259,8 @@ html, body {
 .upgrade-card p { font-size: 13px; line-height: 1.7; opacity: .78; }
 
 /* ---------- 结算界面 ---------- */
-#gameover-screen { background: rgba(8,3,6,.9); }
+#gameover-screen,
+#victory-screen { background: rgba(8,3,6,.9); }
 .gameover-inner { text-align: center; animation: rise .7s ease-out both; }
 .gameover-title {
   font-family: var(--body-font); font-weight: 900; font-size: 52px; letter-spacing: 10px;
@@ -274,7 +275,8 @@ html, body {
   text-shadow: 0 0 18px rgba(212,175,55,.9);
 }
 @keyframes blink { 50% { opacity: .25; } }
-#final-stats { margin: 34px 0 40px; display: flex; flex-direction: column; gap: 14px; }
+#final-stats,
+#victory-stats { margin: 34px 0 40px; display: flex; flex-direction: column; gap: 14px; }
 .stat-line {
   font-family: var(--body-font); font-size: 13px; letter-spacing: 2px;
   color: var(--bone); display: flex; gap: 20px; justify-content: center;

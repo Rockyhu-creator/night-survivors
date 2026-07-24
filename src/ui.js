@@ -85,6 +85,7 @@ export class UIManager {
   showTitle() {
     this.titleScreen.classList.remove('hidden');
     this.gameoverScreen.classList.add('hidden');
+    this.victoryScreen.classList.add('hidden');
     this.hud.classList.add('hidden');
     const best = loadBest();
     if (best) {
@@ -120,6 +121,7 @@ export class UIManager {
   startGame() {
     this.titleScreen.classList.add('hidden');
     this.gameoverScreen.classList.add('hidden');
+    this.victoryScreen.classList.add('hidden');
     this.hud.classList.remove('hidden');
     this.hideLootBeacon();
     this.refreshLoadout();
@@ -300,6 +302,7 @@ export class UIManager {
   showGameOver(reason = 'defeat') {
     const game = this.game;
     this.hud.classList.add('hidden');
+    this.victoryScreen.classList.add('hidden');
     this.hideLootBeacon();
     // 失败原因文案：阵亡 vs 超时
     const titleEl = document.querySelector('#gameover-screen .gameover-title');
@@ -340,6 +343,7 @@ export class UIManager {
   showVictory() {
     const game = this.game;
     this.hud.classList.add('hidden');
+    this.gameoverScreen.classList.add('hidden');
     this.hideLootBeacon();
     const result = { time: Math.floor(game.time), kills: game.kills, level: game.player.level };
     const prev = loadBest();

@@ -489,6 +489,9 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     expect('怪物图鉴 含 Boss 分组与卡片', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('血色男爵')"))
     expect('怪物图鉴 含石像鬼', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('石像鬼')"))
+    page.evaluate("() => window.__game.ui.hideCodex()")
+    page.wait_for_timeout(200)
+    expect('图鉴关闭后回到标题', page.evaluate("() => document.getElementById('codex-hub').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))
     page.screenshot(path='/tmp/e2e_codex_final.png')
 
     # --- 灵魂货币：结算发灵魂 + 祭坛解锁（长期循环）---
@@ -666,6 +669,25 @@ with sync_playwright() as p:
     expect('通关前 apostle 未解锁', apUnlock['wasLocked'])
     expect('首次通关解锁 永夜使徒', apUnlock['nowUnlocked'])
     expect('通关成就横幅显示(含永夜使徒)', page.evaluate("() => { const e = document.getElementById('achievement'); return !!e && !e.classList.contains('hidden') && e.textContent.includes('永夜使徒'); }"))
+
+    # --- 胜利结算弹窗回归：背景遮罩 + 按钮关闭（v0.19 修复） ---
+    expect('胜利弹窗显示', page.evaluate("() => !document.getElementById('victory-screen').classList.contains('hidden')"))
+    expect('胜利弹窗有背景遮罩', page.evaluate("""() => {
+      const s = getComputedStyle(document.getElementById('victory-screen'));
+      return s.backgroundColor !== 'rgba(0, 0, 0, 0)' && s.backgroundColor !== 'transparent';
+    }"""))
+    # 返回主界按钮应关闭胜利弹窗
+    page.click('#btn-victory-home')
+    page.wait_for_timeout(200)
+    expect('返回主界按钮关闭胜利弹窗', page.evaluate("() => document.getElementById('victory-screen').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))
+    # 再战一夜按钮应关闭胜利弹窗并进入游戏
+    page.evaluate("() => { window.__game.state = 'playing'; window.__game.ui.showVictory(); }")
+    page.wait_for_timeout(100)
+    expect('再战前胜利弹窗显示', page.evaluate("() => !document.getElementById('victory-screen').classList.contains('hidden')"))
+    page.click('#btn-victory-retry')
+    page.wait_for_timeout(200)
+    expect('再战一夜按钮关闭胜利弹窗并进入游戏', page.evaluate("() => document.getElementById('victory-screen').classList.contains('hidden') && !document.getElementById('hud').classList.contains('hidden') && window.__game.state === 'playing'"))
+
     page.evaluate("() => { document.getElementById('achievement').classList.add('hidden'); document.getElementById('victory-screen').classList.add('hidden'); window.__game.ui.showTitle(); }")
 
     # 隐藏血裔未解锁时不显示 + 标题显示当前血裔
