@@ -47,7 +47,7 @@ export class PickupSystem {
     });
   }
 
-  // 血瓶：击杀续航掉落，拾取回血。heal [PLACEHOLDER] 待真机手感微调
+  // 血瓶：击杀续航掉落，拾取回血（heal=20，占 maxHp 10~20%）
   dropPotion(x, y, heal = 20) {
     this.gems.push({
       potion: true,

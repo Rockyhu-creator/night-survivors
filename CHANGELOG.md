@@ -5,6 +5,23 @@
 
 ---
 
+## v0.19（2026-07-24 · `待提交`）
+
+### 新增
+- **12 分钟降临终局 Boss + 15 分钟硬上限超时失败**：`ENDGAME_BOSS_TIME` 900→720（12min 永夜化身降临）；新增 `GAME_HARD_CAP=900`，`game.js` step 末判定——到点仍 `bossSpawned.has('avatar')` 且未击败则 `gameOver('timeout')`，区别于阵亡/胜利；`ui.js` 按 reason 切换「时限已尽 · 永夜吞没了你」文案与副标题。
+- **Boss 技能「门槛+冷却」循环释放**：废弃原 `skillIndex` 单向一次性触发，改为每技能独立运行时状态 `{triggered, lastCast}`，首次按 `at` 阈值触发后进入阶段带循环（cooldown × `DIFFICULTIES.bossSkillCdMul`：easy1.3/normal1.0/hard0.75），`enrage` 标 `once` 防速度指数叠加。
+- **怪物/Boss 形象重绘（脱离撞脸）**：`boss_avatar`（悬浮虚空神祇：星云裙裾+破碎虚空光环+纵向发光裂瞳+星尘翼，区别于 overlord 人形君王）、`enemy_shadow_hunter`（半虚影猎手+紫能弓，脱离蝙蝠）、`enemy_gargoyle`（蹲伏石躯+折岩石翼+橙裂隙眼，脱离精英）；`avatar.sprite` 由 `boss_overlord` 改 `boss_avatar`，并移除 shadow_hunter/gargoyle 上未生效的 `tint` 字段。
+- **词缀视觉标识 + 精英光环（P2）**：`volatile` 橙色脉冲裂纹/引线辉光、`shielded` 蓝色结晶护盾环（颜色与 `data.js` AFFIXES 对齐，形状双通道可访问），`elite` 加脉动暗金精英光环作为高威胁信号；均为渲染层叠加，不换主体贴图。
+
+### 调整
+- **全 Boss 统一难度缩放**：`spawnBoss` 改为所有 Boss 的 HP 均乘 `bossHpMul`（easy0.7/normal1.0/hard1.4），原仅 avatar 缩放，现 baron/queen/overlord/avatar 一致随难度变化。
+- **爆破词缀威胁提升**：`blastDamage` 18→35、`blastRadius` 70→100，永夜阶段不再「挠痒」。
+
+### 优化
+- **数值校准落地**：11 处 `[PLACEHOLDER]` 填默认中值并清理过期注释（三武器/续航/血瓶/血裔/经验曲线等）；清理 `SOUL_REWARDS` 未被引用的死字段（per30s/per20Kills/perLevel/perBoss），保留首通收敛奖励；`computeSoulReward` 分母由 `ENDGAME_BOSS_TIME` 修正为 `GAME_HARD_CAP`。
+
+---
+
 ## v0.18（2026-07-24 · `f8a4f7b`）
 
 ### 新增

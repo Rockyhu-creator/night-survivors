@@ -297,10 +297,19 @@ export class UIManager {
     }
   }
 
-  showGameOver() {
+  showGameOver(reason = 'defeat') {
     const game = this.game;
     this.hud.classList.add('hidden');
     this.hideLootBeacon();
+    // 失败原因文案：阵亡 vs 超时
+    const titleEl = document.querySelector('#gameover-screen .gameover-title');
+    if (titleEl) {
+      titleEl.textContent = reason === 'timeout' ? '时限已尽 · 永夜吞没了你' : '你倒在了黎明前';
+    }
+    const subEl = document.querySelector('#gameover-screen .gameover-sub');
+    if (subEl) {
+      subEl.textContent = reason === 'timeout' ? '未能在 15 分钟内讨伐永夜化身' : '';
+    }
     const result = { time: Math.floor(game.time), kills: game.kills, level: game.player.level };
     const prev = loadBest();
     const isRecord = !prev || result.time > prev.time;

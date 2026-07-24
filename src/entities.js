@@ -238,8 +238,8 @@ export class EnemyManager {
       type: def,
       x: cam.ox + w / 2 + Math.cos(angle) * dist,
       y: cam.oy + h / 2 + Math.sin(angle) * dist,
-      hp: def.isEndgame ? def.hp * this.game.difficulty.bossHpMul : def.hp,
-      maxHp: def.isEndgame ? def.hp * this.game.difficulty.bossHpMul : def.hp,
+      hp: def.hp * this.game.difficulty.bossHpMul,
+      maxHp: def.hp * this.game.difficulty.bossHpMul,
       speed: def.speed,
       damage: def.damage,
       radius: def.radius,
@@ -253,7 +253,8 @@ export class EnemyManager {
       dotAccumulator: 0,
       isBoss: true,
       bossDef: def,
-      skillIndex: 0,
+      // 技能运行时状态（门槛+冷却双条件）：每技能独立 {triggered, lastCast}
+      skillRuntime: (def.skills || []).map(() => ({ triggered: false, lastCast: -999 })),
       dashing: 0,
       dashVx: 0,
       dashVy: 0,
@@ -412,10 +413,26 @@ export class EnemyManager {
         e.x += (dx / dist) * e.speed * dt + e.kx * dt;
         e.y += (dy / dist) * e.speed * dt + e.ky * dt;
       }
-      if (e.isBoss && e.skillIndex < e.bossDef.skills.length
-        && e.hp / e.maxHp <= e.bossDef.skills[e.skillIndex].at) {
-        this.triggerBossSkill(e, e.bossDef.skills[e.skillIndex]);
-        e.skillIndex += 1;
+      if (e.isBoss) {
+        const cdMul = this.game.difficulty.bossSkillCdMul || 1;
+        for (let si = 0; si < e.bossDef.skills.length; si += 1) {
+          const skill = e.bossDef.skills[si];
+          const rt = e.skillRuntime[si];
+          const ratio = e.hp / e.maxHp;
+          // 阶段带：ratio ∈ (bandLo, skill.at]，bandLo = 比本技能 at 更小的下一档阈值
+          let bandLo = 0;
+          for (const o of e.bossDef.skills) if (o.at < skill.at) bandLo = Math.max(bandLo, o.at);
+          const inBand = ratio <= skill.at && ratio > bandLo;
+          if (!rt.triggered && inBand) {
+            this.triggerBossSkill(e, skill);
+            rt.triggered = true;
+            rt.lastCast = t;
+          } else if (rt.triggered && !skill.once && inBand
+            && (t - rt.lastCast) >= (skill.cooldown || 999) * cdMul) {
+            this.triggerBossSkill(e, skill);
+            rt.lastCast = t;
+          }
+        }
       }
       const decay = Math.pow(0.0001, dt);
       e.kx *= decay;
@@ -598,6 +615,51 @@ export class EnemyManager {
         ctx.beginPath();
         ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
         ctx.fill();
+      }
+      // 词缀 / 精英标识层（不换主体 sprite，仅渲染提示）
+      const t = this.game.time;
+      if (e.affix === 'volatile' || e.affix === 'shielded') {
+        const affixColor = e.affix === 'volatile' ? '#e67e22' : '#3498db';
+        const pulse = e.affix === 'volatile'
+          ? 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * Math.PI * 3))    // ~1.5Hz
+          : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6)); // ~0.8Hz
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.min(1, pulse + (e.flash > 0 ? 0.4 : 0));
+        ctx.strokeStyle = affixColor;
+        ctx.lineWidth = 2;
+        const rr = e.radius * (e.affix === 'volatile' ? 1.2 : 1.35);
+        if (e.affix === 'volatile') {
+          for (let k = 0; k < 5; k += 1) {
+            const ang = (k / 5) * Math.PI * 2 + t * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#ffb866';
+          ctx.beginPath();
+          ctx.arc(0, 0, e.radius * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, rr, rr * 0.95, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      // P2：精英脉动光环（高威胁信号，不重画主体）
+      if (e.type === ENEMY_TYPES.elite) {
+        const pulse = 0.2 + 0.2 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2));
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.radius * 1.15, e.radius * 1.15, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
       }
       if (e.flash > 0) {
         ctx.globalCompositeOperation = 'source-atop';

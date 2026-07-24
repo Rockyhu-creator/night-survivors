@@ -56,7 +56,7 @@ export class UpgradeSystem {
     const t = this.game.time || 0;
     const late = Math.max(0, Math.min(1, (t - NIGHT_START) / 360));
     // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级装备权重大幅高于新装备，加速单 build 成型
-    // 后期压低"再拿新武器"概率、抬升被动，避免 build 失衡；前期不动。权重 [PLACEHOLDER] 待真机微调
+    // 后期压低"再拿新武器"概率、抬升被动，避免 build 失衡；前期不动。
     const W = {
       weaponUp: 5,
       passiveUp: 3 * (1 + 0.5 * late),

@@ -1594,6 +1594,132 @@ def gen_passive_guard():  # 钢铁意志：钢盾 + 十字 + 高光
     save(img, "passive_guard.png", 2)
 
 
+# ---------- 怪物/Boss 形象重绘（v0.19）：独立像素精灵，非 AI_OWNED ----------
+def gen_boss_avatar():  # 永夜化身：悬浮虚空神祇（脱离 overlord 人形君王）
+    S = 72
+    img, d = new_canvas(S)
+    cx, cy = 36, 34
+    void_d, void_m, void_l = (18, 10, 34, 255), (40, 22, 70, 255), (70, 45, 120, 255)
+    soul_l = (230, 245, 255, 255)
+    star = (150, 90, 255, 255)
+    rift = (200, 60, 120, 255)
+    # 星云裙裾（无腿，向外渐隐的星点裙）
+    for y in range(46, 70):
+        half = int((y - 46) * 1.5) + 8
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = void_l if t < 0.3 else (void_m if t < 0.7 else void_d)
+            px(d, x, y, col)
+    # 裙裾星点（渐隐）
+    for _ in range(60):
+        ang = random.random() * math.pi * 2
+        rr = random.random()
+        sx = round(cx + math.cos(ang) * rr * 30)
+        sy = round(46 + rr * 22)
+        px(d, sx, sy, (200, 170, 255, 120))
+    # 躯干（暗夜晶体拼成，带竖直能量裂痕）
+    fill_ellipse_shaded(d, cx, 34, 14, 18, (void_d, void_m, void_l))
+    for y in range(22, 50):
+        for x in range(cx - 2, cx + 2):
+            if 26 < y < 46:
+                px(d, x, y, rift)
+    # 纵向发光裂瞳（青白->紫，核心）
+    for y in range(20, 40):
+        for x in (cx - 2, cx - 1, cx, cx + 1):
+            px(d, x, y, (230, 245, 255, 200 if x == cx else 150))
+    for y in range(24, 36):
+        px(d, cx, y, soul_l)
+    # 破碎虚空光环（头顶，缺口溢光）
+    for k in range(16):
+        a = math.radians(k * 22.5)
+        if k in (3, 4, 11, 12):
+            continue
+        tx, ty = round(cx + math.cos(a) * 16), round(14 + math.sin(a) * 8)
+        px(d, tx, ty, star); px(d, tx + 1, ty, star)
+    # 星尘翼（点状星芒，非实体翼）
+    for side in (-1, 1):
+        for i in range(26):
+            ang = math.radians(120 + side * 60 * (i / 25))
+            wx = round(cx + side * 14 + math.cos(ang) * (8 + i * 0.4))
+            wy = round(28 + math.sin(ang) * (10 + i * 0.3))
+            px(d, wx, wy, (210, 170, 255, 160 if i % 2 == 0 else 90))
+    # 外溢星辉粒子
+    for (sx, sy) in ((cx + 18, 22), (cx - 16, 26), (cx + 10, 12), (cx - 12, 16), (cx + 4, 6)):
+        px(d, sx, sy, (220, 200, 255, 180))
+    save(img, "boss_avatar.png", 1)
+
+
+def gen_enemy_shadow_hunter():  # 暗影猎手：半虚影猎手剪影 + 紫能弓（脱离 bat）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 21
+    pur_d, pur_m, pur_l = (80, 30, 110, 255), (142, 68, 173, 255), (220, 160, 255, 255)
+    bow = (180, 110, 255, 255)
+    # 半虚影躯干（像素透缝，前倾冲刺姿态）
+    for y in range(12, 34):
+        half = int(7 - abs(y - 23) * 0.28)
+        for x in range(cx - half, cx + half + 1):
+            if (x + y) % 3 == 0:
+                continue
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = pur_l if t < 0.3 else (pur_m if t < 0.7 else pur_d)
+            px(d, x, y, col)
+    # 暗影尾迹（向后渐隐）
+    for i in range(6):
+        for y in range(16 + i, 30 + i):
+            px(d, cx - 9 - i, y, (110, 55, 170, 200 - i * 30))
+    # 紫色能量弓 / 利爪
+    for i in range(11):
+        ang = math.radians(-60 + i * 12)
+        bx = round(cx + 8 + math.cos(ang) * 9)
+        by = round(cy + math.sin(ang) * 9)
+        px(d, bx, by, bow); px(d, bx, by + 1, bow)
+    # 冷光裂瞳（横向细缝单点）
+    px(d, cx + 1, 18, (200, 160, 255, 255)); px(d, cx + 2, 18, (200, 160, 255, 255))
+    # 肩 / 腕暗影尖刺
+    px(d, cx - 8, 14, pur_l); px(d, cx + 8, 14, pur_l)
+    save(img, "enemy_shadow_hunter.png", 1)
+
+
+def gen_enemy_gargoyle():  # 石像鬼：蹲伏石躯 + 折岩石翼 + 橙裂隙眼（脱离 elite）
+    S = 96
+    img, d = new_canvas(S)
+    cx, cy = 48, 52
+    stone_d, stone_m, stone_l = (70, 72, 82, 255), (120, 124, 138, 255), (170, 175, 190, 255)
+    eye = (230, 126, 34, 255)
+    moss = (90, 60, 120, 255)
+    # 蹲伏石躯（块状厚实）
+    for y in range(40, 84):
+        half = int(26 - abs(y - 62) * 0.5)
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = stone_l if t < 0.3 else (stone_m if t < 0.7 else stone_d)
+            px(d, x, y, col)
+    # 石面裂纹（透暗夜紫微光）
+    for i in range(20):
+        x0, y0 = cx + random.randint(-16, 16), 44 + random.randint(0, 36)
+        for j in range(6):
+            px(d, x0 + (j % 2), y0 + j, moss)
+    # 折起岩石翼（背后收拢）
+    for side in (-1, 1):
+        for y in range(34, 58):
+            half = int(10 + (y - 34) * 0.4)
+            for x in range(cx + side * 18, cx + side * (18 + half) + 1):
+                px(d, x, y, stone_d if (x + y) % 3 else stone_m)
+    # 支撑爪肢
+    for x in range(cx - 26, cx - 18):
+        px(d, x, 82, stone_m); px(d, x, 83, stone_d)
+    for x in range(cx + 18, cx + 26):
+        px(d, x, 82, stone_m); px(d, x, 83, stone_d)
+    # 断角 / 棘刺
+    for y in range(30, 40):
+        px(d, cx - 12, y, stone_l); px(d, cx + 12, y, stone_l)
+    # 发光眼（暖橙裂隙光）
+    fill_ellipse_shaded(d, cx - 8, 50, 4, 4, ((120, 60, 10, 255), eye, (255, 184, 102, 255)))
+    fill_ellipse_shaded(d, cx + 8, 50, 4, 4, ((120, 60, 10, 255), eye, (255, 184, 102, 255)))
+    save(img, "enemy_gargoyle.png", 1)
+
+
 # ---------- 游戏图鉴 / 灵魂祭坛 专属图标（ENG-CODEX-ICONS-02）：程序化专属，非 AI_OWNED ----------
 def _diag(d, x0, y0, x1, y1, color, w=1):
     """沿两点连线画像素斜线（武器交叉用），w 控制粗细。"""
@@ -1780,4 +1906,7 @@ gen_codex_monsters()
 gen_codex_weapons()
 gen_codex_book()
 gen_altar_menu()
+gen_boss_avatar()
+gen_enemy_shadow_hunter()
+gen_enemy_gargoyle()
 print("---- 全部素材生成完成 ----")

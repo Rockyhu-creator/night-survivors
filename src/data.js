@@ -13,19 +13,14 @@ export const CONFIG = {
 };
 
 // ---------- 灵魂货币（长期循环 / 元进度）----------
-// Sources（单局结算发放，全部 [PLACEHOLDER] 待真机校准）：
-//   存活每 30s +1 / 击杀每 20 +1 / 每等级 +1 / 每 Boss +25 / 难度首通一次性奖励
-// Sinks：祭坛永久解锁（见 ALTAR 表）。防通胀：单局上限 ~150，真机按 metric 调。
+// 单局结算发放走 game.js computeSoulReward 公式（时间进度×500 + 等级 + 首通收敛），
+// perX 字段为历史死代码（已不被引用），仅保留首通收敛奖励。
 export const SOUL_REWARDS = {
-  per30s: 1,        // 每存活 30 秒
-  per20Kills: 1,    // 每 20 击杀
-  perLevel: 1,      // 每等级
-  perBoss: 25,      // 每个 Boss
   firstClear: { easy: 30, normal: 50, hard: 80 }, // 难度首通（仅一次，收敛防通胀）
 };
 
 // 祭坛解锁表：永久增益，花灵魂购买。apply(game) 在 startRun 注入。
-// cost 全部 [PLACEHOLDER]，真机按投放速率与通胀阈值调。
+// cost 已填，真机按投放速率与通胀阈值微调。
 export const ALTAR = [
   { id: 'soul_hp',  name: '永恒之躯', icon: 'altar_hp',  cost: 60,  desc: '生命上限 +30（永久）',       apply: (g) => { g.player.maxHp += 30; } },
   { id: 'soul_spd', name: '疾风之拥', icon: 'altar_spd',    cost: 90,  desc: '移动速度 +6%（永久）',        apply: (g) => { g.player.speedMul += 0.06; } },
@@ -52,24 +47,28 @@ export const DIFFICULTIES = {
     hpSlope: 0.18, dmgSlope: 0.10, spawnMul: 0.55, bossCalm: 0.3, bossGapMul: 1.5,
     nightBase: 1.22, artifactCounter: 0.08, bossHpMul: 0.7, affixMul: 0.5,
     packMin: 4, packMax: 6, expMul: 1.0, soulMul: 0.8,
+    bossSkillCdMul: 1.3, // 高难<1 缩短 Boss 技能 CD、低难>1 延长
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
     hpSlope: 0.26, dmgSlope: 0.15, spawnMul: 0.80, bossCalm: 0.5, bossGapMul: 1.0,
     nightBase: 1.35, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
     packMin: 6, packMax: 10, expMul: 1.0, soulMul: 1.0,
+    bossSkillCdMul: 1.0,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
     hpSlope: 0.38, dmgSlope: 0.22, spawnMul: 1.05, bossCalm: 0.7, bossGapMul: 0.85,
     nightBase: 1.50, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.75,
     packMin: 8, packMax: 14, expMul: 1.3, soulMul: 1.5,
+    bossSkillCdMul: 0.75,
   },
 };
 
 // 终局时间节点（秒）
 export const NIGHT_START = 540;   // 9 分钟：永夜加深触发
-export const ENDGAME_BOSS_TIME = 900; // 15 分钟：永夜化身降临
+export const ENDGAME_BOSS_TIME = 720; // 12 分钟：永夜化身降临
+export const GAME_HARD_CAP = 900;    // 15 分钟硬上限：到点仍有终局 Boss 存活则判失败
 
 export const ENEMY_TYPES = {
   bat: {
@@ -90,15 +89,15 @@ export const ENEMY_TYPES = {
   },
   // 后期新怪（永夜阶段解锁）
   shadow_hunter: {
-    name: '暗影猎手', sprite: 'bat', hp: 120, speed: 80, damage: 25, exp: 8,
+    name: '暗影猎手', sprite: 'shadow_hunter', hp: 120, speed: 80, damage: 25, exp: 8,
     radius: 14, spriteSize: 40, knockResist: 0.2, unlockAt: 540, weight: 2,
     // 行为：进入 250px 后蓄力 dashCharge 秒，再以 dashSpeed×速度冲刺
-    dashRange: 250, dashCharge: 0.5, dashSpeed: 3, tint: '#9b59b6',
+    dashRange: 250, dashCharge: 0.5, dashSpeed: 3,
   },
   gargoyle: {
-    name: '石像鬼', sprite: 'elite', hp: 500, speed: 20, damage: 22, exp: 15,
+    name: '石像鬼', sprite: 'gargoyle', hp: 500, speed: 20, damage: 22, exp: 15,
     radius: 26, spriteSize: 96, knockResist: 1.0, unlockAt: 600, weight: 1,
-    immuneKnockback: true, tint: '#7f8c8d',
+    immuneKnockback: true,
   },
 };
 if (typeof window !== 'undefined') window.__enemyTypes = ENEMY_TYPES;
@@ -112,7 +111,7 @@ export const AFFIXES = {
   volatile: {
     id: 'volatile', name: '爆破', expMul: 1.6, color: '#e67e22',
     // 死亡时对玩家造成爆炸范围伤害
-    blastRadius: 70, blastDamage: 18, // [PLACEHOLDER]
+    blastRadius: 100, blastDamage: 35,
   },
   shielded: {
     id: 'shielded', name: '护盾', expMul: 2, color: '#3498db',
@@ -166,7 +165,7 @@ export const WEAPONS = {
       { damage: 54, cooldown: 1.8, strikes: 4, chains: 4, chainRange: 200 },
     ],
   },
-  // 以下 3 把为武器丰富化新增（2026-07-23），机制形态与现有 4 把正交。数值 [PLACEHOLDER] 待真机校准
+  // 以下 3 把为武器丰富化新增（2026-07-23），机制形态与现有 4 把正交。数值已给默认，真机校准
   aura: {
     id: 'aura', name: '亡灵光环', icon: 'weapon_aura', maxLevel: 5,
     desc: '周身脉冲光环,踏入之敌持续受腐蚀',
@@ -214,7 +213,7 @@ export const PASSIVES = {
   swift: { id: 'swift', name: '极速猎手', icon: 'passive_swift', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
   greed: { id: 'greed', name: '财富之魂', icon: 'passive_greed', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
   guard: { id: 'guard', name: '钢铁意志', icon: 'passive_guard', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
-  // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 [PLACEHOLDER] 满级 4 HP/s
+  // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 满级 4 HP/s
   regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
 };
 
@@ -223,7 +222,6 @@ export function expForLevel(level) {
 }
 
 // 经验时间缩放：保证后期升级频率不衰减。1 + (t/60)*0.08 → 10min×1.8, 15min×2.6
-// [PLACEHOLDER] 系数 0.08 待真机校准
 export function expScaleForTime(t) {
   return 1 + (t / 60) * 0.08;
 }
@@ -245,7 +243,7 @@ export function saveBest(best) {
 
 // ---------- 血裔系统（开局角色差异，S2）----------
 // 6 个起始血裔：各有起始武器 + 属性偏向。除流浪者(默认)外需花灵魂解锁一次，永久可选。
-// 数值全部 [PLACEHOLDER]：cost 为解锁价、偏向幅度按设计文档假设，真机试玩后调。
+// 数值已给默认成本与偏向幅度，真机试玩后微调。
 export const BLOODLINES = [
   {
     id: 'wanderer', name: '流浪者', icon: 'portrait_wanderer',
@@ -446,8 +444,8 @@ export const BOSSES = [
     hp: 1800, speed: 38, damage: 40, exp: 120,
     radius: 34, spriteSize: 128, knockResist: 0.98,
     skills: [
-      { at: 0.7, type: 'summon', enemyType: 'bat', count: 4 },
-      { at: 0.4, type: 'barrage', count: 8, speed: 130, damage: 15 },
+      { at: 0.7, cooldown: 10, type: 'summon', enemyType: 'bat', count: 4 },
+      { at: 0.4, cooldown: 9, type: 'barrage', count: 8, speed: 130, damage: 15 },
     ],
   },
   {
@@ -455,8 +453,8 @@ export const BOSSES = [
     hp: 4500, speed: 42, damage: 55, exp: 300,
     radius: 36, spriteSize: 140, knockResist: 0.98,
     skills: [
-      { at: 0.6, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
-      { at: 0.3, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 140, damage: 18 },
+      { at: 0.6, cooldown: 9, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
+      { at: 0.3, cooldown: 8, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 140, damage: 18 },
     ],
   },
   {
@@ -464,24 +462,24 @@ export const BOSSES = [
     hp: 9000, speed: 46, damage: 70, exp: 600,
     radius: 40, spriteSize: 156, knockResist: 0.99,
     skills: [
-      { at: 0.75, type: 'summon', enemyType: 'bat', count: 5 },
-      { at: 0.5, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
-      { at: 0.25, type: 'enrage', speedMul: 1.6 },
+      { at: 0.75, cooldown: 10, type: 'summon', enemyType: 'bat', count: 5 },
+      { at: 0.5, cooldown: 8, type: 'dash_barrage', speedMul: 4.5, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
+      { at: 0.25, cooldown: 12, type: 'enrage', speedMul: 1.6, once: true },
     ],
   },
-  // 终局 Boss：永夜化身（15 分钟降临，击杀=通关结算）。三段变身见 GDD §3.3
+  // 终局 Boss：永夜化身（12 分钟降临，击杀=通关结算）。三段变身见 GDD §3.3
   {
-    id: 'avatar', name: '永夜化身', sprite: 'boss_overlord', unlockAt: 99999,
+    id: 'avatar', name: '永夜化身', sprite: 'boss_avatar', unlockAt: 99999,
     hp: 15000, speed: 50, damage: 80, exp: 1000,
     radius: 44, spriteSize: 168, knockResist: 0.99,
     isEndgame: true,
     skills: [
-      { at: 0.7, type: 'summon', enemyType: 'shadow_hunter', count: 5 },
-      { at: 0.7, type: 'barrage', count: 12, speed: 140, damage: 18 },
-      { at: 0.35, type: 'dash_barrage', speedMul: 4.2, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
-      { at: 0.35, type: 'summon', enemyType: 'gargoyle', count: 3 },
-      { at: 0.15, type: 'enrage', speedMul: 1.6 },
-      { at: 0.15, type: 'summon', enemyType: 'slime', count: 4, affix: 'volatile' },
+      { at: 0.70, cooldown: 7, type: 'summon', enemyType: 'shadow_hunter', count: 5 },
+      { at: 0.70, cooldown: 9, type: 'barrage', count: 12, speed: 140, damage: 18 },
+      { at: 0.35, cooldown: 7, type: 'dash_barrage', speedMul: 4.2, duration: 0.5, barrageCount: 12, speed: 150, damage: 22 },
+      { at: 0.35, cooldown: 11, type: 'summon', enemyType: 'gargoyle', count: 3 },
+      { at: 0.15, cooldown: 8, type: 'enrage', speedMul: 1.6, once: true },
+      { at: 0.15, cooldown: 9, type: 'summon', enemyType: 'slime', count: 4, affix: 'volatile' },
     ],
   },
 ];
