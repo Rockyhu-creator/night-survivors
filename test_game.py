@@ -390,6 +390,68 @@ with sync_playwright() as p:
         expect(f'新配方进化 → {aid} 神器', got)
         page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.expQueue = 0; }")
 
+    # --- 长鞭单次挥击去重（v0.16）：大体积敌人只吃一次伤害，修复 boss 被秒 ---
+    whipDedupe = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.player.lifesteal = 0;
+      const type = g.enemies.pickType();
+      const dummy = g.enemies.createEnemy(type, g.enemies.statScale(), g.player.x + 30, g.player.y);
+      dummy.hp = 1000; dummy.maxHp = 1000; dummy.speed = 0; dummy.radius = 40;
+      g.enemies.enemies.push(dummy);
+      g.enemies._grid = g.enemies.buildGrid();
+      const expected = 50 * g.player.damageMul;
+      const before = dummy.hp;
+      g.weapons.applyWhip(g.player, 0, { damage: 50, length: 300, width: 70 }, new Set());
+      const single = before - dummy.hp;
+      return { ratio: single / expected };
+    }""")
+    # 去重后大敌只受 1 次伤（ratio≈1）；若未去重会被 ~24 个采样点命中（ratio≈24）
+    expect('长鞭单次挥击去重(大敌只受1次伤)', whipDedupe['ratio'] >= 0.8 and whipDedupe['ratio'] <= 1.25)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
+    # --- 神器投射物主题区分（v0.16）：matrix 用金色 cross，storm/crimson/sepulcher 带 tint ---
+    for wid, pid, aid, wantCross in [
+        ('cross', 'tome', 'matrix', True),
+        ('blade', 'boots', 'storm', False),
+        ('blade', 'tome', 'crimson', False),
+        ('aura', 'heart', 'sepulcher', False),
+    ]:
+        page.evaluate("""(args) => {
+          const g = window.__game;
+          const wid = args[0], pid = args[1], aid = args[2];
+          g.state = 'playing';
+          g.enemies.enemies = [];
+          g.expQueue = 0;
+          document.getElementById('levelup-screen').classList.add('hidden');
+          g.player.weapons = [];
+          g.player.passives = new Map();
+          g.weapons.addWeapon(wid);
+          const w = g.player.weapons.find(x => x.id === wid);
+          if (w) w.level = 5;
+          g.player.passives.set(pid, 1);
+          g.onChestOpened({ boss: true });
+          const type = g.enemies.pickType();
+          const dummy = g.enemies.createEnemy(type, g.enemies.statScale(), g.player.x + 60, g.player.y);
+          dummy.hp = 1e9; dummy.maxHp = 1e9; dummy.speed = 0;
+          g.enemies.enemies.push(dummy);
+          g.weapons.projectiles.length = 0;
+        }""", [wid, pid, aid])
+        page.wait_for_timeout(700)
+        dismiss_upgrades(page)
+        proj = page.evaluate("""() => {
+          const g = window.__game;
+          for (let i = 0; i < 8; i++) g.weapons.update(0.1);
+          const ps = g.weapons.projectiles;
+          return { count: ps.length, hasCross: ps.some(p => p.kind === 'cross'), hasBlade: ps.some(p => p.kind === 'blade'), anyTint: ps.some(p => !!p.tint) };
+        }""", aid)
+        if wantCross:
+            expect(f'{aid} 投射物 kind=cross(金色,去重红飞刃)', proj['hasCross'] and not proj['hasBlade'])
+        else:
+            expect(f'{aid} 投射物带 tint 主题区分', proj['anyTint'])
+        page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.weapons.projectiles.length = 0; }")
+
     # --- 图鉴验证 ---
     page.evaluate("() => window.__game.ui.showTitle()")
     page.wait_for_timeout(300)
@@ -537,6 +599,19 @@ with sync_playwright() as p:
     expect('永夜使徒 无武器起手', ap['weapons'] == [])
     expect('永夜使徒 生命-20(<100)', ap['hp'] < 100)
     expect('永夜使徒 高伤高移速', ap['dmg'] > 1 and ap['spd'] > 1)
+
+    # 隐藏血裔 apostle 首次通关自动解锁 + 成就横幅（v0.16）：修复此前永久死锁
+    page.evaluate("() => window.__souls.saveSouls({balance:0,spent:0,unlocks:[],cleared:[],bloodlines:['wanderer'],selectedBloodline:'wanderer'})")
+    apUnlock = page.evaluate("""() => {
+      window.__game.state = 'playing';
+      const wasLocked = !window.__bloodlines.isBloodlineUnlocked('apostle');
+      window.__game.gameWin();
+      return { wasLocked, nowUnlocked: window.__bloodlines.isBloodlineUnlocked('apostle') };
+    }""")
+    expect('通关前 apostle 未解锁', apUnlock['wasLocked'])
+    expect('首次通关解锁 永夜使徒', apUnlock['nowUnlocked'])
+    expect('通关成就横幅显示(含永夜使徒)', page.evaluate("() => { const e = document.getElementById('achievement'); return !!e && !e.classList.contains('hidden') && e.textContent.includes('永夜使徒'); }"))
+    page.evaluate("() => { document.getElementById('achievement').classList.add('hidden'); document.getElementById('victory-screen').classList.add('hidden'); window.__game.ui.showTitle(); }")
 
     # 隐藏血裔未解锁时不显示 + 标题显示当前血裔
     page.evaluate("""() => {

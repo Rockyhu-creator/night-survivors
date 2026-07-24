@@ -396,6 +396,13 @@ export class Game {
     addSouls(reward);
     this.runSouls = reward;
     this.totalSouls = loadSouls().balance;
+    // 首次通关解锁隐藏血裔「永夜使徒」（apostle 此前因缺触发而永久死锁）
+    const souls = loadSouls();
+    if (!souls.bloodlines.includes('apostle')) {
+      souls.bloodlines.push('apostle');
+      saveSouls(souls);
+      this.ui.showAchievement('成就解锁 · 永夜使徒', '你直面了永夜的尽头,隐藏血裔「永夜使徒」现已可选');
+    }
     this.ui.showVictory();
     this.audio.gameover();
   }

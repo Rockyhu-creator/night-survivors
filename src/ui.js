@@ -231,6 +231,18 @@ export class UIManager {
     this._toastTimer = setTimeout(() => el.classList.add('hidden'), 1800);
   }
 
+  // 成就提示：更醒目的横幅（区别于底部小 toast），通关解锁等内容触发
+  showAchievement(title, desc) {
+    const el = document.getElementById('achievement');
+    el.innerHTML = `<div class="ach-title">${title}</div><div class="ach-desc">${desc}</div>`;
+    el.classList.remove('hidden');
+    el.classList.remove('ach-pop');
+    void el.offsetWidth; // 重置动画
+    el.classList.add('ach-pop');
+    clearTimeout(this._achTimer);
+    this._achTimer = setTimeout(() => el.classList.add('hidden'), 4200);
+  }
+
   refreshLoadout() {
     const player = this.game.player;
     this.loadoutEl.innerHTML = '';

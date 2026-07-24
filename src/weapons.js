@@ -98,6 +98,7 @@ export class WeaponSystem {
             kind: 'blade', x: player.x, y: player.y,
             vx: (dx / d) * 420, vy: (dy / d) * 420,
             damage: 18 * player.damageMul, pierce: 2, life: 1.4, spin: 0, hitSet: new Set(),
+            tint: '#5ad1e6', // 千刃风暴：青色碎片，区别于基础红飞刀
           });
         }
       }
@@ -155,6 +156,7 @@ export class WeaponSystem {
             kind: 'blade', x: player.x, y: player.y,
             vx: (dx / d) * 400, vy: (dy / d) * 400,
             damage: 32 * player.damageMul, pierce: 2, life: 1.5, spin: 0, hitSet: new Set(), lifeSteal: true,
+            tint: '#ff3b6b', // 猩红之拥：猩红碎片
           });
         }
       }
@@ -186,6 +188,7 @@ export class WeaponSystem {
             kind: 'blade', x: player.x, y: player.y,
             vx: Math.cos(ang) * 360, vy: Math.sin(ang) * 360,
             damage: 24 * player.damageMul, pierce: 2, life: 1.4, spin: 0, hitSet: new Set(),
+            tint: '#b07cff', // 寂灭结界：紫色骨刺
           });
         }
       }
@@ -197,7 +200,7 @@ export class WeaponSystem {
         const target = this.pickTarget(0);
         const base = target ? Math.atan2(target.y - player.y, target.x - player.x) : (player.facing >= 0 ? 0 : Math.PI);
         for (const off of [-0.35, 0, 0.35]) {
-          this.applyWhip(player, base + off, { damage: 30, length: 300, width: 70 });
+          this.applyWhip(player, base + off, { damage: 30, length: 300, width: 70 }, new Set());
         }
       }
     } else if (weapon.id === 'matrix') {
@@ -209,7 +212,7 @@ export class WeaponSystem {
         for (let i = 0; i < n; i += 1) {
           const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
           this.projectiles.push({
-            kind: 'blade', x: player.x, y: player.y,
+            kind: 'cross', x: player.x, y: player.y,
             vx: Math.cos(ang) * 440, vy: Math.sin(ang) * 440,
             damage: 30 * player.damageMul, pierce: 3, life: 1.6, spin: 0, hitSet: new Set(),
           });
@@ -297,7 +300,7 @@ export class WeaponSystem {
       const ang = target
         ? Math.atan2(target.y - player.y, target.x - player.x)
         : (player.facing >= 0 ? 0 : Math.PI);
-      this.applyWhip(player, ang, s);
+      this.applyWhip(player, ang, s, new Set());
     } else if (weapon.id === 'cross') {
       // 黎明圣印：多向放射（4/6/8 方向），独立 kind:'cross'，金色圣印贴图渲染
       const n = s.count;
@@ -314,7 +317,8 @@ export class WeaponSystem {
   }
 
   // 长鞭：沿方向线段 hitbox 采样，命中矩形内敌人（点到线段距离判定）
-  applyWhip(player, ang, s) {
+  // hitSet：单次挥击内对每敌只结算一次伤害（大型敌人会跨多个采样点，去重避免被秒）
+  applyWhip(player, ang, s, hitSet) {
     const game = this.game;
     const len = s.length;
     const halfW = (s.width || 44) / 2;
@@ -325,12 +329,14 @@ export class WeaponSystem {
       const cy = player.y + dy * t;
       for (const e of game.enemies.enemiesNear(cx, cy, halfW + 30)) {
         if (e.hp <= 0) continue;
+        if (hitSet.has(e)) continue;
         const px = e.x - player.x;
         const py = e.y - player.y;
         const proj = px * dx + py * dy;
         if (proj < 0 || proj > len) continue;
         const perp = Math.abs(px * dy - py * dx);
         if (perp < halfW + e.radius) {
+          hitSet.add(e);
           game.enemies.damageEnemy(e, s.damage * player.damageMul, dx, dy);
           game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), '#c060a0');
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
@@ -651,7 +657,7 @@ export class WeaponSystem {
       ctx.save();
       ctx.translate(sx, sy);
       if (p.kind === 'cross') {
-        // 黎明圣印：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分
+        // 黎明圣印 / 圣光矩阵：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分
         const img = sprite('weapon_cross');
         const size = 30;
         ctx.rotate((p.spin || 0) + (this.game.time || 0) * 1.5);
@@ -659,6 +665,20 @@ export class WeaponSystem {
         ctx.shadowBlur = 10;
         if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
         else { ctx.fillStyle = '#ffd76a'; ctx.fillRect(-size / 2, -3, size, 6); }
+      } else if (p.kind === 'blade' && p.tint) {
+        // 神器专属飞弹：按主题色渲染菱形碎片，区别于基础红飞刀
+        ctx.rotate(Math.atan2(p.vy, p.vx));
+        const size = 24;
+        ctx.shadowColor = p.tint;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = p.tint;
+        ctx.beginPath();
+        ctx.moveTo(size / 2, 0);
+        ctx.lineTo(0, -size / 3);
+        ctx.lineTo(-size / 2, 0);
+        ctx.lineTo(0, size / 3);
+        ctx.closePath();
+        ctx.fill();
       } else {
         const img = sprite(p.kind === 'blade' ? 'blade' : 'axe');
         const size = p.kind === 'blade' ? 26 : 34;
