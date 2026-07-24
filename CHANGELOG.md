@@ -5,7 +5,7 @@
 
 ---
 
-## v0.19（2026-07-24 · `待提交`）
+## v0.19（2026-07-24 · `6618d2c`）
 
 ### 新增
 - **12 分钟降临终局 Boss + 15 分钟硬上限超时失败**：`ENDGAME_BOSS_TIME` 900→720（12min 永夜化身降临）；新增 `GAME_HARD_CAP=900`，`game.js` step 末判定——到点仍 `bossSpawned.has('avatar')` 且未击败则 `gameOver('timeout')`，区别于阵亡/胜利；`ui.js` 按 reason 切换「时限已尽 · 永夜吞没了你」文案与副标题。
