@@ -38,6 +38,13 @@ export class UIManager {
     this.guideScreen = document.getElementById('guide-screen');
     this.guideCloseBtn = document.getElementById('btn-guide-close');
     this.vignetteAlpha = 0;
+    // 战利品指引（指向未拾取宝箱）：左下角底边箭头 + 屏内脉冲环
+    this.lootBeacon = document.getElementById('loot-beacon');
+    this.lootArrow = document.getElementById('loot-arrow');
+    this.lootRing = document.getElementById('loot-ring');
+    this.lootLabel = document.getElementById('loot-label');
+    if (this.lootLabel) this.lootLabel.textContent = '宝箱';
+    this._lootInset = 46; // 边缘箭头距屏幕边的内缩（CSS px）
     this.spawnTitleBats();
     this.guideCloseBtn.addEventListener('click', () => { this.game.audio.uiClick(); this.hideGuide(); });
   }
@@ -95,6 +102,7 @@ export class UIManager {
     this.titleScreen.classList.add('hidden');
     this.gameoverScreen.classList.add('hidden');
     this.hud.classList.remove('hidden');
+    this.hideLootBeacon();
     this.refreshLoadout();
   }
 
@@ -112,6 +120,66 @@ export class UIManager {
       this.vignette.style.opacity = this.vignetteAlpha.toFixed(2);
     }
     this.updateBossBar();
+    this.updateLootBeacon();
+  }
+
+  // 战利品指引：每帧定位最近的未拾取宝箱，屏外给边缘方向箭头、屏内给精确脉冲环
+  updateLootBeacon() {
+    const g = this.game, cam = g.camera, player = g.player;
+    const gems = g.pickups ? g.pickups.gems : null;
+    let best = null, bestD = Infinity;
+    if (gems) {
+      for (const gm of gems) {
+        if (!gm.chest) continue; // 仅指引宝箱（boss/普通）
+        const d = (gm.x - player.x) ** 2 + (gm.y - player.y) ** 2;
+        if (d < bestD) { bestD = d; best = gm; }
+      }
+    }
+    if (!best) { this.lootBeacon.classList.add('hidden'); return; }
+    this.lootBeacon.classList.remove('hidden');
+
+    const canvas = g.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const sx = rect.width / canvas.width, sy = rect.height / canvas.height;
+    const cssX = rect.left + (best.x - cam.ox) * sx;
+    const cssY = rect.top + (best.y - cam.oy) * sy;
+    const m = this._lootInset;
+    const left = rect.left + m, right = rect.right - m, top = rect.top + m, bottom = rect.bottom - m;
+    const onX = cssX >= left && cssX <= right;
+    const onY = cssY >= top && cssY <= bottom;
+
+    if (onX && onY) {
+      // 屏内：精确脉冲环（永远盖在怪物之上，解决被遮挡问题）
+      this.lootArrow.style.display = 'none';
+      this.lootRing.style.display = 'block';
+      this.lootRing.style.left = `${cssX}px`;
+      this.lootRing.style.top = `${cssY}px`;
+      this.lootLabel.style.display = 'block';
+      this.lootLabel.style.left = `${cssX}px`;
+      this.lootLabel.style.top = `${cssY + 38}px`;
+    } else {
+      // 屏外/贴边：边缘方向箭头
+      this.lootRing.style.display = 'none';
+      this.lootArrow.style.display = 'block';
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      let dx = cssX - cx, dy = cssY - cy;
+      if (dx === 0 && dy === 0) dx = 0.001;
+      const sx2 = dx > 0 ? right - cx : cx - left;
+      const sy2 = dy > 0 ? bottom - cy : cy - top;
+      const t = Math.min(Math.abs(sx2 / dx), Math.abs(sy2 / dy));
+      const ax = cx + dx * t, ay = cy + dy * t;
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI; // 0°=右，与默认箭头方向一致
+      this.lootArrow.style.left = `${ax}px`;
+      this.lootArrow.style.top = `${ay}px`;
+      this.lootArrow.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+      this.lootLabel.style.display = 'block';
+      this.lootLabel.style.left = `${ax}px`;
+      this.lootLabel.style.top = `${ay + 24}px`;
+    }
+  }
+
+  hideLootBeacon() {
+    if (this.lootBeacon) this.lootBeacon.classList.add('hidden');
   }
 
   flashVignette() {
@@ -201,6 +269,7 @@ export class UIManager {
   showGameOver() {
     const game = this.game;
     this.hud.classList.add('hidden');
+    this.hideLootBeacon();
     const result = { time: Math.floor(game.time), kills: game.kills, level: game.player.level };
     const prev = loadBest();
     const isRecord = !prev || result.time > prev.time;
@@ -231,6 +300,7 @@ export class UIManager {
   showVictory() {
     const game = this.game;
     this.hud.classList.add('hidden');
+    this.hideLootBeacon();
     const result = { time: Math.floor(game.time), kills: game.kills, level: game.player.level };
     const prev = loadBest();
     const isRecord = !prev || result.time > prev.time;

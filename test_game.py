@@ -485,6 +485,65 @@ with sync_playwright() as p:
     page.wait_for_timeout(150)
     expect('标题显示当前血裔', page.evaluate("() => document.getElementById('btn-bloodline').textContent.includes('流浪者')"))
 
+    # --- UI 导航：左上角返回按钮（与底部返回并存，2026-07-24）---
+    page.evaluate("() => window.__game.ui.showAltar()")
+    page.wait_for_timeout(200)
+    expect('祭坛界面 左上返回按钮存在', page.evaluate("() => !!document.getElementById('btn-altar-topback')"))
+    page.click('#btn-altar-topback')
+    page.wait_for_timeout(200)
+    expect('点击左上返回→祭坛隐藏/回主界', page.evaluate("() => document.getElementById('altar-screen').classList.contains('hidden') && !document.getElementById('title-screen').classList.contains('hidden')"))
+    page.evaluate("() => window.__game.ui.showCodex()")
+    page.wait_for_timeout(200)
+    page.click('#btn-codex-topback')
+    page.wait_for_timeout(200)
+    expect('点击左上返回→图鉴隐藏/回主界', page.evaluate("() => document.getElementById('codex-screen').classList.contains('hidden')"))
+    page.evaluate("() => window.__game.ui.showBloodline()")
+    page.wait_for_timeout(200)
+    page.click('#btn-bloodline-topback')
+    page.wait_for_timeout(200)
+    expect('点击左上返回→血裔隐藏/回主界', page.evaluate("() => document.getElementById('bloodline-screen').classList.contains('hidden')"))
+
+    # --- 战利品指引：屏外→边缘方向箭头；屏内→精确脉冲环（2026-07-24）---
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.enemies.enemyProjectiles = [];
+      g.expQueue = 0;
+      if (g.state === 'upgrading') g.resumeFromUpgrade();
+      document.getElementById('levelup-screen').classList.add('hidden');
+      g.player.level = 999;
+      g.player.hp = g.player.maxHp;
+      g.player.magnetRange = 0;   // 防止屏内宝箱被自动吸附拾取
+      g.pickups.gems = g.pickups.gems.filter(x => !x.chest);
+      g.pickups.dropBossChest(g.player.x + 2000, g.player.y - 2000);  // 远处屏外
+    }""")
+    page.wait_for_timeout(300)
+    expect('战利品指引 屏外显示方向箭头', page.evaluate("""() => {
+      const b = document.getElementById('loot-beacon');
+      const a = document.getElementById('loot-arrow');
+      const r = document.getElementById('loot-ring');
+      return !b.classList.contains('hidden') && a.style.display !== 'none' && (r.style.display === 'none' || r.style.display === '');
+    }"""))
+    expect('战利品指引 箭头带旋转角度', page.evaluate("() => document.getElementById('loot-arrow').style.transform.includes('rotate')"))
+    page.evaluate("""() => {
+      const g = window.__game;
+      const c = g.pickups.gems.find(x => x.chest);
+      if (c) { c.x = g.player.x + 40; c.y = g.player.y - 30; }  // 移到屏内（仍超出吸附半径）
+    }""")
+    page.wait_for_timeout(300)
+    expect('战利品指引 屏内显示脉冲环', page.evaluate("""() => {
+      const r = document.getElementById('loot-ring');
+      const a = document.getElementById('loot-arrow');
+      return r.style.display !== 'none' && a.style.display === 'none';
+    }"""))
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.pickups.gems = g.pickups.gems.filter(x => !x.chest);
+      g.state = 'title';
+    }""")
+    page.wait_for_timeout(150)
+
     print('控制台错误:', errors if errors else '无')
     if _failures:
         print(f'\nTOTAL FAILURES: {_failures}')

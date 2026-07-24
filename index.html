@@ -94,6 +94,9 @@
 
     <!-- 图鉴界面 -->
     <div id="codex-screen" class="screen hidden">
+      <button class="top-back" id="btn-codex-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <p class="codex-title">合成图鉴</p>
       <p class="codex-sub">集齐神器,对抗永夜</p>
       <div id="codex-content"></div>
@@ -102,6 +105,9 @@
 
     <!-- 灵魂祭坛界面 -->
     <div id="altar-screen" class="screen hidden">
+      <button class="top-back" id="btn-altar-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <p class="altar-title">灵 魂 祭 坛</p>
       <p class="altar-sub">以倒下之积蓄,换取永恒之力</p>
       <div id="altar-balance" class="altar-balance"></div>
@@ -111,6 +117,9 @@
 
     <!-- 血裔选择界面 -->
     <div id="bloodline-screen" class="screen hidden">
+      <button class="top-back" id="btn-bloodline-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <p class="altar-title">血 裔 选 择</p>
       <p class="altar-sub">不同的起源,不同的生存之道</p>
       <div id="bloodline-balance" class="altar-balance"></div>
@@ -147,6 +156,12 @@
     </div>
     <div id="toast" class="hidden"></div>
     <div id="damage-vignette"></div>
+    <!-- 战利品指引：指向未拾取的宝箱（屏外→边缘方向箭头；屏内→精确脉冲环，不被怪物遮挡） -->
+    <div id="loot-beacon" class="hidden" aria-hidden="true">
+      <div id="loot-arrow"></div>
+      <div id="loot-ring"></div>
+      <span id="loot-label">宝箱</span>
+    </div>
     <!-- 声音开关：默认静音，点击开启（M 键同效） -->
     <button id="btn-mute" aria-label="声音开关">🔇</button>
     <!-- 暂停覆盖层 -->
