@@ -5,6 +5,10 @@ import { sprite } from './assets.js';
 // 手机端竖屏锁定后可视范围更窄，统一用此上限，避免「手机打屏外敌人、电脑打最近」的差异。
 const TARGET_RADIUS = 540;
 
+// 永劫之鞭（eternalwhip）「熔金黑鞭」专属配色：仅渲染层 tint 使用，无需新 PNG。
+// body=鞭身主色(熔金琥珀) / edge=深渊青铜描边(核心辨识) / tip=白热尖端 / trail·spark 备未来用。
+const ETERNALWHIP_TINT = { body:'#ffb847', edge:'#4a2f12', tip:'#fff1c9', trail:'#d4af37', spark:'#f1c40f' };
+
 export class WeaponSystem {
   constructor(game) {
     this.game = game;
@@ -204,7 +208,7 @@ export class WeaponSystem {
         const target = this.pickTarget(0);
         const base = target ? Math.atan2(target.y - player.y, target.x - player.x) : (player.facing >= 0 ? 0 : Math.PI);
         for (const off of [-0.35, 0, 0.35]) {
-          this.applyWhip(player, base + off, { damage: 30, length: 300, width: 70 }, new Set());
+          this.applyWhip(player, base + off, { damage: 30, length: 300, width: 70, tint: ETERNALWHIP_TINT }, new Set());
         }
       }
     } else if (weapon.id === 'matrix') {
@@ -323,7 +327,7 @@ export class WeaponSystem {
 
   // 长鞭：沿方向线段 hitbox 采样，命中矩形内敌人（点到线段距离判定）
   // hitSet：单次挥击内对每敌只结算一次伤害（大型敌人会跨多个采样点，去重避免被秒）
-  applyWhip(player, ang, s, hitSet) {
+  applyWhip(player, ang, s, hitSet, tint = null) {
     const game = this.game;
     const len = s.length;
     const halfW = (s.width || 44) / 2;
@@ -348,7 +352,7 @@ export class WeaponSystem {
         }
       }
     }
-    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.22, maxLife: 0.22, bow: (Math.random() < 0.5 ? -1 : 1) });
+    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.22, maxLife: 0.22, bow: (Math.random() < 0.5 ? -1 : 1), tint: s.tint || null });
   }
 
   pickTarget(offset = 0) {
@@ -631,7 +635,7 @@ export class WeaponSystem {
         const p1 = qbez(0, 0, tipX * 0.5, bow, tipX, 0, u1);
         ctx.lineWidth = Math.max(1, sl.width * (1 - 0.82 * u0));
         ctx.globalAlpha = fade * (0.95 - u0 * 0.35);
-        ctx.strokeStyle = i < N * 0.5 ? 'rgba(236,140,200,0.95)' : 'rgba(200,90,165,0.85)';
+        ctx.strokeStyle = sl.tint ? (i < N * 0.5 ? sl.tint.body : sl.tint.edge) : (i < N * 0.5 ? 'rgba(236,140,200,0.95)' : 'rgba(200,90,165,0.85)');
         ctx.beginPath();
         ctx.moveTo(p0.x, p0.y);
         ctx.lineTo(p1.x, p1.y);
@@ -639,7 +643,7 @@ export class WeaponSystem {
       }
       if (grow >= 0.96) {
         ctx.globalAlpha = fade * 0.9;
-        ctx.fillStyle = 'rgba(255,224,246,0.95)';
+        ctx.fillStyle = sl.tint ? sl.tint.tip : 'rgba(255,224,246,0.95)';
         ctx.beginPath();
         ctx.arc(tipX, 0, 3 + (1 - fade) * 6, 0, Math.PI * 2);
         ctx.fill();
