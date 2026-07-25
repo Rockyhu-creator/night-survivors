@@ -186,6 +186,11 @@ export class UIManager {
       this.lootRing.style.display = 'block';
       this.lootRing.style.left = `${cssX}px`;
       this.lootRing.style.top = `${cssY}px`;
+      // 圆环直径动态跟随宝箱屏显尺寸：chestSize × CSS缩放sx × 系数1.4（>pulse峰值1.12，任意相位都圈住）
+      const chestSize = best.boss ? 48 : 40;
+      const dia = chestSize * sx * 1.4;
+      this.lootRing.style.width = `${dia}px`;
+      this.lootRing.style.height = `${dia}px`;
       this.lootLabel.style.display = 'block';
       this.lootLabel.style.left = `${cssX}px`;
       this.lootLabel.style.top = `${cssY + 38}px`;

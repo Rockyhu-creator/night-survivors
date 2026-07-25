@@ -766,18 +766,18 @@ html, body {
 }
 #loot-arrow {
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 15px solid var(--gold);
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
+  width: 32px;
+  height: 32px;
   transform-origin: 50% 50%;
-  filter: drop-shadow(0 0 6px rgba(212, 175, 55, .95));
+  filter:
+    drop-shadow(0 0 5px rgba(212, 175, 55, .95))
+    drop-shadow(0 0 2px rgba(241, 196, 15, .7));
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 #loot-ring {
   position: absolute;
-  width: 52px;
-  height: 52px;
+  box-sizing: border-box;
   border-radius: 50%;
   border: 3px solid var(--gold);
   box-shadow: 0 0 14px rgba(212, 175, 55, .8), inset 0 0 8px rgba(212, 175, 55, .5);

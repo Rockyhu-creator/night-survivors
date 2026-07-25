@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-25
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26
 
 ---
 
@@ -28,6 +28,12 @@
 - 词缀系统：`volatile`（死亡爆破·亮黄冲击波·虚线描边+淡填充·`blastRadius=140`）/ `shielded`（减伤·蓝·盾牌徽标）/ `pack`（成群·琥珀金·三点徽标）；**本体不染色**，属性用彩色脉冲光环 + 头顶徽标表达（共享 `drawAffixBadge`）；爆破死亡时先 `pickups.drop(expValue)` 掉落经验宝石，再播放范围冲击波特效；经验宝石带 0.35s 出生金色闪光，降低被特效遮挡的误读。
 
 ---
+
+### 战利品指引与掉落特判（v0.35）
+
+- **宝箱指示箭头 PNG 精灵**：`#loot-arrow` 为 `<img>` 引用 `loot_arrow.png`（32×32 金箭头带尾翼，默认朝右），`ui.js` 的 `updateLootBeacon()` 按 `Math.atan2(dy,dx)` 算角度并 `transform: rotate(angle)` 定位（屏外/贴边指向最近宝箱）；`style.css` 去 border 三角、改 `width/height:32px` + `drop-shadow` 辉光 + `image-rendering:pixelated`。
+- **宝箱指示圆环动态半径（修复 #195）**：`#loot-ring` 直径由 JS 在 `onX&&onY` 分支内按 `chestSize(普通40/boss48) × CSS缩放 sx × 1.4` 动态设（系数 > pulse 峰值 1.12），放大屏与 boss 宝箱任意呼吸相位都圈住；`style.css` 已去固定 `width/height:52px`、加 `box-sizing:border-box`。
+- **掉落特判（修复 #196）**：`PickupSystem.drop(x,y,expValue,enemyType)` 新增第 4 参；石像鬼（`ENEMY_TYPES.gargoyle`）强制掉金宝石（`GEM_DEFS[3]`，价值 25）、暗影猎手（`ENEMY_TYPES.shadow_hunter`）强制掉红宝石（`GEM_DEFS[4]`，价值 50）；其余怪维持原 `expValue` 选档逻辑零改动，100% 掉落不变。`onEnemyKilled` 调用处补传 `enemy.type`（def 对象，非字符串 key）。
 
 ## 2. 技术栈
 

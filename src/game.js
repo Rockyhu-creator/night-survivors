@@ -343,7 +343,7 @@ export class Game {
 
   onEnemyKilled(enemy) {
     this.kills += 1;
-    this.pickups.drop(enemy.x, enemy.y, enemy.expValue);
+    this.pickups.drop(enemy.x, enemy.y, enemy.expValue, enemy.type);
     // 血瓶续航掉落 [PLACEHOLDER]：约 2.5% 概率（原 7% 过高，压低难度），解决"掉血不可逆"。Boss 由专属宝箱覆盖，不重复掉
     if (!enemy.isBoss && Math.random() < 0.025) {
       this.pickups.dropPotion(enemy.x, enemy.y, 20);

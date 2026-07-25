@@ -17,6 +17,7 @@ const files = {
   boss_queen: 'boss_queen.png',
   boss_overlord: 'boss_overlord.png',
   chest: 'chest.png',
+  lootArrow: 'loot_arrow.png',
   blade: 'weapon_blade.png',
   holywater: 'weapon_holywater.png',
   axe: 'weapon_axe.png',

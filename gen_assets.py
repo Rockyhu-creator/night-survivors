@@ -475,6 +475,49 @@ def gen_gem(name, base, light, dark):
     save(img, name, 2)
 
 
+def gen_gem_premium(name, base, light, dark):
+    """高价值宝石（金/红）：在 gen_gem 基础上增加四角星芒与更强内核辉光，突出 Boss/精英掉落感。"""
+    S = 36
+    img, d = new_canvas(S)
+    cx, cy = 18, 18
+
+    # 菱形刻面宝石（对角线分 3 面）
+    for y in range(4, 33):
+        half = 14 - abs(y - 18) if y < 18 else 14 - (y - 18)
+        if half < 0:
+            half = 0
+        for x in range(cx - half, cx + half + 1):
+            f = (x - cx) + (y - cy)
+            color = light if f > 6 else (dark if f < -6 else base)
+            px(d, x, y, color)
+
+    # 内核辉光（比低档宝石更亮更小）
+    for y in range(13, 24):
+        for x in range(14, 23):
+            if (x - 18) ** 2 + (y - 18) ** 2 < 10:
+                px(d, x, y, light)
+
+    # 顶部高光
+    rect(d, 14, 9, 17, 11, light)
+    px(d, 13, 10, light); px(d, 18, 10, light)
+
+    # 四角星芒（premium 识别特征）
+    # 上
+    px(d, cx, 2, light); px(d, cx, 3, light)
+    px(d, cx - 1, 3, light); px(d, cx + 1, 3, light)
+    # 下
+    px(d, cx, 33, light); px(d, cx, 32, light)
+    px(d, cx - 1, 32, light); px(d, cx + 1, 32, light)
+    # 左
+    px(d, 2, cy, light); px(d, 3, cy, light)
+    px(d, 3, cy - 1, light); px(d, 3, cy + 1, light)
+    # 右
+    px(d, 33, cy, light); px(d, 32, cy, light)
+    px(d, 32, cy - 1, light); px(d, 32, cy + 1, light)
+
+    save(img, name, 2)
+
+
 # ---------- 地面纹理（无缝平铺） ----------
 def gen_ground():
     # 哥特石砖墓园地面：256×256 无缝平铺，直接生成（不再放大避免模糊）
@@ -1245,32 +1288,138 @@ def gen_boss_overlord():
 
 # ---------- 宝箱专属精灵（A2，2026-07-23）：替换「大号宝石伪宝箱」 ----------
 def gen_chest():
+    """Boss 宝箱：像素哥特木箱 + 金边 + 锁扣 + 微光封印。"""
     S = 44
     img, d = new_canvas(S)
-    wood = ((90, 55, 30), (140, 95, 55), (190, 140, 85))
-    gold = ((200, 160, 50), (235, 200, 90), (255, 230, 140))
-    # 箱体
-    for y in range(20, 38):
-        for x in range(6, 38):
-            px(d, x, y, wood[2] if (x + y) % 3 else wood[1])
-    # 木纹
-    for y in range(22, 38, 3):
-        px(d, 6, y, wood[0]); px(d, 37, y, wood[0])
-    # 弧形箱盖
-    for y in range(8, 20):
-        half = int(16 - (y - 8) * 0.4)
-        for x in range(32 - half, 32 + half + 1):
-            px(d, x, y, wood[2] if (x + y) % 3 else wood[1])
-    # 金属包边
-    for y in range(8, 39):
-        px(d, 6, y, gold[1]); px(d, 37, y, gold[1])
-    for x in range(6, 38):
-        px(d, x, 19, gold[1]); px(d, x, 38, gold[0])
-    # 锁扣 + 金光封印
-    for x in range(28, 36):
-        px(d, x, 18, gold[2]); px(d, x, 19, gold[2])
-    px(d, 32, 20, gold[2]); px(d, 31, 21, gold[2]); px(d, 33, 21, gold[2])
+    cx = 22
+
+    # 像素哥特调色板（与项目 gold/night 体系一致）
+    wood_dark = (72, 44, 24, 255)
+    wood_mid = (116, 72, 42, 255)
+    wood_light = (164, 112, 68, 255)
+    gold_dark = (158, 126, 30, 255)
+    gold_mid = (212, 175, 55, 255)
+    gold_light = (241, 196, 15, 255)
+    lock_dark = (28, 24, 22, 255)
+
+    # 箱体木板（y 20-38）
+    for y in range(20, 39):
+        for x in range(6, 39):
+            if x % 8 in (0, 1):
+                col = wood_dark
+            elif (x + y) % 5 == 0:
+                col = wood_light
+            else:
+                col = wood_mid
+            px(d, x, y, col)
+
+    # 箱盖与箱体接缝
+    for x in range(6, 39):
+        px(d, x, 19, wood_dark)
+
+    # 弧形箱盖（y 7-19）
+    for y in range(7, 20):
+        half = int(16 - (y - 7) * 0.48)
+        if half < 4:
+            half = 4
+        for x in range(cx - half, cx + half + 1):
+            if x % 8 in (0, 1):
+                col = wood_dark
+            elif (x + y) % 5 == 0:
+                col = wood_light
+            else:
+                col = wood_mid
+            px(d, x, y, col)
+
+    # 左右金属包边
+    for y in range(7, 39):
+        px(d, 6, y, gold_mid); px(d, 7, y, gold_mid)
+        px(d, 37, y, gold_mid); px(d, 38, y, gold_mid)
+
+    # 顶部与底部金边
+    for x in range(8, 37):
+        px(d, x, 7, gold_dark)
+    for x in range(6, 39):
+        px(d, x, 38, gold_dark)
+
+    # 包边铆钉
+    for y in range(10, 38, 7):
+        px(d, 6, y, gold_light); px(d, 7, y, gold_light)
+        px(d, 37, y, gold_light); px(d, 38, y, gold_light)
+
+    # 底部角铁
+    for x in range(6, 9):
+        px(d, x, 35, gold_mid); px(d, x, 36, gold_mid)
+    for x in range(36, 39):
+        px(d, x, 35, gold_mid); px(d, x, 36, gold_mid)
+    # 顶部角铁
+    for y in range(7, 11):
+        px(d, 6, y, gold_light); px(d, 7, y, gold_light)
+        px(d, 37, y, gold_light); px(d, 38, y, gold_light)
+
+    # 锁扣面板（正面中央偏右）
+    lock_cx = 24
+    for y in range(15, 22):
+        for x in range(lock_cx - 4, lock_cx + 5):
+            px(d, x, y, gold_dark)
+    for y in range(16, 21):
+        for x in range(lock_cx - 3, lock_cx + 4):
+            px(d, x, y, gold_mid)
+    # 钥匙孔
+    px(d, lock_cx, 17, lock_dark)
+    px(d, lock_cx - 1, 18, lock_dark)
+    px(d, lock_cx, 18, lock_dark)
+    px(d, lock_cx + 1, 18, lock_dark)
+    px(d, lock_cx, 19, lock_dark)
+
+    # 金光封印（锁扣周围微光）
+    px(d, lock_cx - 5, 16, gold_light); px(d, lock_cx + 5, 16, gold_light)
+    px(d, lock_cx - 5, 20, gold_light); px(d, lock_cx + 5, 20, gold_light)
+    px(d, lock_cx, 13, gold_light); px(d, lock_cx, 23, gold_light)
+
     save(img, "chest.png", 1)
+
+
+def gen_loot_arrow():
+    """屏外宝箱方向箭头：金色锥形箭头 + 尾翼，默认指向右方（0°），由 ui.js 旋转。"""
+    S = 32
+    img, d = new_canvas(S)
+    gold = (212, 175, 55, 255)
+    ember = (241, 196, 15, 255)
+    dark = (158, 126, 30, 255)
+
+    # 箭杆 + 箭头主体（向右实心锥）
+    for y in range(10, 22):
+        if y in (10, 21):
+            x_start, x_end = 26, 29
+        elif y in (11, 20):
+            x_start, x_end = 24, 30
+        elif y in (12, 19):
+            x_start, x_end = 22, 30
+        elif y in (13, 18):
+            x_start, x_end = 20, 30
+        else:
+            x_start, x_end = 4, 30
+        for x in range(x_start, x_end + 1):
+            px(d, x, y, gold)
+
+    # 箭杆高光
+    for x in range(8, 22):
+        px(d, x, 14, ember)
+        px(d, x, 15, ember)
+    # 箭头高光
+    px(d, 25, 12, ember); px(d, 26, 13, ember); px(d, 27, 14, ember)
+    px(d, 28, 15, ember); px(d, 27, 16, ember); px(d, 26, 17, ember); px(d, 25, 18, ember)
+
+    # 哥特尾翼（分裂羽毛）
+    for i in range(6):
+        px(d, 4 + i, 10 + i, dark)
+        px(d, 4 + i, 21 - i, dark)
+    for i in range(3):
+        px(d, 3 + i, 11 + i, gold)
+        px(d, 3 + i, 20 - i, gold)
+
+    save(img, "loot_arrow.png", 1)
 
 
 # ---------- 祭坛专属图标（UX 改造，2026-07-23）：不复用任何现有素材 ----------
@@ -1400,6 +1549,7 @@ gen_boss_baron()
 gen_boss_queen()
 gen_boss_overlord()
 gen_chest()
+gen_loot_arrow()
 gen_bat()
 gen_skeleton()
 gen_slime()
@@ -1412,8 +1562,10 @@ gen_gem("gem_small.png", (46, 204, 113, 255), (160, 255, 200, 255), (20, 120, 60
 gen_gem("gem_medium.png", (74, 163, 223, 255), (170, 220, 255, 255), (25, 80, 140, 255))
 gen_gem("gem_large.png", (142, 68, 173, 255), (220, 160, 255, 255), (80, 30, 110, 255))
 # 高价值经验宝石（v0.34 补齐缺失精灵图，金=精英/石像鬼，红=暗影猎手/终局召唤）
-gen_gem("gem_gold.png", (212, 175, 55, 255), (255, 230, 150, 255), (150, 110, 20, 255))
-gen_gem("gem_red.png", (231, 76, 60, 255), (255, 150, 140, 255), (150, 30, 25, 255))
+# 使用 premium 版本：四角星芒 + 更强内核辉光，与低档绿/蓝/紫宝石区分
+# 2026-07-26：由 art-director 视觉增强
+gen_gem_premium("gem_gold.png", (212, 175, 55, 255), (255, 230, 150, 255), (150, 110, 20, 255))
+gen_gem_premium("gem_red.png", (231, 76, 60, 255), (255, 150, 140, 255), (150, 30, 25, 255))
 gen_ground()
 gen_decal_tomb()
 gen_decal_wood()

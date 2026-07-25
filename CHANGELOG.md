@@ -5,6 +5,23 @@
 
 ---
 
+## v0.35（2026-07-26 · `f1621dc`）
+
+### 新增
+- **宝箱指示箭头改用 PNG 精灵**：`#loot-arrow` 由纯 CSS 三角改为 `<img>` 引用 `loot_arrow.png`（32×32 金箭头带尾翼，默认朝右），方向性与哥特细节显著增强；`ui.js` 的 `rotate(angle)` 旋转与 `left/top` 定位逻辑完全保留，`style.css` 去除 border 三角写法、改 `width/height:32px` + `drop-shadow` 辉光 + `image-rendering:pixelated`。
+
+### 修复
+- **宝箱指示圆环圈不住宝箱（#195）**：`#loot-ring` 固定 52px 改为在 `updateLootBeacon()` 屏内分支按 `宝箱屏显尺寸(普通40/boss48) × CSS缩放 sx × 1.4` 动态设直径（系数 > pulse 峰值 1.12，任意呼吸相位都圈住），放大屏与 boss 宝箱均不再漏圈；`style.css` 去固定尺寸、加 `box-sizing:border-box`。
+- **石像鬼/暗影猎手不掉高价值宝石（#196）**：`drop()` 新增第 4 参 `enemyType`，石像鬼强制掉金宝石（gemGold，价值 25）、暗影猎手强制掉红宝石（gemRed，价值 50）；其余怪维持原 `expValue` 选档逻辑零改动，100% 掉落不变。
+
+### 优化
+- **chest/gem 资产增强**：`chest.png` 重做为像素哥特木箱（金属包边/铆钉/锁扣/金光封印）；`gem_gold.png`/`gem_red.png` 升级 premium 版（更强内核辉光 + 四角星芒，怪潮中明显区分低档宝石）。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台错误）；`node --check` 改动 JS 全过；`vite build` 确认 dist 含 `loot_arrow.png`/`chest.png`/`gem_*`/`version.json`。
+
+---
+
 ## v0.34（2026-07-26 · `594ce29`）
 
 ### 修复

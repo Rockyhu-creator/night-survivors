@@ -1,4 +1,5 @@
 import { sprite } from './assets.js';
+import { ENEMY_TYPES } from './data.js';
 
 const GEM_DEFS = [
   { key: 'gemSmall', min: 1, size: 16, color: '#2ecc71' },
@@ -20,7 +21,18 @@ export class PickupSystem {
 
   reset() { this.gems.length = 0; }
 
-  drop(x, y, expValue) {
+  drop(x, y, expValue, enemyType) {
+    // 石像鬼/暗影猎手强制掉落高价值宝石（其余怪维持原 expValue 选档逻辑，零改动）
+    if (enemyType === ENEMY_TYPES.gargoyle) {
+      const def = GEM_DEFS[3]; // gemGold 金宝石
+      this.gems.push({ x: x + (Math.random() * 2 - 1) * 14, y: y + (Math.random() * 2 - 1) * 14, value: def.min, def, magnet: false, vx: 0, vy: 0, bob: Math.random() * Math.PI * 2, life: 20, birth: 0.35 });
+      return;
+    }
+    if (enemyType === ENEMY_TYPES.shadow_hunter) {
+      const def = GEM_DEFS[4]; // gemRed 红宝石
+      this.gems.push({ x: x + (Math.random() * 2 - 1) * 14, y: y + (Math.random() * 2 - 1) * 14, value: def.min, def, magnet: false, vx: 0, vy: 0, bob: Math.random() * Math.PI * 2, life: 20, birth: 0.35 });
+      return;
+    }
     let rest = expValue;
     while (rest > 0) {
       // 接近上限：把剩余经验合并成一颗红宝石，避免数组无限增长（经验不丢）
