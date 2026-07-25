@@ -13,10 +13,25 @@ export function initVersionCheck() {
   runVersionCheck().catch(() => {
     /* 双保险：内部已吞掉所有异常，这里不应触发 */
   });
+  // 周期复检：长开页面的玩家在后台发版后也能被提示（每 90s）。
+  // 90s 足够稀疏，不会给 version.json 带来可感知压力；X5 无视 no-store，
+  // 故每次都用带戳 URL 做缓存击穿（见 fetchVersionUrl）。
+  if (typeof setInterval !== 'undefined') {
+    setInterval(() => {
+      runVersionCheck().catch(() => {});
+    }, 90000);
+  }
+}
+
+// 微信 X5 内核无视 Cache-Control: no-store，按其「按完整 URL 命中」的应用级缓存回旧文件，
+// 导致 fetch('/version.json') 拿到与旧 HTML 同源的陈旧版本 → 自检失效。
+// 加时间戳 query 做缓存击穿：每次 URL 唯一 → 必走网络 → 拿到最新 version.json。
+function fetchVersionUrl() {
+  return '/version.json?t=' + Date.now();
 }
 
 function runVersionCheck() {
-  return fetch('/version.json', { cache: 'no-store' })
+  return fetch(fetchVersionUrl(), { cache: 'no-store' })
     .then((res) => {
       if (!res.ok) return; // 404(dev) / 5xx → 静默跳过，不弹横幅
       return res.json().then((latest) => {

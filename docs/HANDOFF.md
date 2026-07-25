@@ -357,7 +357,9 @@ c34bed0 真机数值收敛：后期墙下调 + 超时失败修复
 
 ### 机制
 - **version.json 生成**：`vite.config.js` 新增 `emitVersionJson()` 插件（`apply:'build'`，`writeBundle` 钩子），把 `{ buildId, commit, builtAt }` 写入 `dist/version.json`。`buildId` 复用模块级变量，与 `__BUILD_ID__`（define 注入）同源，杜绝比对错位。dev 下插件不运行 → 无 version.json（fetch 自然 404 → 静默跳过）。
-- **boot 比对**：`src/version-check.js` 的 `initVersionCheck()` 在 `game.init()` 之前 fire-and-forget 调用。`fetch('/version.json', {cache:'no-store'})` 比对 `window.__BUILD_ID__`（= `__BUILD_ID__`）与 `latest.buildId`；不一致时 `document.dispatchEvent(new CustomEvent('version-mismatch', {detail:{current,latest,builtAt}}))` 并写 `window.__versionInfo={buildId,commit,builtAt,hasUpdate}`。离线 / 404(dev) / JSON 异常 → 静默跳过，不影响启动，**不读写 localStorage**。
+- **boot 比对**：`src/version-check.js` 的 `initVersionCheck()` 在 `game.init()` 之前 fire-and-forget 调用。fetch 使用**带戳 URL** `fetch('/version.json?t=' + Date.now(), {cache:'no-store'})` 比对 `window.__BUILD_ID__`（= `__BUILD_ID__`）与 `latest.buildId`；不一致时 `document.dispatchEvent(new CustomEvent('version-mismatch', {detail:{current,latest,builtAt}}))` 并写 `window.__versionInfo={buildId,commit,builtAt,hasUpdate}`。离线 / 404(dev) / JSON 异常 → 静默跳过，不影响启动，**不读写 localStorage**。
+- **微信 X5 缓存击穿（v0.33 关键修复）**：微信内置 X5 内核**无视 `Cache-Control: no-store`**，按「完整 URL 命中」的应用级缓存回旧文件，导致 `fetch('/version.json')` 拿到与旧 HTML 内联 `__BUILD_ID__` 同源的陈旧 version.json → `hasUpdate=false` → 不弹横幅（用户需手动右上角刷新才更新）。修复 = 给 version.json 的 fetch URL 加唯一时间戳 query（`?t=Date.now()`），X5 缓存按完整 URL 键控、带戳即每次必走网络 → 拿到最新 version.json → 正确触发 mismatch 横幅。这是微信缓存的业界标准兜底。
+- **周期复检（v0.33 增强）**：`initVersionCheck` 内 `setInterval` 每 90s 再发起一次带戳自检，使**长开页面**的玩家在后台发版后也能被提示，不依赖「下次打开」。90s 足够稀疏、对 version.json 无感知压力。
 - **_headers 增量**：`public/_headers` 显式声明 `/version.json  Cache-Control: no-store`（CF 精确匹配，根路径 `/` 的 no-store 不覆盖它）。
 - **UI 组件**（美术规格 `docs/art/update-ux-spec.md` 落地，工程不另起炉灶）：
   - `#update-prompt`：顶部滑入横幅（z45），`pointer-events:none` 仅 `.up-inner` 可点；主按钮 `.gothic-btn.is-ember`（ember `#f1c40f`），次按钮 `.gothic-btn.ghost`。

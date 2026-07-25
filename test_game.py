@@ -44,10 +44,12 @@ with sync_playwright() as p:
     expect('页面含 #load-bar 进度条', page.evaluate("() => !!document.getElementById('load-bar')"))
     # dev 下 /version.json 由 build 插件生成（dev 不写）：fetch 命中 Vite SPA 回退返回 HTML(200)
     # 或 404，均被自检静默跳过，不发控制台错误；构建后 preview 返回 200 且含 buildId JSON。
+    # 生产环境用带戳 URL(/version.json?t=...) 做微信 X5 缓存击穿（v0.33）：CF 静态托管忽略 query，
+    # 仍返回同一文件；这里用同样带戳 URL 断言端点到端可用。
     # 断言：请求绝不抛未捕获错误；真 JSON(200) 时含 buildId；其余(dev) 优雅跳过。
     ver = page.evaluate("""async () => {
       try {
-        const r = await fetch('/version.json', { cache: 'no-store' });
+        const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
         const ct = r.headers.get('content-type') || '';
         if (r.status === 404 || !ct.includes('application/json')) {
           return { status: r.status, json: false };
