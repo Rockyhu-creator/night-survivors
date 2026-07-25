@@ -5,7 +5,7 @@
 
 ---
 
-## v0.33（2026-07-25 · `[HASH]`）
+## v0.33（2026-07-25 · `c672432`）
 
 ### 修复
 - **微信打开首页不提示更新（运行时版本自检失效）**：根因为微信 X5 内核无视 `Cache-Control: no-store`，按其「按完整 URL 命中」的应用级缓存回旧 `version.json`，导致与旧 HTML 内联 `__BUILD_ID__` 同源 → 自检判定无更新 → 不弹横幅（需手动刷新才更新）。修复 = `src/version-check.js` 的 fetch URL 加唯一时间戳 query（`/version.json?t=Date.now()`）做缓存击穿，X5 必走网络拿最新版本清单 → 正确触发「发现新版本」横幅。
