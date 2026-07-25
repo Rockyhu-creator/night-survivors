@@ -46,6 +46,8 @@
 - **动态逻辑分辨率**：
   - 桌面/横屏：960×540
   - **移动端锁竖屏（v0.24+，不再支持横屏）**：宽 540，高度按屏幕比例动态计算（960~1400）；横持时仍按竖屏渲染、等比缩放居中留黑边
+- **Canvas DPR 去虚（v0.26+）**：`canvas.width/height = LOGICAL * min(devicePixelRatio,2)`，`ctx.setTransform(dpr,0,0,dpr,0,0)`，CSS 尺寸保持逻辑像素→高 DPI 屏（尤其手机）锐利不发虚；DPR 封顶 2x 防 3x 手机内存爆炸
+- **跨设备瞄准一致（v0.26+）**：`pickTarget` 屏内优先（手机竖屏/桌面横屏都只锁可见最近敌）；`TARGET_RADIUS=540` 统一雷劫索敌；敌人回收环固定 `RECYCLE_RADIUS=900`（取代原 `LOGICAL_WIDTH*1.6`，设备无关）
 - **切后台自动暂停（v0.24+）**：`visibilitychange` 监听，`hidden` 且 `playing` 时自动进暂停界面，恢复时 dt 从零起步
 - **触屏检测**：`ontouchstart` + `maxTouchPoints` + `pointer: coarse` 多重检测，给 `<html>` 加 `.touch-device` class
 - **不依赖 CSS `pointer: coarse` 媒体查询**（微信 WebView 不支持）
@@ -150,6 +152,7 @@ title → playing → paused（ESC/P/按钮/切后台自动触发）
 - 桌面：`WASD / 方向键` 移动
 - 移动：`触屏拖动` 移动
 - 基于 `.desktop-only` / `.touch-only` class + `.touch-device` 切换
+- 「玩法说明」弹层（`index.html` #guide-screen）已于 v0.26 对接现状：12 分钟终局 / 9 分钟入夜 / Boss 3·6·9·12′、7 武器 / 9 被动 / 9 神器进化 / 6 血裔 / 灵魂祭坛 / 词缀怪；标题栏新增「Boss 宝箱→进化神器」提示。改动指南须同步此处。
 
 ### 竖屏布局（.portrait class，v0.24 起锁竖屏）
 - HUD 顶部元素垂直排列

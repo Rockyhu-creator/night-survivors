@@ -1,6 +1,12 @@
 import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
 import { sprite, tintedEnemySprite } from './assets.js';
 
+// 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
+const MAX_ENEMY_PROJECTILES = 400;
+// 回收环半径（世界单位，设备无关）：敌人游离超过此距离则传送回玩家前方，避免白走。
+// 固定值取代原 CONFIG.LOGICAL_WIDTH*1.6，使手机竖屏与桌面横屏回收行为一致。
+const RECYCLE_RADIUS = 900;
+
 export class Player {
   constructor() { this.reset(); }
 
@@ -318,6 +324,8 @@ export class EnemyManager {
     const spread = (40 * Math.PI) / 180;
     const waveStep = (18 * Math.PI) / 180;
     const wbase = base + (wave - (waves - 1) / 2) * waveStep;
+    // 数量上限保护：超限先丢弃最旧弹幕，腾出空间给本波，避免弹幕堆积卡顿
+    while (this.enemyProjectiles.length >= MAX_ENEMY_PROJECTILES) this.enemyProjectiles.shift();
     for (let i = 0; i < count; i += 1) {
       const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
       const angle = wbase + t * spread;
@@ -520,7 +528,7 @@ export class EnemyManager {
         continue;
       }
       const far = Math.hypot(e.x - player.x, e.y - player.y);
-      if (far > CONFIG.LOGICAL_WIDTH * 1.6 && e.type !== ENEMY_TYPES.elite && !e.isBoss) {
+      if (far > RECYCLE_RADIUS && e.type !== ENEMY_TYPES.elite && !e.isBoss) {
         // 传送到玩家前方视野边缘,避免白走
         const angle = Math.random() * Math.PI * 2;
         e.x = player.x + Math.cos(angle) * (CONFIG.LOGICAL_WIDTH / 2 + 80);
@@ -552,14 +560,24 @@ export class EnemyManager {
   }
 
   buildGrid() {
-    const grid = new Map();
+    // 复用持久 Map 与桶数组，避免每帧 new Map() + 大量小数组分配带来的 GC 压力（L5）
+    const grid = this._gridMap || (this._gridMap = new Map());
+    if (this._gridFree === undefined) this._gridFree = [];
+    for (const arr of grid.values()) this._gridFree.push(arr);
+    grid.clear();
     const cell = CONFIG.GRID_CELL;
+    const free = this._gridFree;
     for (const e of this.enemies) {
       const gx = Math.floor(e.x / cell);
       const gy = Math.floor(e.y / cell);
       const key = `${gx},${gy}`;
-      if (!grid.has(key)) grid.set(key, []);
-      grid.get(key).push(e);
+      let bucket = grid.get(key);
+      if (!bucket) {
+        bucket = free.length ? free.pop() : [];
+        bucket.length = 0;
+        grid.set(key, bucket);
+      }
+      bucket.push(e);
     }
     return grid;
   }

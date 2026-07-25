@@ -8,6 +8,10 @@ const GEM_DEFS = [
   { key: 'gemRed', min: 50, size: 34, color: '#e74c3c' },   // 红宝石：暗影猎手/终局召唤
 ];
 
+// 宝石实体数量上限（L4）：后期怪潮下 drop 可能无限堆积，接近上限时把剩余经验合并成单颗宝石，
+// 既限制数组规模防掉帧，又不丢失经验值。
+const MAX_GEMS = 500;
+
 export class PickupSystem {
   constructor(game) {
     this.game = game;
@@ -19,6 +23,20 @@ export class PickupSystem {
   drop(x, y, expValue) {
     let rest = expValue;
     while (rest > 0) {
+      // 接近上限：把剩余经验合并成一颗红宝石，避免数组无限增长（经验不丢）
+      if (this.gems.length >= MAX_GEMS) {
+        this.gems.push({
+          x: x + (Math.random() * 2 - 1) * 14,
+          y: y + (Math.random() * 2 - 1) * 14,
+          value: rest,
+          def: GEM_DEFS[4],
+          magnet: false,
+          vx: 0, vy: 0,
+          bob: Math.random() * Math.PI * 2,
+          life: 20,
+        });
+        return;
+      }
       let def = GEM_DEFS[0];
       if (rest >= 50) def = GEM_DEFS[4];        // 红宝石
       else if (rest >= 25) def = GEM_DEFS[3];   // 金宝石
@@ -180,14 +198,21 @@ export class FXSystem {
   constructor() {
     this.numbers = [];
     this.particles = [];
+    this._frameN = 0; // L2: 每帧伤害数字计数（update 中重置）
+    this._frameP = 0; // L2: 每帧粒子计数
   }
 
   reset() {
     this.numbers.length = 0;
     this.particles.length = 0;
+    this._frameN = 0;
+    this._frameP = 0;
   }
 
   spawnDamageNumber(x, y, amount, color = '#fff') {
+    // L2: 每帧至多 14 个伤害数字，避免 AoE 密集命中时刷屏与数组抖动
+    if (this._frameN >= 14) return;
+    this._frameN += 1;
     if (this.numbers.length > 120) this.numbers.shift();
     this.numbers.push({
       x: x + (Math.random() * 2 - 1) * 8,
@@ -200,6 +225,10 @@ export class FXSystem {
   }
 
   spawnSparks(x, y, color, count) {
+    // L2: 每帧至多 40 个粒子，配合下方硬上限避免单帧爆量
+    count = Math.min(count, 40 - this._frameP);
+    if (count <= 0) return;
+    this._frameP += count;
     for (let i = 0; i < count; i += 1) {
       if (this.particles.length > 300) this.particles.shift();
       const angle = Math.random() * Math.PI * 2;
@@ -217,6 +246,8 @@ export class FXSystem {
   }
 
   update(dt) {
+    this._frameN = 0; // L2: 新的一帧，重置特效节流计数
+    this._frameP = 0;
     for (let i = this.numbers.length - 1; i >= 0; i -= 1) {
       const n = this.numbers[i];
       n.life -= dt;

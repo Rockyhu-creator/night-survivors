@@ -72,8 +72,12 @@ export class Game {
   init() {
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
-    this.canvas.width = CONFIG.LOGICAL_WIDTH;
-    this.canvas.height = CONFIG.LOGICAL_HEIGHT;
+    // DPR 去虚：backing store 按设备像素比放大（封顶 2x，避免 3x 手机内存爆炸），
+    // 再用 setTransform 把绘制坐标缩回逻辑分辨率，CSS 尺寸保持逻辑像素 → 高 DPI 屏锐利不糊。
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.canvas.width = Math.floor(CONFIG.LOGICAL_WIDTH * this.dpr);
+    this.canvas.height = Math.floor(CONFIG.LOGICAL_HEIGHT * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = false;
 
     this.input = new Input();
@@ -140,8 +144,11 @@ export class Game {
     }
     // 竖屏时相机锚点上移：玩家显示在画面 42% 高度处，下方多留视野（手指操作区在下半屏）
     this.cameraAnchorY = isPortrait ? 0.42 : 0.5;
-    this.canvas.width = CONFIG.LOGICAL_WIDTH;
-    this.canvas.height = CONFIG.LOGICAL_HEIGHT;
+    // DPR 去虚：backing store 随 DPR 放大，setTransform 缩回逻辑分辨率（resize 时重设，避免叠加）
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.canvas.width = Math.floor(CONFIG.LOGICAL_WIDTH * this.dpr);
+    this.canvas.height = Math.floor(CONFIG.LOGICAL_HEIGHT * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = false;
     // 重新生成地面 pattern（canvas 尺寸变化后 pattern 可能失效）
     this.regenerateGroundPattern();

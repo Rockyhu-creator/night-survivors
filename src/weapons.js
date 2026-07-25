@@ -1,6 +1,10 @@
 import { WEAPONS, CONFIG } from './data.js';
 import { sprite } from './assets.js';
 
+// 跨设备一致的瞄准半径：取桌面端可视半对角线（960×540 → ≈550）。
+// 手机端竖屏锁定后可视范围更窄，统一用此上限，避免「手机打屏外敌人、电脑打最近」的差异。
+const TARGET_RADIUS = 540;
+
 export class WeaponSystem {
   constructor(game) {
     this.game = game;
@@ -167,7 +171,7 @@ export class WeaponSystem {
       st.lastY = player.y;
       if (st.tempestDistance > 60 && enemies.length > 0) {
         st.tempestDistance = 0;
-        const target = game.enemies.nearestTo(player.x, player.y, 320);
+        const target = game.enemies.nearestTo(player.x, player.y, TARGET_RADIUS);
         if (target) this.strikeLightning(target, { damage: 30 * player.damageMul, chains: 2, chainRange: 160 }, new Set());
       }
     } else if (weapon.id === 'sepulcher') {
@@ -215,6 +219,7 @@ export class WeaponSystem {
             kind: 'cross', x: player.x, y: player.y,
             vx: Math.cos(ang) * 440, vy: Math.sin(ang) * 440,
             damage: 30 * player.damageMul, pierce: 3, life: 1.6, spin: 0, hitSet: new Set(),
+            matrix: true, // 圣光矩阵觉醒标记：渲染时用专属特效区分于黎明圣印
           });
         }
       }
@@ -353,14 +358,24 @@ export class WeaponSystem {
     if (enemies.length === 0) return null;
     const player = this.game.player;
     const px = player.x, py = player.y;
+    const cam = this.game.camera;
+    // 可视矩形（含 50px 外扩余量）：屏内优先，手机/电脑都只锁「看得见」的敌人，消除跨设备差异
+    const vx0 = cam.ox - 50, vy0 = cam.oy - 50;
+    const vx1 = cam.ox + CONFIG.LOGICAL_WIDTH + 50, vy1 = cam.oy + CONFIG.LOGICAL_HEIGHT + 50;
     const k = Math.min(offset, enemies.length - 1);
     // scratch 池按 (k+1) 复用，避免每帧分配
     const pool = this._pickPool || (this._pickPool = []);
     if (pool.length < k + 1) pool.length = k + 1;
     let count = 0;
+    let visBest = null, visD = Infinity;
     for (const e of enemies) {
       const dx = e.x - px, dy = e.y - py;
       const d = dx * dx + dy * dy;
+      // 屏内最近（仅主目标 offset=0 生效，避免扇形副目标也强锁屏内）
+      if (offset === 0) {
+        const onScreen = e.x >= vx0 && e.x <= vx1 && e.y >= vy0 && e.y <= vy1;
+        if (onScreen && d < visD) { visD = d; visBest = e; }
+      }
       if (count < k + 1) {
         // 未满：按升序插入
         let i = count++;
@@ -372,6 +387,8 @@ export class WeaponSystem {
         pool[i] = { d, e };
       }
     }
+    // 屏内优先：优先锁屏内最近敌人；屏内无敌人（罕见）再退回全局最近
+    if (offset === 0 && visBest) return visBest;
     return count > 0 ? pool[Math.min(k, count - 1)].e : null;
   }
 
@@ -673,8 +690,36 @@ export class WeaponSystem {
       const sy = p.y - cam.oy;
       ctx.save();
       ctx.translate(sx, sy);
-      if (p.kind === 'cross') {
-        // 黎明圣印 / 圣光矩阵：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分
+      if (p.kind === 'cross' && p.matrix) {
+        // 圣光矩阵觉醒：更大金色圣印 + additive 辉光 + 运动拖尾，与黎明圣印明显区分（纯观感）
+        const img = sprite('weapon_cross');
+        const size = 42;
+        const spin = (p.spin || 0) + (this.game.time || 0) * 2.2;
+        const sp = Math.hypot(p.vx, p.vy) || 1;
+        const ux = p.vx / sp, uy = p.vy / sp;
+        // 运动拖尾（沿 -v 方向，加法合成）
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = '#ffe6a0';
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(-ux * 24, -uy * 24);
+        ctx.lineTo(ux * 24, uy * 24);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.rotate(spin);
+        ctx.shadowColor = '#ffd24a';
+        ctx.shadowBlur = 18;
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        else {
+          ctx.fillStyle = '#ffd76a';
+          ctx.fillRect(-size / 2, -4, size, 8);
+          ctx.fillRect(-4, -size / 2, 8, size);
+        }
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'source-over';
+      } else if (p.kind === 'cross') {
+        // 黎明圣印：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分
         const img = sprite('weapon_cross');
         const size = 30;
         ctx.rotate((p.spin || 0) + (this.game.time || 0) * 1.5);

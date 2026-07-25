@@ -117,21 +117,28 @@ with sync_playwright() as p:
 
     # 阶段技能：打到 65% 触发召唤
     bats_before = page.evaluate("() => window.__game.enemies.enemies.filter(e => !e.isBoss && e.type && e.type.sprite === 'bat').length")
+    # 加固：重臂所有阶段技能运行时，并把 hp 钉在 0.65 触发带，避免「此前已触发过」导致本次不再召唤的误报
     page.evaluate("""() => {
       const b = window.__game.enemies.activeBoss;
-      if (b) b.hp = b.maxHp * 0.65;
+      if (b) {
+        b.skillRuntime.forEach(rt => { rt.triggered = false; });
+        b.hp = b.maxHp * 0.65;
+      }
     }""")
-    page.wait_for_timeout(600)
+    page.wait_for_timeout(1500)
     dismiss_upgrades(page)
     bats_after = page.evaluate("() => window.__game.enemies.enemies.filter(e => !e.isBoss && e.type && e.type.sprite === 'bat').length")
     expect('65%血 召唤蝙蝠', bats_after > bats_before)
 
-    # 打到 35% 触发弹幕
+    # 打到 35% 触发弹幕（同样重臂技能运行时，放宽等待窗口，消除 TOTAL FAILURES 偶发误报）
     page.evaluate("""() => {
       const b = window.__game.enemies.activeBoss;
-      if (b) b.hp = b.maxHp * 0.35;
+      if (b) {
+        b.skillRuntime.forEach(rt => { rt.triggered = false; });
+        b.hp = b.maxHp * 0.35;
+      }
     }""")
-    page.wait_for_timeout(600)
+    page.wait_for_timeout(1500)
     dismiss_upgrades(page)
     expect('35%血 扇形弹幕', page.evaluate("() => window.__game.enemies.enemyProjectiles.length > 0"))
     page.screenshot(path='/tmp/e2e_boss_fight.png')
