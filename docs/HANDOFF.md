@@ -200,8 +200,9 @@ git push origin main
 **治本方案（v0.28 起，`public/_headers` 按类型分策略）**：
 - `/` 与 `/index.html`：`no-store`（v0.29 起，原为 `no-cache`）—— 入口完全不存储、每次打开拉最新，能立刻拿到最新带 hash 的 JS/CSS 引用（代码/玩法更新即时生效）。用 `no-store` 是因微信 X5 内核偶有无视 `no-cache` 启发式喂旧缓存的 bug，`no-store` 禁存信号更强。
 - `/assets/*.js`、`/assets/*.css`、`/fonts/*`：`max-age=31536000, immutable` —— Vite 产物文件名带内容 hash，内容变文件名变，可安全永久缓存。
-- `/assets/*.png`（游戏美术，固定文件名）：`max-age=0, must-revalidate` —— 存储但每次走 ETag 校验，换图即时刷新、未改返回 304 几乎零开销。
+- `/assets/*.png`（游戏美术，固定文件名）：`max-age=31536000, immutable`（v0.30 起，原为 `must-revalidate`）。配合**构建版本号击穿**——`vite.config.js` 的 `define` 在构建时注入 `BUILD_ID`（= Cloudflare Pages 的 `CF_PAGES_COMMIT_SHA`，本地 fallback `Date.now()`），所有 PNG 请求自动附 `?v=BUILD_ID`；每次发版 commit 变化 → URL 变化 → 旧图缓存自动失效，因此可安全永久缓存。仅 `assets.js` 主加载与 `ui.js` 血裔按钮图标两处裸拼接加版本号（图鉴/升级/祭坛图标经 `sprite().src` 间接继承，不用改）。
 - ⚠️ **CF Pages 坑**：多规则命中同一文件时同名 header 会「逗号拼接」（非覆盖），因此**禁止再用 `/*` 兜底 Cache-Control**，全部写成互不重叠的按扩展名规则。
+- ⚠️ **dev server 必须先重启才能吃新 config**：`vite.config.js` 是 vite **启动时**读取的，运行中新建/修改不会热加载。改完 config 必须重启 dev server（否则 dev 模式下 `__BUILD_ID__` 不被替换、浏览器报 `ReferenceError` 使游戏崩溃）。生产 `vite build` 不受影响（构建时必读 config）。
 
 **用户存档与缓存的关系（重要，勿混淆）**：全部进度存于 `localStorage`（`ns_best`/`ns_souls`/`ns_collection`/`ns_audio`/`ns_guide_seen`），与 HTTP 缓存是**两套独立存储**。上述所有缓存治理/清缓存操作（含微信清缓存、debugx5 清内核、`?v=` 绕过）**只影响 HTTP 缓存，绝不动 `localStorage`**，存档 100% 安全。唯一会清存档的是「清除网站数据/清除全部数据」，任何缓存方案都不应涉及它。
 

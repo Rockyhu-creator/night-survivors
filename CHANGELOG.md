@@ -5,6 +5,24 @@
 
 ---
 
+## v0.30（2026-07-25 · `[未提交]`）
+
+### 新增
+- **美术图 URL 缓存击穿**：构建时由 `vite.config.js` 的 `define` 注入 `BUILD_ID`（Cloudflare Pages 自动注入 `CF_PAGES_COMMIT_SHA`，本地 fallback `Date.now()`），所有 PNG 请求自动附 `?v=BUILD_ID`。每次发版 commit 变化 → URL 变化 → 旧图缓存自动失效，无需手动清缓存。
+- 新建 `vite.config.js`，仅注入 `__BUILD_ID__` 这个构建常量，不改 Vite 其他默认行为。
+
+### 调整
+- **`_headers`**：`/assets/*.png` 由 `max-age=0, must-revalidate`（每次 ETag 校验）改为 `public, max-age=31536000, immutable`（永久缓存）。依赖上方 URL 版本号击穿来区分版本，换图即时生效。
+
+### 优化
+- 重复访问时美术图（约 50 张 PNG）首屏加载后**零请求**，消除启动时的 304 校验往返；弱网/低端机加载更顺。
+
+### 说明
+- 仅改 `assets.js` 主加载与 `ui.js` 血裔按钮图标两处裸拼接 URL（图鉴/升级/祭坛图标经 `sprite().src` 间接继承版本号，无需改动）；CSS 背景图（`bg_title.png`，固定 AI 美术）与 `upgrade.js` 兜底字符串属边缘且不变，保持原样。
+- 用户存档仍存 `localStorage`，与本优化无关，100% 安全。
+
+---
+
 ## v0.29（2026-07-25 · `39379a8`）
 
 ### 调整

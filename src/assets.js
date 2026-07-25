@@ -1,3 +1,6 @@
+// 构建版本号（由 vite.config.js 的 define 注入），用于美术图 URL 缓存击穿。
+const BUILD_ID = __BUILD_ID__;
+
 const files = {
   player: 'player.png',
   player_wanderer: 'player_wanderer.png',
@@ -97,7 +100,7 @@ export function loadAssets(onProgress) {
       onProgress?.(done / keys.length);
       resolve();
     };
-    img.src = `/assets/${files[key]}`;
+    img.src = `/assets/${files[key]}?v=${BUILD_ID}`;
   })));
 }
 

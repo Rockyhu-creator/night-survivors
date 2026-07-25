@@ -2,6 +2,9 @@ import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, 
 import { buildCollectionData } from './evolution.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
+// 构建版本号（由 vite define 注入，用于美术图 URL 缓存击穿）
+const BUILD_ID = __BUILD_ID__;
+
 // 怪物图鉴描述（基于实际行为，不剧透公式）
 const MONSTER_LORE = {
   bat: '高速直冲,成群结队,单体孱弱',
@@ -104,7 +107,7 @@ export class UIManager {
       const span = this.bloodlineBtnEl.querySelector('span');
       if (span) span.textContent = `血裔：${bl.name}`;
       const icon = document.getElementById('btn-bloodline-icon');
-      if (icon) icon.src = `/assets/${bl.icon}.png`;
+      if (icon) icon.src = `/assets/${bl.icon}.png?v=${BUILD_ID}`;
     }
     // 首启自动弹玩法说明（localStorage 记忆，仅首次）。try/catch 防隐私模式抛异常（P0）
     let guideSeen = false;

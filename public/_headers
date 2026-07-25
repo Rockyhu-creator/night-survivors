@@ -22,7 +22,8 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
-# 游戏美术 PNG（固定文件名、无 hash）：存储但每次校验（走 ETag）。
-# 换图后能立即刷新；未改动则服务器返回 304（无 body）几乎零开销。
+# 游戏美术 PNG（固定文件名、无 hash）：URL 已带 ?v=BUILD_ID 版本号击穿，
+# 故可安全永久缓存。发版后 commit SHA 变化 → URL 变化 → 旧缓存自动失效；
+# 未发版时浏览器直接命中本地缓存，连 304 校验请求都不发。
 /assets/*.png
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: public, max-age=31536000, immutable
