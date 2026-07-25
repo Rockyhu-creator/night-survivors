@@ -5,6 +5,16 @@
 
 ---
 
+## v0.36（2026-07-26 · `594785e`）
+
+### 新增
+- **永劫之鞭专属配色（熔金黑鞭）**：打通此前缺失的 tint 链路——`applyWhip` 新增第 5 参 `tint`，`ETERNALWHIP_TINT`（鞭身主色 #ffb847 / 青铜描边 #4a2f12 / 尖端高光 #fff1c9 / 拖尾 #d4af37 / 火花 #f1c40f）仅在 eternalwhip 觉醒时上色；render 的 slash 描边与尖端高光改 tint 感知，基础鞭不传 tint 仍走原粉色，向前兼容零变化。无需新增 PNG，纯 canvas stroke 着色。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台错误）；`node --check src/weapons.js` 通过。
+
+---
+
 ## v0.35（2026-07-26 · `9057ca2`）
 
 ### 新增

@@ -264,6 +264,8 @@ git push origin main
 
 图鉴界面（`#codex-screen`）显示解锁状态。
 
+> **武器特效 / tint 链路（v0.36）**：各神器觉醒武器的专属视觉差异目前集中在渲染层 tint。永劫之鞭（eternalwhip）在 `src/weapons.js` 顶部定义 `ETERNALWHIP_TINT`（熔金黑鞭配色：body #ffb847 / edge #4a2f12 / tip #fff1c9），经 `applyWhip` 第 5 参透传至 slash，render 描边与尖端高光改 tint 感知；基础鞭不传 tint 走原粉色。其余神器（storm/devour/spiral/stormcall/crimson/tempest/sepulcher/matrix）的专属特效沿用各自既有渲染分支。规格扩展项（残影光晕 / 命中火花 / 主题伤害数字）尚未实现，预留 `trail`/`spark` 键待补。
+
 ---
 
 ## 10. 测试
