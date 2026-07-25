@@ -511,15 +511,18 @@ export class EnemyManager {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life -= dt;
-      const distP = Math.hypot(p.x - player.x, p.y - player.y);
-      if (distP < p.radius + player.radius) {
+      // 平方距离比较：与 hypot 数学等价，一次计算供触碰与 800 外清理两用，消除每弹每帧开方
+      const dxP = p.x - player.x, dyP = p.y - player.y;
+      const d2 = dxP * dxP + dyP * dyP;
+      const touchR = p.radius + player.radius;
+      if (d2 < touchR * touchR) {
         if (player.takeDamage(p.damage)) {
           this.game.onPlayerHit();
         }
         this.enemyProjectiles.splice(i, 1);
         continue;
       }
-      if (p.life <= 0 || distP > 800) {
+      if (p.life <= 0 || d2 > 800 * 800) {
         this.enemyProjectiles.splice(i, 1);
       }
     }
@@ -579,7 +582,12 @@ export class EnemyManager {
   }
 
   render(ctx, cam) {
-    const sorted = [...this.enemies].sort((a, b) => a.y - b.y);
+    // 复用 scratch 数组原地排序：消除每帧 [...enemies] 全拷贝分配；
+    // y 顺序帧间近似稳定，原生 sort 在近有序输入上接近 O(n)，绘制结果与全排序一致
+    const sorted = this._renderScratch || (this._renderScratch = []);
+    sorted.length = 0;
+    for (const e of this.enemies) sorted.push(e);
+    sorted.sort((a, b) => a.y - b.y);
     for (const e of sorted) {
       const sx = Math.round(e.x - cam.ox);
       const sy = Math.round(e.y - cam.oy);

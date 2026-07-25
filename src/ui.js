@@ -130,12 +130,20 @@ export class UIManager {
   update(dt) {
     const game = this.game;
     const player = game.player;
-    this.expBar.style.width = `${Math.min(100, (player.exp / expForLevel(player.level)) * 100)}%`;
-    this.levelText.textContent = `LV.${player.level}`;
-    this.hpBar.style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
-    this.hpText.textContent = `${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp}`;
-    this.timerEl.textContent = formatTime(game.time);
-    this.killEl.textContent = `☠ ${game.kills}`;
+    // 值变化才写 DOM：避免每帧 textContent/style.width 触发重排（显示内容不变）
+    const h = this._hudCache || (this._hudCache = {});
+    const expW = `${Math.min(100, (player.exp / expForLevel(player.level)) * 100).toFixed(1)}%`;
+    if (h.expW !== expW) { h.expW = expW; this.expBar.style.width = expW; }
+    const lv = `LV.${player.level}`;
+    if (h.lv !== lv) { h.lv = lv; this.levelText.textContent = lv; }
+    const hpW = `${Math.max(0, (player.hp / player.maxHp) * 100).toFixed(1)}%`;
+    if (h.hpW !== hpW) { h.hpW = hpW; this.hpBar.style.width = hpW; }
+    const hpT = `${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp}`;
+    if (h.hpT !== hpT) { h.hpT = hpT; this.hpText.textContent = hpT; }
+    const t = formatTime(game.time);
+    if (h.t !== t) { h.t = t; this.timerEl.textContent = t; }
+    const k = `☠ ${game.kills}`;
+    if (h.k !== k) { h.k = k; this.killEl.textContent = k; }
     if (this.vignetteAlpha > 0) {
       this.vignetteAlpha = Math.max(0, this.vignetteAlpha - dt * 2.4);
       this.vignette.style.opacity = this.vignetteAlpha.toFixed(2);
@@ -227,8 +235,8 @@ export class UIManager {
   updateBossBar() {
     const boss = this.game.enemies.activeBoss;
     if (!boss) return;
-    const pct = Math.max(0, (boss.hp / boss.maxHp) * 100);
-    this.bossBarFill.style.width = `${pct}%`;
+    const pct = `${Math.max(0, (boss.hp / boss.maxHp) * 100).toFixed(1)}%`;
+    if (this._bossPct !== pct) { this._bossPct = pct; this.bossBarFill.style.width = pct; }
   }
 
   hideBossBar() {

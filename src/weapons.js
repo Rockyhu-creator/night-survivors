@@ -347,15 +347,32 @@ export class WeaponSystem {
   }
 
   pickTarget(offset = 0) {
+    // 线性选第 offset 近敌人（平方距离比较）：与原先全量 sort 结果等价，
+    // 但 O(offset·n) 无数组分配，避免每次开火都 [...enemies].sort()
     const enemies = this.game.enemies.enemies;
     if (enemies.length === 0) return null;
     const player = this.game.player;
-    const sorted = [...enemies].sort((a, b) => {
-      const da = Math.hypot(a.x - player.x, a.y - player.y);
-      const db = Math.hypot(b.x - player.x, b.y - player.y);
-      return da - db;
-    });
-    return sorted[Math.min(offset, sorted.length - 1)];
+    const px = player.x, py = player.y;
+    const k = Math.min(offset, enemies.length - 1);
+    // scratch 池按 (k+1) 复用，避免每帧分配
+    const pool = this._pickPool || (this._pickPool = []);
+    if (pool.length < k + 1) pool.length = k + 1;
+    let count = 0;
+    for (const e of enemies) {
+      const dx = e.x - px, dy = e.y - py;
+      const d = dx * dx + dy * dy;
+      if (count < k + 1) {
+        // 未满：按升序插入
+        let i = count++;
+        while (i > 0 && pool[i - 1].d > d) { pool[i] = pool[i - 1]; i -= 1; }
+        pool[i] = { d, e };
+      } else if (d < pool[k].d) {
+        let i = k;
+        while (i > 0 && pool[i - 1].d > d) { pool[i] = pool[i - 1]; i -= 1; }
+        pool[i] = { d, e };
+      }
+    }
+    return count > 0 ? pool[Math.min(k, count - 1)].e : null;
   }
 
   strikeLightning(startEnemy, s, hitSet) {

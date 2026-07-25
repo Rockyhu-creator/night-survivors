@@ -90,6 +90,10 @@ export class Game {
 
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
+    // 切后台/切 App 自动进暂停：避免 rAF 停止期间 dt 被截断后敌人瞬移偷袭
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.state === 'playing') this.togglePause();
+    });
     this.resize();
 
     loadAssets().then(() => {
@@ -117,12 +121,15 @@ export class Game {
   resize() {
     // 仅触屏设备启用竖屏模式（桌面端缩窗口不触发）
     const isTouchDevice = document.documentElement.classList.contains('touch-device');
-    // 竖屏判定：高明显大于宽（避免边缘 case 误判，如 browser automation 时尺寸为 0）
-    const isPortrait = isTouchDevice && window.innerHeight > window.innerWidth * 1.2;
+    // 手机端锁定竖屏：只要是触屏设备就按竖屏逻辑分辨率渲染，横持时等比缩放居中留黑边，
+    // 不再切换横屏布局（产品决定：不支持手机横屏游玩）
+    const isPortrait = isTouchDevice;
     // 动态逻辑分辨率：竖屏下保持宽 540，高度按屏幕实际比例计算，铺满全屏无黑边
     // 高度范围 [960, 1400]：下限保证至少和原来一样的视野，上限避免极端狭长手机看到过多内容
     if (isPortrait) {
-      const ratio = window.innerHeight / window.innerWidth;
+      // 横持时 innerWidth>innerHeight，用倒数比例保证高度仍在 [960,1400] 竖屏区间
+      const rawRatio = window.innerHeight / window.innerWidth;
+      const ratio = rawRatio < 1 ? 1 / rawRatio : rawRatio;
       CONFIG.LOGICAL_WIDTH = 540;
       CONFIG.LOGICAL_HEIGHT = Math.max(960, Math.min(1400, Math.round(540 * ratio)));
       document.documentElement.classList.add('portrait');
@@ -227,6 +234,7 @@ export class Game {
     } else if (this.state === 'title' || this.state === 'gameover') {
       this.renderBackdropOnly(dt);
     } else if (this.state === 'upgrading' || this.state === 'paused') {
+      this.lastTs = 0; // 暂停/升级期间持续重置时间基准，恢复时 dt 从零起步，不累加快进
       this.render();
     }
   }
