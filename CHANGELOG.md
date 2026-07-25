@@ -5,7 +5,7 @@
 
 ---
 
-## v0.30（2026-07-25 · `[未提交]`）
+## v0.30（2026-07-25 · `b552a9a`）
 
 ### 新增
 - **美术图 URL 缓存击穿**：构建时由 `vite.config.js` 的 `define` 注入 `BUILD_ID`（Cloudflare Pages 自动注入 `CF_PAGES_COMMIT_SHA`，本地 fallback `Date.now()`），所有 PNG 请求自动附 `?v=BUILD_ID`。每次发版 commit 变化 → URL 变化 → 旧图缓存自动失效，无需手动清缓存。
