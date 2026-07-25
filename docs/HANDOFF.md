@@ -25,7 +25,7 @@
 - **12 分钟（`ENDGAME_BOSS_TIME=720`）**：终局 Boss「永夜化身」降临，**击杀即通关**（`state='victory'`）
 - **15 分钟（`GAME_HARD_CAP=900`）**：硬上限，到点仍有终局 Boss 存活则 `gameOver('timeout')` 判失败（区别于阵亡/胜利）
 - 后期小怪：暗影猎手（冲刺）、石像鬼（免疫击退）、狼群 pack 波次
-- 词缀系统：`volatile`（死亡爆破·橙）/ `shielded`（减伤·蓝）/ `pack`（成群·琥珀金）
+- 词缀系统：`volatile`（死亡爆破·橙·星爆徽标）/ `shielded`（减伤·蓝·盾牌徽标）/ `pack`（成群·琥珀金·三点徽标）；**本体不染色**，属性用彩色脉冲光环 + 头顶徽标表达（共享 `drawAffixBadge`），爆破死亡播放范围冲击波特效
 
 ---
 
@@ -73,7 +73,7 @@ Trae_game/
 │   ├── ui.js               # UIManager：HUD、Boss 血条、图鉴、警告
 │   ├── mobile-controls.js  # 浮动摇杆（全屏触摸）+ 触屏暂停按钮
 │   ├── data.js             # CONFIG、DIFFICULTIES、ENEMY_TYPES、BOSSES、AFFIXES、PASSIVES、WEAPONS
-│   ├── assets.js           # 素材加载 + tintedEnemySprite（词缀着色共享）
+│   ├── assets.js           # 素材加载 + drawAffixBadge（词缀头顶徽标，游戏内/图鉴共用）；tintedEnemySprite 已弃用
 │   └── style.css           # 全部样式（含 .touch-device/.portrait 响应式）
 ├── public/
 │   ├── assets/             # 游戏图片素材（png）

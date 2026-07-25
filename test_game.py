@@ -505,22 +505,30 @@ with sync_playwright() as p:
         const txt = stats ? stats.textContent : '';
         return txt.includes('终局 12 分降临') && !txt.includes('首现 1666分');
     }"""))
-    # 词缀变种卡：着色精灵(data:image 非底色素材) + 彩色边框，确认「图鉴也换颜色」真实生效
-    expect('词缀卡 爆破史莱姆 着色精灵+橙边', page.evaluate("""() => {
+    # 特殊属性卡：自然精灵 + 彩色光环 + 头顶徽标(离屏 canvas 生成的 data:image) + 彩色边框
+    expect('词缀卡 爆破 自然精灵+橙边', page.evaluate("""() => {
         const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
-        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '爆破史莱姆'; });
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '爆破'; });
         if (!card) return false;
         const img = card.querySelector('img');
         const border = card.style.borderLeftColor || '';
         return !!img && (img.getAttribute('src')||'').startsWith('data:image') && border.includes('rgb(230, 126, 34)');
     }"""))
-    expect('词缀卡 护盾骷髅 着色精灵+蓝边', page.evaluate("""() => {
+    expect('词缀卡 护盾 自然精灵+蓝边', page.evaluate("""() => {
         const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
-        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '护盾骷髅'; });
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '护盾'; });
         if (!card) return false;
         const img = card.querySelector('img');
         const border = card.style.borderLeftColor || '';
         return !!img && (img.getAttribute('src')||'').startsWith('data:image') && border.includes('rgb(52, 152, 219)');
+    }"""))
+    expect('词缀卡 狼群 自然精灵+金边', page.evaluate("""() => {
+        const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
+        const card = cards.find(c => { const n = c.querySelector('.cc-name'); return n && n.textContent === '狼群'; });
+        if (!card) return false;
+        const img = card.querySelector('img');
+        const border = card.style.borderLeftColor || '';
+        return !!img && (img.getAttribute('src')||'').startsWith('data:image') && border.includes('rgb(241, 196, 15)');
     }"""))
     page.evaluate("() => window.__game.ui.hideCodex()")
     page.wait_for_timeout(200)
@@ -847,6 +855,15 @@ with sync_playwright() as p:
     expect('狼群怪 affixDef.color=琥珀金', page.evaluate(
         "() => { const e = window.__game.enemies.enemies.find(x => x.affix === 'pack'); return !!e && e.affixDef && e.affixDef.color === '#f1c40f'; }"))
     expect('狼群怪渲染无控制台报错', len(errors) == err_before_pack)
+    # 爆破死亡爆炸特效冒烟测试：强制一只怪变爆破并死亡，确认 spawnExplosion 写入 fx.rings 且无报错
+    err_before_expl = len(errors)
+    page.evaluate("""() => {
+        const e = window.__game.enemies.enemies.find(x => !x.isBoss);
+        if (e) { e.affix = 'volatile'; e.hp = -1; }
+    }""")
+    page.wait_for_timeout(120)
+    expect('爆破死亡触发爆炸特效(fx.rings)', page.evaluate("() => window.__game.fx.rings.length > 0"))
+    expect('爆破特效无控制台报错', len(errors) == err_before_expl)
     page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.state = 'title'; }")
 
     # --- 宝石 20s 过期回归：普通经验宝石 20s 后自动消失；宝箱/血瓶永不消失 ---

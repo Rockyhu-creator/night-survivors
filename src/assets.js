@@ -173,6 +173,53 @@ export function tintedEnemySprite(base, color, key) {
   return c;
 }
 
+// 词缀头顶徽标（方案①：本体不染色，属性用光环+徽标表达）。纯函数，游戏内渲染与图鉴共用。
+// affix: 'volatile' | 'shielded' | 'pack'；cx/cy 为徽标中心，scale 控制尺寸。
+export function drawAffixBadge(ctx, affix, cx, cy, scale = 1) {
+  ctx.save();
+  if (affix === 'volatile') {
+    const col = '#e67e22';
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
+    ctx.lineWidth = 2 * scale;
+    const R = 7 * scale;
+    for (let k = 0; k < 8; k += 1) {
+      const a = (k / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5);
+      ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.4 * scale, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (affix === 'shielded') {
+    const col = '#3498db';
+    ctx.fillStyle = col;
+    const w = 8 * scale, h = 10 * scale;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - h / 2);
+    ctx.lineTo(cx + w / 2, cy - h / 2 + 2 * scale);
+    ctx.lineTo(cx + w / 2, cy + h / 4);
+    ctx.quadraticCurveTo(cx + w / 2, cy + h / 2, cx, cy + h / 2);
+    ctx.quadraticCurveTo(cx - w / 2, cy + h / 2, cx - w / 2, cy + h / 4);
+    ctx.lineTo(cx - w / 2, cy - h / 2 + 2 * scale);
+    ctx.closePath();
+    ctx.fill();
+  } else if (affix === 'pack') {
+    const col = '#f1c40f';
+    ctx.fillStyle = col;
+    const r = 2.6 * scale, d = 5 * scale;
+    const pts = [[0, -d * 0.6], [-d * 0.6, d * 0.5], [d * 0.6, d * 0.5]];
+    for (const [dx, dy] of pts) {
+      ctx.beginPath();
+      ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 export function sprite(key) {
   const img = images[key];
   if (!img) return null;

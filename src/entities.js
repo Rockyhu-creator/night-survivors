@@ -1,5 +1,5 @@
 import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
-import { sprite, tintedEnemySprite } from './assets.js';
+import { sprite, drawAffixBadge } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
 const MAX_ENEMY_PROJECTILES = 400;
@@ -516,6 +516,8 @@ export class EnemyManager {
           if (bd < AFFIXES.volatile.blastRadius) {
             if (player.takeDamage(AFFIXES.volatile.blastDamage)) this.game.onPlayerHit();
           }
+          // 爆破死亡特效：范围冲击波 + 火花（无论玩家是否在范围内都播放）
+          this.game.fx.spawnExplosion(e.x, e.y, AFFIXES.volatile.blastRadius, '#ff7a33');
         }
         this.game.onEnemyKilled(e);
         if (e.isBoss) {
@@ -634,7 +636,6 @@ export class EnemyManager {
       const sy = Math.round(e.y - cam.oy);
       if (sx < -120 || sy < -120 || sx > CONFIG.LOGICAL_WIDTH + 120 || sy > CONFIG.LOGICAL_HEIGHT + 120) continue;
       let img = sprite(e.type.sprite);
-      if (e.affixDef && e.affixDef.color && img) img = tintedEnemySprite(img, e.affixDef.color, e.type.sprite);
       const wobbleY = e.type === ENEMY_TYPES.bat ? Math.sin(e.wobble) * 3 : 0;
       const size = e.spriteSize;
       // 脚下阴影
@@ -733,6 +734,13 @@ export class EnemyManager {
         ctx.fill();
       }
       ctx.restore();
+      // 词缀头顶徽标（方案①：本体不染色，属性用光环+徽标表达）；屏幕坐标绘制避免被 facing/微动画变换拉伸
+      if (e.affix === 'volatile' || e.affix === 'shielded' || e.affix === 'pack') {
+        ctx.save();
+        ctx.translate(sx, sy - (e.radius + 14));
+        drawAffixBadge(ctx, e.affix, 0, 0, 1);
+        ctx.restore();
+      }
     }
     for (const p of this.enemyProjectiles) {
       const sx = p.x - cam.ox;

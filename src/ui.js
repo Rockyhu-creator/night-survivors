@@ -1,6 +1,6 @@
 import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
-import { sprite, tintedEnemySprite } from './assets.js';
+import { sprite, drawAffixBadge } from './assets.js';
 
 // 怪物图鉴描述（基于实际行为，不剧透公式）
 const MONSTER_LORE = {
@@ -452,26 +452,53 @@ export class UIManager {
     document.getElementById('codex-artifacts').classList.remove('hidden');
   }
 
+  // 词缀图鉴缩略图：自然精灵 + 彩色光环 + 头顶徽标（与游戏内视觉一致，不染色本体）
+  affixCodexDataURL(spriteKey, affixId, affixColor) {
+    const base = sprite(spriteKey);
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = false;
+    const ccx = 32, ccy = 38, s = 42;
+    if (base) cx.drawImage(base, ccx - s / 2, ccy - s / 2, s, s);
+    // 彩色光环（lighter 弱辉光，对应游戏内脉冲环）
+    cx.save();
+    cx.globalCompositeOperation = 'lighter';
+    cx.globalAlpha = 0.9;
+    cx.strokeStyle = affixColor;
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.arc(ccx, ccy, 26, 0, Math.PI * 2);
+    cx.stroke();
+    cx.restore();
+    // 头顶徽标
+    drawAffixBadge(cx, affixId, ccx, 12, 1.1);
+    return c.toDataURL();
+  }
+
   // 怪物图鉴：夜行小怪 / 永夜小怪 / Boss
   renderCodexMonsters() {
     const root = document.getElementById('codex-monsters-content');
     root.innerHTML = '';
     const lore = MONSTER_LORE;
     const fmtTime = (s) => (s >= 60 ? `${Math.floor(s / 60)}分` : `${s}秒`);
-    // 词缀变种（独立条目，key 区别于 base slime/skeleton，不与普通怪重合）
+    // 特殊属性（独立条目，key 区别于 base 敌人；本体不染色，属性用光环+徽标表达）
     const AFFIX_MONSTERS = [
-      { key: 'volatile_slime', name: '爆破史莱姆', sprite: 'slime', hp: 90, damage: 20,
-        affix: '爆破', affixColor: '#e67e22',
-        lore: '史莱姆被「爆破」词缀侵蚀,死亡瞬间引爆范围伤害,务必远离' },
-      { key: 'shielded_skeleton', name: '护盾骷髅', sprite: 'skeleton', hp: 34, damage: 14,
-        affix: '护盾', affixColor: '#3498db',
-        lore: '骷髅被「护盾」词缀加持,受到伤害大幅降低,需集火破除' },
+      { key: 'volatile', name: '爆破', sprite: 'slime', affixId: 'volatile', affix: '爆破', affixColor: '#e67e22',
+        hp: 90, damage: 20,
+        lore: '「爆破」词缀：死亡瞬间引爆范围冲击波并重创靠近的玩家,击杀时会播放明显爆炸特效,务必保持距离' },
+      { key: 'shielded', name: '护盾', sprite: 'skeleton', affixId: 'shielded', affix: '护盾', affixColor: '#3498db',
+        hp: 34, damage: 14,
+        lore: '「护盾」词缀：受到伤害大幅降低,头顶盾牌徽标可快速识别,需集火或高爆发破除' },
+      { key: 'pack', name: '狼群', sprite: 'bat', affixId: 'pack', affix: '狼群', affixColor: '#f1c40f',
+        hp: 30, damage: 12,
+        lore: '「狼群」词缀：从同一方向成群包抄出现,头顶三点徽标标示,数量优势是其主要威胁' },
     ];
     const groups = [
       { id: 'noct', title: '夜行小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) < 540, color: 'purple', source: 'bestiary' },
       { id: 'night', title: '永夜小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) >= 540, color: 'purple', source: 'bestiary' },
       { id: 'boss', title: 'Boss', filter: (k, t) => Array.isArray(t.skills), color: 'gold', source: 'bestiary' },
-      { id: 'affix', title: '词缀变种', color: 'purple', source: 'affix' },
+      { id: 'affix', title: '特殊属性', color: 'purple', source: 'affix' },
     ];
     for (const g of groups) {
       const sec = document.createElement('div');
@@ -492,9 +519,8 @@ export class UIManager {
         card.className = `codex-card cat-${g.color}`;
         if (isAffix) card.style.borderLeft = `4px solid ${t.affixColor}`;
         const img = document.createElement('img');
-        if (isAffix && t.affixColor) {
-          const base = sprite(t.sprite);
-          img.src = base ? tintedEnemySprite(base, t.affixColor, t.sprite).toDataURL() : this.iconURL(t.sprite || 'icon_skull');
+        if (isAffix) {
+          img.src = this.affixCodexDataURL(t.sprite, t.affixId, t.affixColor);
         } else {
           img.src = this.iconURL(t.sprite || 'icon_skull');
         }
@@ -507,7 +533,7 @@ export class UIManager {
         let unlock = t.unlockAt ? `首现 ${fmtTime(t.unlockAt)}` : '开局';
         if (t.id === 'avatar') unlock = '终局 12 分降临';
         if (isAffix) {
-          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · 词缀${t.affix}`;
+          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · 可附着多数敌人`;
         } else {
           stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · ${unlock}`;
         }

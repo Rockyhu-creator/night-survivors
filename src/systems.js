@@ -198,6 +198,7 @@ export class FXSystem {
   constructor() {
     this.numbers = [];
     this.particles = [];
+    this.rings = []; // 爆破冲击波环（扩张描边圆）
     this._frameN = 0; // L2: 每帧伤害数字计数（update 中重置）
     this._frameP = 0; // L2: 每帧粒子计数
   }
@@ -205,6 +206,7 @@ export class FXSystem {
   reset() {
     this.numbers.length = 0;
     this.particles.length = 0;
+    this.rings.length = 0;
     this._frameN = 0;
     this._frameP = 0;
   }
@@ -245,6 +247,14 @@ export class FXSystem {
     }
   }
 
+  // 爆破死亡特效：范围冲击波环 + 火花（无论玩家是否在范围内都播放）
+  spawnExplosion(x, y, radius, color = '#ff7a33') {
+    if (this.rings.length > 40) this.rings.shift();
+    this.rings.push({ x, y, r: radius * 0.15, rMax: radius, life: 0.42, maxLife: 0.42, color });
+    this.spawnSparks(x, y, '#ff9a4d', 16);
+    this.spawnSparks(x, y, '#ffd27a', 10);
+  }
+
   update(dt) {
     this._frameN = 0; // L2: 新的一帧，重置特效节流计数
     this._frameP = 0;
@@ -262,9 +272,26 @@ export class FXSystem {
       p.y += p.vy * dt;
       if (p.life <= 0) this.particles.splice(i, 1);
     }
+    for (let i = this.rings.length - 1; i >= 0; i -= 1) {
+      const r = this.rings[i];
+      r.life -= dt;
+      const k = 1 - Math.max(0, r.life) / r.maxLife; // 0→1 扩张进度
+      r.r = r.rMax * (0.15 + 0.85 * k);
+      if (r.life <= 0) this.rings.splice(i, 1);
+    }
   }
 
   render(ctx, cam) {
+    for (const r of this.rings) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, r.life / r.maxLife);
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(r.x - cam.ox, r.y - cam.oy, r.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     for (const p of this.particles) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
