@@ -111,7 +111,7 @@ export const AFFIXES = {
   volatile: {
     id: 'volatile', name: '爆破', expMul: 1.6, color: '#e67e22',
     // 死亡时对玩家造成爆炸范围伤害
-    blastRadius: 100, blastDamage: 35,
+    blastRadius: 140, blastDamage: 35,
   },
   shielded: {
     id: 'shielded', name: '护盾', expMul: 2, color: '#3498db',

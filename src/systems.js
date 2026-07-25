@@ -51,6 +51,7 @@ export class PickupSystem {
         vx: 0, vy: 0,
         bob: Math.random() * Math.PI * 2,
         life: 20, // 普通经验宝石 20s 未被拾取则过期消失，防止后期大量堆积掉帧
+        birth: 0.35, // 出生闪光：让玩家在爆炸/怪潮中注意到新掉落
       });
       rest -= def.min;
     }
@@ -95,6 +96,10 @@ export class PickupSystem {
     for (let i = this.gems.length - 1; i >= 0; i -= 1) {
       const g = this.gems[i];
       g.bob += dt * 4;
+      if (g.birth !== undefined && g.birth > 0) {
+        g.birth -= dt;
+        if (g.birth < 0) g.birth = 0;
+      }
       // 过期：仅普通经验宝石（chest/potion 永不消失）；磁吸飞行中的宝石不过期，避免吸到一半消失
       if (g.life !== undefined && !g.magnet) {
         g.life -= dt;
@@ -189,6 +194,19 @@ export class PickupSystem {
         ctx.arc(sx, sy, size / 3, 0, Math.PI * 2);
         ctx.fill();
       }
+      // 出生闪光：新掉落的宝石在 0.35s 内显现金色收缩环，避免被爆炸/怪潮淹没
+      if (g.birth !== undefined && g.birth > 0) {
+        const k = g.birth / 0.35;
+        const br = size * (1.6 + k * 1.4);
+        ctx.save();
+        ctx.globalAlpha = k * 0.55;
+        ctx.strokeStyle = '#fff4d6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, br / 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.restore();
     }
   }
@@ -247,12 +265,22 @@ export class FXSystem {
     }
   }
 
-  // 爆破死亡特效：范围冲击波环 + 火花（无论玩家是否在范围内都播放）
-  spawnExplosion(x, y, radius, color = '#ff7a33') {
+  // 爆破死亡特效：亮黄色范围冲击波环 + 半透明填充 + 火花，避免与红宝石视觉混淆
+  spawnExplosion(x, y, radius, color = '#ffcc00') {
     if (this.rings.length > 40) this.rings.shift();
-    this.rings.push({ x, y, r: radius * 0.15, rMax: radius, life: 0.42, maxLife: 0.42, color });
-    this.spawnSparks(x, y, '#ff9a4d', 16);
-    this.spawnSparks(x, y, '#ffd27a', 10);
+    this.rings.push({
+      x, y,
+      r: radius * 0.2,
+      rMax: radius,
+      life: 0.45,
+      maxLife: 0.45,
+      color,
+      fillColor: 'rgba(255, 190, 0, 0.18)',
+      dash: [5, 5],
+    });
+    this.spawnSparks(x, y, '#ffcc00', 18);
+    this.spawnSparks(x, y, '#ff7a33', 12);
+    this.spawnSparks(x, y, '#fff4d6', 8);
   }
 
   update(dt) {
@@ -276,7 +304,7 @@ export class FXSystem {
       const r = this.rings[i];
       r.life -= dt;
       const k = 1 - Math.max(0, r.life) / r.maxLife; // 0→1 扩张进度
-      r.r = r.rMax * (0.15 + 0.85 * k);
+      r.r = r.rMax * (0.2 + 0.8 * k);
       if (r.life <= 0) this.rings.splice(i, 1);
     }
   }
@@ -284,11 +312,15 @@ export class FXSystem {
   render(ctx, cam) {
     for (const r of this.rings) {
       ctx.save();
-      ctx.globalAlpha = Math.max(0, r.life / r.maxLife);
+      const alpha = Math.max(0, r.life / r.maxLife) * 0.8;
+      ctx.globalAlpha = alpha;
       ctx.strokeStyle = r.color;
-      ctx.lineWidth = 3;
+      ctx.fillStyle = r.fillColor;
+      ctx.lineWidth = 2.5;
+      if (r.dash) ctx.setLineDash(r.dash);
       ctx.beginPath();
       ctx.arc(r.x - cam.ox, r.y - cam.oy, r.r, 0, Math.PI * 2);
+      ctx.fill();
       ctx.stroke();
       ctx.restore();
     }
