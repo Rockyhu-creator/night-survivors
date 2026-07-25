@@ -66,6 +66,8 @@ const files = {
   gemSmall: 'gem_small.png',
   gemMedium: 'gem_medium.png',
   gemLarge: 'gem_large.png',
+  gemGold: 'gem_gold.png',
+  gemRed: 'gem_red.png',
   ground: 'ground.png',
   tomb: 'decal_tomb.png',
   wood: 'decal_wood.png',

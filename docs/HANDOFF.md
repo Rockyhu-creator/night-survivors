@@ -95,7 +95,7 @@ Trae_game/
 - **`gen_assets.py`**（程序化像素精灵，受管 venv 跑）：模块加载即全量生成，但 `save()` 内有 `AI_OWNED` 集合拦截，**永不覆盖那 15 张 AI 美术**；重跑安全（SKIP=15、字节一致）。
 - **`gen_assets.sh`**（AI 文生图管线）：**⚠️ 绝不在仓库里跑**——历史上会 `rm -f *.png` 删光 `public/assets/` 全部 png。现已改为只删 AI 自有集，但仍**默认不用它**。
 - **撞名 15 张**（两边都生成、线上以 AI 版为准）：`player/enemy_bat/skeleton/slime/elite/weapon_blade/holywater/axe/lightning/gem_small/medium/large/ground/bg_title/icon_skull`。
-- 新增程序化图标：在 `gen_assets.py` 加生成函数、避开 `AI_OWNED`，用受管 venv 跑。
+- 新增程序化图标：在 `gen_assets.py` 加生成函数、避开 `AI_OWNED`，用受管 venv 跑。例：v0.34 用 `gen_gem()` 补齐 `gem_gold.png`/`gem_red.png`（金/红高价值宝石精灵），`assets.js` 补 `gemGold`/`gemRed` 映射；重跑经验证仅新增两张、其余 73 张字节一致。
 
 ---
 

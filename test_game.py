@@ -84,6 +84,22 @@ with sync_playwright() as p:
     expect('A1 3 Boss 专属精灵键存在', page.evaluate("""() => ['boss_baron','boss_queen','boss_overlord'].every(k => !!(window.__assets && window.__assets[k]))"""))
     expect('A2 宝箱专属精灵键存在', page.evaluate("() => !!(window.__assets && window.__assets['chest'])"))
     expect('A4 6 玩家血裔精灵键存在', page.evaluate("""() => ['player_wanderer','player_saint','player_berserker','player_thunder','player_bloodthirsty','player_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    # --- v0.34 高价值经验宝石精灵补齐：gemGold/gemRed 原缺失走纯色圆 fallback，现已补图 ---
+    # window.__assets 指向文件名映射(files)；真加载的 Image 在模块内 images 字典（sprite() 读取）。
+    # 故此处验证：① 键已映射 ② 文件真实存在且被服务端以 image/png 正确返回（修复本质）。
+    expect('v0.34 gemGold/gemRed 键存在', page.evaluate("""() => !!(window.__assets && window.__assets['gemGold'] && window.__assets['gemRed'])"""))
+    gem_load = page.evaluate("""async () => {
+      const check = async (f) => {
+        try {
+          const r = await fetch('/assets/' + f, { cache: 'no-store' });
+          const ct = r.headers.get('content-type') || '';
+          return { ok: r.status === 200 && ct.includes('image/png') };
+        } catch (e) { return { ok: false }; }
+      };
+      return { gold: (await check('gem_gold.png')).ok, red: (await check('gem_red.png')).ok };
+    }""")
+    expect('v0.34 gem_gold.png 真加载(image/png,200)', gem_load.get('gold') is True)
+    expect('v0.34 gem_red.png 真加载(image/png,200)', gem_load.get('red') is True)
     expect('D1 亡灵光环半径随等级增长', page.evaluate("() => window.__weapons.aura.levels[4].radius > window.__weapons.aura.levels[0].radius"))
     expect('D1 圣水洗礼半径随等级增长', page.evaluate("() => window.__weapons.holywater.levels[4].radius > window.__weapons.holywater.levels[0].radius"))
     expect('D3 音效 zap/splash 方法存在', page.evaluate("() => typeof window.__game.audio.zap === 'function' && typeof window.__game.audio.splash === 'function'"))

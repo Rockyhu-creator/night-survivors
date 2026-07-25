@@ -5,6 +5,16 @@
 
 ---
 
+## v0.34（2026-07-26 · `[HASH]`）
+
+### 修复
+- **高价值经验宝石缺精灵图（红/金宝石显示为纯色圆点）**：`GEM_DEFS` 定义 5 档（绿/蓝/紫/金/红），但 `assets.js` 仅映射 `gemSmall/Medium/Large` 三张 PNG，缺少 `gem_gold.png` / `gem_red.png`；渲染逻辑找不到图时 fallback 画实心圆。红点=价值 ≥50 的 `gemRed`（暗影猎手/终局召唤掉落），交互与宝石一致但视觉为纯色圆，易与特效混淆。修复 = ① `gen_assets.py` 用 `gen_gem()` 补齐两张程序化菱形宝石精灵（金 `#d4af37` / 红 `#e74c3c`，72×72）；② `assets.js` 补 `gemGold`/`gemRed` 映射。
+
+### 测试
+- e2e 新增 `gemGold/gemRed` 键存在 + 文件以 `image/png` 200 返回断言；全量回归 ALL PASS（零控制台错误）。`gen_assets.py` 重跑验证：仅新增两张、其余 73 张 png 字节一致（AI_OWNED 未误改）。
+
+---
+
 ## v0.33（2026-07-25 · `c672432`）
 
 ### 修复
