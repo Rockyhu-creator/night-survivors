@@ -38,6 +38,30 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
 
+    # --- 运行时版本自检（v0.31）：__BUILD_ID__ 注入 + 横幅/进度条 DOM + version.json 请求 ---
+    expect('运行时 __BUILD_ID__ 已注入(版本自检同源)', page.evaluate("() => typeof window.__BUILD_ID__ === 'string' && window.__BUILD_ID__.length > 0"))
+    expect('页面含 #update-prompt 容器', page.evaluate("() => !!document.getElementById('update-prompt')"))
+    expect('页面含 #load-bar 进度条', page.evaluate("() => !!document.getElementById('load-bar')"))
+    # dev 下 /version.json 由 build 插件生成（dev 不写）：fetch 命中 Vite SPA 回退返回 HTML(200)
+    # 或 404，均被自检静默跳过，不发控制台错误；构建后 preview 返回 200 且含 buildId JSON。
+    # 断言：请求绝不抛未捕获错误；真 JSON(200) 时含 buildId；其余(dev) 优雅跳过。
+    ver = page.evaluate("""async () => {
+      try {
+        const r = await fetch('/version.json', { cache: 'no-store' });
+        const ct = r.headers.get('content-type') || '';
+        if (r.status === 404 || !ct.includes('application/json')) {
+          return { status: r.status, json: false };
+        }
+        const j = await r.json();
+        return { status: r.status, json: true, hasBuildId: typeof j.buildId === 'string' && j.buildId.length > 0 };
+      } catch (e) { return { error: String(e) }; }
+    }""")
+    expect('version.json 请求不报错(dev SPA回退 / 构建 200)', ver.get('error') is None)
+    if ver.get('json'):
+        expect('version.json 含 buildId 字段', ver.get('hasBuildId') is True)
+    else:
+        expect('version.json dev 环境无 JSON(静默跳过)', ver.get('status') in (200, 404))
+
     # --- 新手指引：首启自动弹 + 常驻按钮（UX 改造，2026-07-23）---
     guide_autoshow = page.evaluate("() => !document.getElementById('guide-screen').classList.contains('hidden')")
     expect('首启自动弹出玩法说明', guide_autoshow)

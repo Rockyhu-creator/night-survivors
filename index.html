@@ -218,6 +218,32 @@
       <p class="pause-hint touch-only">点击下方继续</p>
       <button id="btn-resume" class="gothic-btn pause-resume-btn">继 续</button>
     </div>
+
+    <!-- 运行时版本自检：顶部滑入更新横幅（非阻断，hidden 由 JS 控制显隐） -->
+    <div id="update-prompt" role="status" aria-live="polite" hidden>
+      <div class="up-inner">
+        <span class="up-icon" aria-hidden="true">⚡</span>
+        <div class="up-text">
+          <p class="up-title">发现新版本</p>
+          <p class="up-msg">发现新版本，是否立即更新？</p>
+          <p class="up-meta" hidden></p><!-- 可选：当前 vX → 最新 vY -->
+        </div>
+        <div class="up-actions">
+          <button type="button" class="gothic-btn ghost" data-action="later">稍后</button>
+          <button type="button" class="gothic-btn is-ember" data-action="reload">立即刷新</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 首屏加载幕（z100），默认可见；加载完成由 game.js 移除 hidden -->
+    <div id="loading" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="加载进度">
+      <div class="loading-inner">
+        <p class="loading-title">夜裔幸存者</p>
+        <p class="loading-sub">NIGHT SURVIVORS</p>
+        <div id="load-bar"><div id="load-bar-fill"></div></div>
+        <p id="load-pct" aria-hidden="true">0%</p>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

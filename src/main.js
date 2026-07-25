@@ -1,4 +1,5 @@
 import { Game } from './game.js';
+import { initVersionCheck } from './version-check.js';
 import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked, getSelectedBloodline, setSelectedBloodline } from './data.js';
 import { MobileControls } from './mobile-controls.js';
 
@@ -14,6 +15,7 @@ if (isTouchDevice) {
   document.documentElement.classList.add('touch-device');
 }
 
+initVersionCheck();              // 运行时版本自检：game.init 之前非阻断发起
 const game = new Game();
 game.init();
 

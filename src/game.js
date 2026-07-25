@@ -11,6 +11,17 @@ import { AudioManager } from './audio.js';
 
 const STEP = 1 / 60;
 
+// 首屏加载幕进度回调：驱动 #load-bar-fill 宽度 / #load-pct 文本 / aria-valuenow
+function setLoadingProgress(p) {
+  const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
+  const fill = document.getElementById('load-bar-fill');
+  const label = document.getElementById('load-pct');
+  const loading = document.getElementById('loading');
+  if (fill) fill.style.width = `${pct}%`;
+  if (label) label.textContent = `${pct}%`;
+  if (loading) loading.setAttribute('aria-valuenow', String(pct));
+}
+
 export class Game {
   constructor() {
     this.canvas = null;
@@ -100,9 +111,12 @@ export class Game {
     });
     this.resize();
 
-    loadAssets().then(() => {
+    loadAssets((p) => setLoadingProgress(p)).then(() => {
       this.regenerateGroundPattern();
       if (this.state === 'loading') this.state = 'title';
+      setLoadingProgress(1);
+      const loading = document.getElementById('loading');
+      if (loading) loading.hidden = true;
     });
 
     requestAnimationFrame((ts) => this.frame(ts));

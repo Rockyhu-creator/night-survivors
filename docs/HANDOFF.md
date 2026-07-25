@@ -348,3 +348,26 @@ c34bed0 真机数值收敛：后期墙下调 + 超时失败修复
 3. 移动端相关改动注意触屏检测时序（init 之前）
 4. 部署后提醒用户用 `?v=N` 强制刷新微信缓存
 5. 复杂改动考虑用 superpowers 工作流（brainstorming → writing-plans → subagent-driven-development）
+
+---
+
+## 16. 运行时版本自检（v0.31+）
+
+用户输入「改了代码微信看不到」类问题的运行时兜底：页面启动即比对「当前运行构建号」与「线上最新构建号」，有新版本时顶部滑入横幅提示刷新（非阻断，不自动强刷）。
+
+### 机制
+- **version.json 生成**：`vite.config.js` 新增 `emitVersionJson()` 插件（`apply:'build'`，`writeBundle` 钩子），把 `{ buildId, commit, builtAt }` 写入 `dist/version.json`。`buildId` 复用模块级变量，与 `__BUILD_ID__`（define 注入）同源，杜绝比对错位。dev 下插件不运行 → 无 version.json（fetch 自然 404 → 静默跳过）。
+- **boot 比对**：`src/version-check.js` 的 `initVersionCheck()` 在 `game.init()` 之前 fire-and-forget 调用。`fetch('/version.json', {cache:'no-store'})` 比对 `window.__BUILD_ID__`（= `__BUILD_ID__`）与 `latest.buildId`；不一致时 `document.dispatchEvent(new CustomEvent('version-mismatch', {detail:{current,latest,builtAt}}))` 并写 `window.__versionInfo={buildId,commit,builtAt,hasUpdate}`。离线 / 404(dev) / JSON 异常 → 静默跳过，不影响启动，**不读写 localStorage**。
+- **_headers 增量**：`public/_headers` 显式声明 `/version.json  Cache-Control: no-store`（CF 精确匹配，根路径 `/` 的 no-store 不覆盖它）。
+- **UI 组件**（美术规格 `docs/art/update-ux-spec.md` 落地，工程不另起炉灶）：
+  - `#update-prompt`：顶部滑入横幅（z45），`pointer-events:none` 仅 `.up-inner` 可点；主按钮 `.gothic-btn.is-ember`（ember `#f1c40f`），次按钮 `.gothic-btn.ghost`。
+  - `#loading` + `#load-bar`：首屏加载幕（z100，`bg_title.png` 暗化背景），进度条由 `game.js` 的 `loadAssets(onProgress)` 钩子驱动（width + `#load-pct` + `aria-valuenow`），加载完成 `hidden` 移除。
+- **sessionStorage 记忆**：点「稍后」写 `sessionStorage['ns_update_dismiss']=latest`（针对该 latest 版本），命中则本次不再弹；新部署产生新 latest → 仍会提示。仅在同会话、同 latest 下抑制，**不污染 localStorage**。
+- **刷新入口**：`data-action="reload"` → `location.reload(true)`。
+
+### ⚠️ dev server 重启坑（必读）
+`vite.config.js` 是 vite **启动时**读取的，运行中改动（本次加插件）**不热加载**。改完必须杀旧 dev server（`lsof -ti tcp:5173 | xargs kill -9`）并重启 `npm run dev`，否则旧 dev server 不识别新插件/define，`__BUILD_ID__` 运行时 ReferenceError → e2e 崩溃。生产 `vite build` 不受影响（构建时必读 config）。
+
+### 验证命令
+- dev 跑 e2e：先重启 dev server 再 `python test_game.py`。
+- 验证 version.json 生成：`npm run build` 后 `cat dist/version.json`、`grep '/version.json' dist/_headers`。

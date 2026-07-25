@@ -325,6 +325,7 @@ html, body {
 }
 @media (prefers-reduced-motion: reduce) {
   #achievement.ach-pop { animation: none; }
+  #update-prompt:not([hidden]) .up-inner { animation: none; }
 }
 
 /* 图鉴界面 */
@@ -801,3 +802,65 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   #loot-ring { animation: none; }
 }
+
+/* ===== 运行时版本自检：更新横幅 + 加载幕（v0.31，沿用既有视觉令牌，零新色零新字体） ===== */
+#update-prompt {
+  position: absolute; top: 0; left: 0; right: 0;
+  z-index: 45;                 /* 高于 pause(40) 低于 mute(50) */
+  display: flex; justify-content: center;
+  pointer-events: none;        /* 非阻断：仅横幅本体可点 */
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+#update-prompt[hidden] { display: none; }
+.up-inner {
+  pointer-events: auto;        /* 恢复横幅内交互 */
+  display: flex; align-items: center; gap: 18px;
+  max-width: min(720px, 92vw);
+  background: linear-gradient(180deg, rgba(28,18,40,.96), rgba(12,8,22,.96));
+  border: 2px solid rgba(212,175,55,.85);
+  box-shadow: 0 0 30px rgba(142,68,173,.55), inset 0 0 18px rgba(212,175,55,.18);
+  padding: 14px 22px;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.up-icon { font-size: 20px; color: var(--gold); text-shadow: 0 0 12px rgba(212,175,55,.7); flex: none; }
+.up-text { flex: 1 1 auto; min-width: 0; }
+.up-title { font-family: var(--body-font); font-weight: 900; font-size: 15px; letter-spacing: 2px; color: var(--gold); }
+.up-msg { font-family: var(--body-font); font-size: 13px; color: var(--bone); margin-top: 3px; line-height: 1.5; }
+.up-meta { font-family: var(--body-font); font-size: 11px; color: var(--bone); opacity: .7; margin-top: 2px; }
+.up-actions { display: flex; gap: 10px; flex: none; }
+
+/* 主按钮 ember 修饰（唯一新增类，复用 #f1c40f） */
+.gothic-btn.is-ember { border-color: #f1c40f; }
+.gothic-btn.is-ember:hover { background: #f1c40f; color: #000; box-shadow: 0 0 22px rgba(241,196,15,.6); }
+
+/* 焦点环：补 .gothic-btn 既有缺口，对齐 .top-back */
+.gothic-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* 滑入动效 */
+#update-prompt:not([hidden]) .up-inner { animation: upSlideIn .45s cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes upSlideIn {
+  from { opacity: 0; transform: translateY(-120%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 加载幕 + 进度条（沿用 #boss-bar / #exp-bar 语言） */
+#loading {
+  position: absolute; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(rgba(13,10,26,.82), rgba(13,10,26,.95)), url("/assets/bg_title.png") center / cover no-repeat;
+}
+#loading[hidden] { display: none; }
+.loading-inner { text-align: center; }
+.loading-title { font-family: var(--body-font); font-weight: 900; font-size: clamp(34px,7vw,64px); letter-spacing: 10px; color: var(--gold); text-shadow: 0 0 26px rgba(212,175,55,.55); }
+.loading-sub { font-family: var(--pixel-font); font-size: 11px; letter-spacing: 6px; color: var(--bone); opacity: .8; margin: 10px 0 34px; }
+#load-bar {
+  width: min(420px, 80vw); height: 16px; margin: 0 auto;
+  background: rgba(0,0,0,.7); border: 2px solid var(--gold); outline: 1px solid #000;
+}
+#load-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #e67e22, #f1c40f);
+  box-shadow: 0 0 14px rgba(241,196,15,.8);
+  transition: width .18s ease;
+}
+#load-pct { font-family: var(--pixel-font); font-size: 14px; color: var(--gold); text-shadow: 0 0 10px rgba(212,175,55,.6); margin-top: 14px; }

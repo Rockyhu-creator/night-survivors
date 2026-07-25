@@ -12,6 +12,11 @@
 /index.html
   Cache-Control: no-store
 
+# 运行时版本自检清单：必须 no-store，否则会被 CF 边缘缓存导致自检失效。
+# 根路径 '/' 的 no-store 不覆盖本文件（CF _headers 非前缀匹配），故显式声明。
+/version.json
+  Cache-Control: no-store
+
 # Vite 构建产物（文件名带内容 hash，内容变则文件名变）：可安全永久缓存。
 /assets/*.js
   Cache-Control: public, max-age=31536000, immutable

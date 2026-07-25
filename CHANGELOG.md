@@ -5,6 +5,30 @@
 
 ---
 
+## v0.31（2026-07-25 · `[HASH]`）
+
+### 新增
+- **运行时版本自检（version.json + boot 比对 + 横幅/进度条 UI）**：`vite.config.js` 新增 `emitVersionJson()` 插件（`writeBundle` 钩子），把 `{ buildId, commit, builtAt }` 写入 `dist/version.json`；`buildId` 复用模块级变量，与 `__BUILD_ID__`（define 注入）同源，杜绝比对错位。
+- **新增 `src/version-check.js`**：`game.init()` 之前 fire-and-forget 发起 `fetch('/version.json', {cache:'no-store'})` 比对 `__BUILD_ID__`；不一致时派发 `version-mismatch` 事件并写 `window.__versionInfo={buildId,commit,builtAt,hasUpdate}`；离线 / 404(dev) / JSON 异常全静默跳过，绝不影响启动；**不读写 localStorage**。
+- **顶部滑入更新横幅 `#update-prompt`**（z45、非阻断、`pointer-events:none` 仅本体可点）+ **首屏加载幕 `#loading`**（z100，`bg_title.png` 暗化背景）+ **`#load-bar` 进度条**（ember 渐变、金描边，由 `loadAssets(onProgress)` 钩子驱动）；严格按 `docs/art/update-ux-spec.md` 美术规格落地，零新色零新字体。
+- **横幅按钮**：稍后（`sessionStorage` 记忆 `ns_update_dismiss`，针对该 latest 版本，本次会话不重复弹）/ 立即刷新（`location.reload(true)`）；主按钮 ember 修饰 `.gothic-btn.is-ember`（`#f1c40f`）。
+
+### 调整
+- **`public/_headers`**：显式补 `/version.json → Cache-Control: no-store`（根路径 `/` 的 no-store 不覆盖它，CF 精确匹配需单独声明）。
+- **顺带补 `.gothic-btn:focus-visible` 金环**（消除既有缺口，对齐 `.top-back`）。
+
+### 优化
+- 首屏新增加载进度条，告别「纯色空屏」，弱网/低端机加载体验更明确。
+
+### 说明
+- dev 下 `version.json` 由 build 插件生成、dev 不写（fetch 自然 404 → 静默跳过）；`vite.config.js` 改动需重启 dev server 才生效（否则运行时 `__BUILD_ID__` 不被替换 → e2e 崩溃）。
+- 用户存档仍存 `localStorage`，本机制零读写，100% 安全。
+
+### 测试
+- e2e 加固：新增 `__BUILD_ID__` 注入、`#update-prompt`/`#load-bar` 元素存在、`/version.json` 请求不报错（dev 404 静默跳过）断言；全量回归 ALL PASS（零控制台错误）。
+
+---
+
 ## v0.30（2026-07-25 · `b552a9a`）
 
 ### 新增
