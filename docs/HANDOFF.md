@@ -194,11 +194,20 @@ git push origin main
 - Deploy command: 留空
 - **注意**：必须用 Pages（不是 Workers），可能误识别为 VitePress 需手动纠正
 
-### 微信缓存问题
-微信 WebView 缓存严重，普通刷新无效。解决方法：
-1. 加参数访问：`https://night-survivors.pages.dev/?v=2`（绕过缓存）
-2. 微信 → 设置 → 通用 → 存储空间 → 清理缓存
-3. 换 Safari/Chrome 验证
+### 微信缓存问题（v0.28 已从源头治理）
+**根因**（历史）：`public/_headers` 曾用 `/*  Cache-Control: public, max-age=31536000, immutable` 一刀切，把 `index.html` 与固定名 `/assets/*.png` 也设成「缓存一年、永不校验」，导致改了代码/美术微信永远看旧版。
+
+**治本方案（v0.28 起，`public/_headers` 按类型分策略）**：
+- `/` 与 `/index.html`：`no-cache` —— 入口永不硬缓存、每次校验，能立刻拿到最新带 hash 的 JS/CSS 引用（代码/玩法更新即时生效）。
+- `/assets/*.js`、`/assets/*.css`、`/fonts/*`：`max-age=31536000, immutable` —— Vite 产物文件名带内容 hash，内容变文件名变，可安全永久缓存。
+- `/assets/*.png`（游戏美术，固定文件名）：`max-age=0, must-revalidate` —— 存储但每次走 ETag 校验，换图即时刷新、未改返回 304 几乎零开销。
+- ⚠️ **CF Pages 坑**：多规则命中同一文件时同名 header 会「逗号拼接」（非覆盖），因此**禁止再用 `/*` 兜底 Cache-Control**，全部写成互不重叠的按扩展名规则。
+
+**已卡旧版设备的应急清缓存**（治本部署后仍需清一次历史脏缓存）：
+1. 加随机参数访问：`https://night-survivors.pages.dev/?v=时间戳`（改 URL 必定绕过缓存）
+2. 微信 → 我 → 设置 → 通用 → 存储空间 → 清理缓存
+3. 微信内打开 `http://debugx5.qq.com` → 进 X5 内核调试页清内核缓存
+4. 换 Safari/Chrome 验证
 
 ---
 

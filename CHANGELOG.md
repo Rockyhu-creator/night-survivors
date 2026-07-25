@@ -5,6 +5,17 @@
 
 ---
 
+## v0.28（2026-07-25 · `[未提交]`）
+
+### 修复
+- **微信 WebView 顽固缓存（从源头治理）**：`public/_headers` 原为 `/*  max-age=31536000, immutable` 一刀切，把入口 `index.html` 与固定名美术 `/assets/*.png` 也设成「缓存一年、永不校验」，导致改了代码/换了贴图后微信永远显示旧版。改为**按文件类型分策略**：
+  - `index.html`：`no-cache`（每次校验，即时拿到最新带 hash 的 JS/CSS 引用 → 代码/玩法更新立即生效）；
+  - Vite 构建产物 `/assets/*.js|*.css`、`/fonts/*`：`max-age=31536000, immutable`（文件名带内容 hash，永久缓存安全）；
+  - 游戏美术 `/assets/*.png`：`max-age=0, must-revalidate`（走 ETag，换图即时刷新、未改返回 304 零开销）。
+  - 规避 CF Pages「同名 header 逗号拼接」坑：去掉 `/*` 兜底，全部改为互不重叠的按扩展名规则。
+
+---
+
 ## v0.27（2026-07-25 · `b57c409`）
 
 ### 调整
