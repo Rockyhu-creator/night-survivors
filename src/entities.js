@@ -302,21 +302,30 @@ export class EnemyManager {
   }
 
   bossBarrage(e, count, speed, damage, waves = 1) {
+    // 三波时间错峰：第 1 波立刻从 Boss 当前位置射出，后续波存入 e.pendingWaves，
+    // 由 update 每 0.35s 触发一波（从 Boss 当时位置射出，Boss 移动后波会跟随，压迫感递进）。
+    const WAVE_INTERVAL = 0.35;
+    this._fireBarrageWave(e, count, speed, damage, 0, waves); // 第 1 波立即
+    for (let w = 1; w < waves; w += 1) {
+      e.pendingWaves = e.pendingWaves || [];
+      e.pendingWaves.push({ delay: w * WAVE_INTERVAL, count, speed, damage, wave: w, waves });
+    }
+  }
+
+  _fireBarrageWave(e, count, speed, damage, wave, waves) {
     const player = this.game.player;
     const base = Math.atan2(player.y - e.y, player.x - e.x);
     const spread = (40 * Math.PI) / 180;
     const waveStep = (18 * Math.PI) / 180;
-    for (let w = 0; w < waves; w += 1) {
-      const wbase = base + (w - (waves - 1) / 2) * waveStep;
-      for (let i = 0; i < count; i += 1) {
-        const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
-        const angle = wbase + t * spread;
-        this.enemyProjectiles.push({
-          x: e.x, y: e.y,
-          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-          damage, life: 4, radius: 5,
-        });
-      }
+    const wbase = base + (wave - (waves - 1) / 2) * waveStep;
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
+      const angle = wbase + t * spread;
+      this.enemyProjectiles.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        damage, life: 4, radius: 5,
+      });
     }
   }
 
@@ -475,6 +484,20 @@ export class EnemyManager {
       }
     }
 
+    // Boss 延迟弹幕波：三波错峰，每 0.35s 从 Boss 当前位置射出一波
+    for (const e of this.enemies) {
+      if (!e.pendingWaves || e.pendingWaves.length === 0) continue;
+      for (let i = e.pendingWaves.length - 1; i >= 0; i -= 1) {
+        const pw = e.pendingWaves[i];
+        pw.delay -= dt;
+        if (pw.delay <= 0) {
+          this._fireBarrageWave(e, pw.count, pw.speed, pw.damage, pw.wave, pw.waves);
+          e.pendingWaves.splice(i, 1);
+        }
+      }
+      if (e.pendingWaves.length === 0) e.pendingWaves = null;
+    }
+
     // 清理死亡/超远
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i];
@@ -629,11 +652,14 @@ export class EnemyManager {
       }
       // 词缀 / 精英标识层（不换主体 sprite，仅渲染提示）
       const t = this.game.time;
-      if (e.affix === 'volatile' || e.affix === 'shielded') {
-        const affixColor = (e.affixDef && e.affixDef.color) || (e.affix === 'volatile' ? '#e67e22' : '#3498db');
+      if (e.affix === 'volatile' || e.affix === 'shielded' || e.affix === 'pack') {
+        const affixColor = (e.affixDef && e.affixDef.color)
+          || (e.affix === 'volatile' ? '#e67e22' : (e.affix === 'pack' ? '#f1c40f' : '#3498db'));
         const pulse = e.affix === 'volatile'
           ? 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * Math.PI * 3))    // ~1.5Hz
-          : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6)); // ~0.8Hz
+          : (e.affix === 'pack'
+            ? 0.18 + 0.18 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.2)) // 狼群：淡金慢闪
+            : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6))); // 护盾 ~0.8Hz
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = Math.min(1, pulse + (e.flash > 0 ? 0.4 : 0));
         ctx.strokeStyle = affixColor;

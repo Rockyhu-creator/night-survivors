@@ -32,6 +32,7 @@ export class PickupSystem {
         magnet: false,
         vx: 0, vy: 0,
         bob: Math.random() * Math.PI * 2,
+        life: 20, // 普通经验宝石 20s 未被拾取则过期消失，防止后期大量堆积掉帧
       });
       rest -= def.min;
     }
@@ -72,21 +73,32 @@ export class PickupSystem {
   update(dt) {
     const player = this.game.player;
     const magnetR = player.magnetRange;
+    const magnetR2 = magnetR * magnetR;
     for (let i = this.gems.length - 1; i >= 0; i -= 1) {
       const g = this.gems[i];
       g.bob += dt * 4;
+      // 过期：仅普通经验宝石（chest/potion 永不消失）；磁吸飞行中的宝石不过期，避免吸到一半消失
+      if (g.life !== undefined && !g.magnet) {
+        g.life -= dt;
+        if (g.life <= 0) {
+          this.gems.splice(i, 1);
+          continue;
+        }
+      }
       const dx = player.x - g.x;
       const dy = player.y - g.y;
-      const d = Math.hypot(dx, dy);
-      if (d < magnetR) g.magnet = true;
+      const d2 = dx * dx + dy * dy; // 平方距离，避免每颗每帧 hypot
+      if (d2 < magnetR2) g.magnet = true;
       if (g.magnet) {
+        const d = Math.sqrt(d2); // 仅磁吸中的少数宝石需要真实距离做归一化
         const speed = Math.min(560, 260 + (magnetR * 2 - Math.min(d, magnetR * 2)));
         g.vx = (dx / (d || 1)) * speed;
         g.vy = (dy / (d || 1)) * speed;
         g.x += g.vx * dt;
         g.y += g.vy * dt;
       }
-      if (d < player.radius + (g.chest ? 18 : 8)) {
+      const pickR = player.radius + (g.chest ? 18 : 8);
+      if (d2 < pickR * pickR) {
         if (g.chest) {
           this.game.onChestOpened(g);
           this.gems.splice(i, 1);
@@ -111,6 +123,10 @@ export class PickupSystem {
 
   render(ctx, cam) {
     for (const g of this.gems) {
+      // 即将过期的普通宝石：最后 5s 闪烁提示玩家去捡
+      if (g.life !== undefined && g.life < 5 && !g.magnet) {
+        if (Math.sin(g.bob * 6) > 0.2) continue; // 高频闪烁（约一半帧跳过绘制）
+      }
       const sx = g.x - cam.ox;
       const sy = g.y - cam.oy + Math.sin(g.bob) * 2.5;
       const img = sprite(g.def.key);

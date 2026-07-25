@@ -820,6 +820,48 @@ with sync_playwright() as p:
     expect('词缀怪渲染无控制台报错', len(errors) == err_before_affix)
     page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.state = 'title'; }")
 
+    # --- 狼群词缀去灰回归：pack 颜色应为琥珀金 #f1c40f（原灰蓝 #aab7c4 致狼群怪整只灰扑扑），
+    #     且 pack 怪渲染走脉冲圈分支不报错 ---
+    err_before_pack = len(errors)
+    page.evaluate("""() => {
+        const g = window.__game;
+        g.state = 'playing';
+        g.enemies.enemies = [];
+        g.expQueue = 0;
+        const ls = document.getElementById('levelup-screen');
+        if (ls) ls.classList.add('hidden');
+        g.player.hp = g.player.maxHp = 9999;
+        const scale = g.enemies.statScale(false);
+        const type = g.enemies.pickType();
+        const p = g.enemies.createEnemy(type, scale, g.player.x + 60, g.player.y, 'pack');
+        g.enemies.enemies.push(p);
+    }""")
+    page.wait_for_timeout(600)
+    expect('狼群怪 affixDef.color=琥珀金', page.evaluate(
+        "() => { const e = window.__game.enemies.enemies.find(x => x.affix === 'pack'); return !!e && e.affixDef && e.affixDef.color === '#f1c40f'; }"))
+    expect('狼群怪渲染无控制台报错', len(errors) == err_before_pack)
+    page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.state = 'title'; }")
+
+    # --- 宝石 20s 过期回归：普通经验宝石 20s 后自动消失；宝箱/血瓶永不消失 ---
+    page.evaluate("""() => {
+        const g = window.__game;
+        g.state = 'playing';
+        g.pickups.gems = [];
+        // 一颗普通宝石（life=20），一颗宝箱（无 life），一颗血瓶（无 life）
+        g.pickups.drop(g.player.x + 500, g.player.y + 500, 1);
+        g.pickups.dropChest(g.player.x + 600, g.player.y + 600);
+        g.pickups.dropPotion(g.player.x + 700, g.player.y + 700, 20);
+        // 把普通宝石的 life 直接拨到 0.05s，加速验证过期
+        const gem = g.pickups.gems.find(x => !x.chest && !x.potion);
+        if (gem) gem.life = 0.05;
+    }""")
+    page.wait_for_timeout(300)  # 多帧 update，触发过期分支
+    expect('普通宝石 20s 后过期消失', page.evaluate(
+        "() => !window.__game.pickups.gems.some(x => !x.chest && !x.potion)"))
+    expect('宝箱/血瓶不过期(仍在)', page.evaluate(
+        "() => window.__game.pickups.gems.some(x => x.chest) && window.__game.pickups.gems.some(x => x.potion)"))
+    page.evaluate("() => { window.__game.pickups.gems = []; window.__game.state = 'title'; }")
+
     # --- P1 质量门控：控制台无报错（原仅 print，导致词缀怪每帧抛错能"带病通过"）---
     expect('无控制台报错', len(errors) == 0)
     print('控制台错误:', errors if errors else '无')

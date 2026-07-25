@@ -105,7 +105,7 @@ if (typeof window !== 'undefined') window.__enemyTypes = ENEMY_TYPES;
 // 词缀（叠加在现有怪上，制造行为多样化，低成本高产出）
 export const AFFIXES = {
   pack: {
-    id: 'pack', name: '狼群', expMul: 2, color: '#aab7c4',
+    id: 'pack', name: '狼群', expMul: 2, color: '#f1c40f',
     // 从同一方向一次刷 packCount 只，扇形包抄。packCount 取难度 packMin/Max
   },
   volatile: {
