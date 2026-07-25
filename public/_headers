@@ -2,13 +2,15 @@
 # Cloudflare Pages 规则：多条命中同一文件时，同名 header 会被「逗号拼接」，
 # 因此这里全部写成【互不重叠】的按扩展名规则，绝不用 /* 兜底 Cache-Control。
 
-# HTML 入口：永不硬缓存，每次都向服务器校验。
-# 这是「改了代码微信看不到」的根治开关——HTML 一旦每次校验，就能立刻拿到
-# 最新那个带 hash 的 JS/CSS 引用，所有代码/玩法更新随之生效。
+# HTML 入口：完全不存储（no-store 比 no-cache 更硬）。
+# 这是「改了代码微信看不到」的根治开关——HTML 不落地，每次打开都拉最新，
+# 就能立刻拿到最新那个带 hash 的 JS/CSS 引用，所有代码/玩法更新随之生效。
+# 用 no-store 而非 no-cache：微信 X5 内核偶有「无视 no-cache 直接喂旧缓存」的
+# 启发式缓存 bug，no-store 是更强的禁存信号；HTML 仅几 KB，全量重下成本可忽略。
 /
-  Cache-Control: no-cache
+  Cache-Control: no-store
 /index.html
-  Cache-Control: no-cache
+  Cache-Control: no-store
 
 # Vite 构建产物（文件名带内容 hash，内容变则文件名变）：可安全永久缓存。
 /assets/*.js

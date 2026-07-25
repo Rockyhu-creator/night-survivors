@@ -5,6 +5,17 @@
 
 ---
 
+## v0.29（2026-07-25 · `[未提交]`）
+
+### 调整
+- **HTML 缓存策略 `no-cache` → `no-store`**：入口 `/` 与 `/index.html` 由「每次校验」升级为「完全不存储」。针对微信 X5 内核偶有「无视 `no-cache`、启发式直接喂旧缓存」的 bug，`no-store` 是更强的禁存信号，进一步压低旧 HTML 残留概率；HTML 仅几 KB，全量重下成本可忽略。hash 产物 `immutable`、PNG ETag 校验等其余策略不变。
+
+### 说明
+- **用户存档不受缓存策略影响**：全部进度存于 `localStorage`（`ns_best`/`ns_souls`/`ns_collection`/`ns_audio`/`ns_guide_seen`），与 HTTP 缓存是两套独立存储；清理/刷新缓存（含微信清缓存、debugx5 清内核）均不触碰 `localStorage`，存档安全。
+- **已知边界**：缓存治理只对「新访问」生效，无法回捞「在 v0.28 前已被旧 `immutable` HTML 缓存污染」的设备——这类设备需手动清一次缓存（见 HANDOFF 应急三招）才能吃到新策略。
+
+---
+
 ## v0.28（2026-07-25 · `dc379d3`）
 
 ### 修复

@@ -198,10 +198,14 @@ git push origin main
 **根因**（历史）：`public/_headers` 曾用 `/*  Cache-Control: public, max-age=31536000, immutable` 一刀切，把 `index.html` 与固定名 `/assets/*.png` 也设成「缓存一年、永不校验」，导致改了代码/美术微信永远看旧版。
 
 **治本方案（v0.28 起，`public/_headers` 按类型分策略）**：
-- `/` 与 `/index.html`：`no-cache` —— 入口永不硬缓存、每次校验，能立刻拿到最新带 hash 的 JS/CSS 引用（代码/玩法更新即时生效）。
+- `/` 与 `/index.html`：`no-store`（v0.29 起，原为 `no-cache`）—— 入口完全不存储、每次打开拉最新，能立刻拿到最新带 hash 的 JS/CSS 引用（代码/玩法更新即时生效）。用 `no-store` 是因微信 X5 内核偶有无视 `no-cache` 启发式喂旧缓存的 bug，`no-store` 禁存信号更强。
 - `/assets/*.js`、`/assets/*.css`、`/fonts/*`：`max-age=31536000, immutable` —— Vite 产物文件名带内容 hash，内容变文件名变，可安全永久缓存。
 - `/assets/*.png`（游戏美术，固定文件名）：`max-age=0, must-revalidate` —— 存储但每次走 ETag 校验，换图即时刷新、未改返回 304 几乎零开销。
 - ⚠️ **CF Pages 坑**：多规则命中同一文件时同名 header 会「逗号拼接」（非覆盖），因此**禁止再用 `/*` 兜底 Cache-Control**，全部写成互不重叠的按扩展名规则。
+
+**用户存档与缓存的关系（重要，勿混淆）**：全部进度存于 `localStorage`（`ns_best`/`ns_souls`/`ns_collection`/`ns_audio`/`ns_guide_seen`），与 HTTP 缓存是**两套独立存储**。上述所有缓存治理/清缓存操作（含微信清缓存、debugx5 清内核、`?v=` 绕过）**只影响 HTTP 缓存，绝不动 `localStorage`**，存档 100% 安全。唯一会清存档的是「清除网站数据/清除全部数据」，任何缓存方案都不应涉及它。
+
+**覆盖完整性（v0.29 核对）**：`public/` 仅 73 张 PNG（全在 `/assets/`）+ 1 个 woff2（`/fonts/`）+ `_headers`/`_redirects` 特殊文件，全部命中规则、无漏网类型。`_redirects` 为 SPA 回退 `/* /index.html 200`，故所有路由都走 index.html、受 HTML `no-store` 覆盖。
 
 **已卡旧版设备的应急清缓存**（治本部署后仍需清一次历史脏缓存）：
 1. 加随机参数访问：`https://night-survivors.pages.dev/?v=时间戳`（改 URL 必定绕过缓存）
