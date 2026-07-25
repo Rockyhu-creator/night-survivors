@@ -5,7 +5,7 @@
 
 ---
 
-## v0.35（2026-07-26 · `f1621dc`）
+## v0.35（2026-07-26 · `9057ca2`）
 
 ### 新增
 - **宝箱指示箭头改用 PNG 精灵**：`#loot-arrow` 由纯 CSS 三角改为 `<img>` 引用 `loot_arrow.png`（32×32 金箭头带尾翼，默认朝右），方向性与哥特细节显著增强；`ui.js` 的 `rotate(angle)` 旋转与 `left/top` 定位逻辑完全保留，`style.css` 去除 border 三角写法、改 `width/height:32px` + `drop-shadow` 辉光 + `image-rendering:pixelated`。
