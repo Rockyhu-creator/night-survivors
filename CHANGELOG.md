@@ -5,7 +5,7 @@
 
 ---
 
-## v0.31（2026-07-25 · `[HASH]`）
+## v0.31（2026-07-25 · `537136b`）
 
 ### 新增
 - **运行时版本自检（version.json + boot 比对 + 横幅/进度条 UI）**：`vite.config.js` 新增 `emitVersionJson()` 插件（`writeBundle` 钩子），把 `{ buildId, commit, builtAt }` 写入 `dist/version.json`；`buildId` 复用模块级变量，与 `__BUILD_ID__`（define 注入）同源，杜绝比对错位。
