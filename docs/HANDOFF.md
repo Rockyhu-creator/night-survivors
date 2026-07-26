@@ -32,7 +32,7 @@
 ### 战利品指引与掉落特判（v0.35）
 
 - **宝箱指示箭头 PNG 精灵**：`#loot-arrow` 为 `<img>` 引用 `loot_arrow.png`（32×32 金箭头带尾翼，默认朝右），`ui.js` 的 `updateLootBeacon()` 按 `Math.atan2(dy,dx)` 算角度并 `transform: rotate(angle)` 定位（屏外/贴边指向最近宝箱）；`style.css` 去 border 三角、改 `width/height:32px` + `drop-shadow` 辉光 + `image-rendering:pixelated`。
-- **宝箱指示圆环动态半径（修复 #195）**：`#loot-ring` 直径由 JS 在 `onX&&onY` 分支内按 `chestSize(普通40/boss48) × CSS缩放 sx × 1.4` 动态设（系数 > pulse 峰值 1.12），放大屏与 boss 宝箱任意呼吸相位都圈住；`style.css` 已去固定 `width/height:52px`、加 `box-sizing:border-box`。
+- **宝箱指示圆环动态半径（修复 #195，v0.39 修正 dpr 缩放）**：`#loot-ring` 直径由 JS 在 `onX&&onY` 分支内按 `chestSize(普通40/boss48) × CSS缩放 sx × 1.4` 动态设（系数 > pulse 峰值 1.12），放大屏与 boss 宝箱任意呼吸相位都圈住；`style.css` 已去固定 `width/height:52px`、加 `box-sizing:border-box`。**注意 `sx/sy` 必须 `rect.width/height ÷ CONFIG.LOGICAL_WIDTH/HEIGHT`（世界=逻辑像素），绝不能 `÷ canvas.width/height`（含 dpr 倍）——否则高分屏(dpr=2)环/箭头整体缩到一半位置、圈不住宝箱（v0.39 已修）**。
 - **掉落特判（修复 #196）**：`PickupSystem.drop(x,y,expValue,enemyType)` 新增第 4 参；石像鬼（`ENEMY_TYPES.gargoyle`）强制掉金宝石（`GEM_DEFS[3]`，价值 25）、暗影猎手（`ENEMY_TYPES.shadow_hunter`）强制掉红宝石（`GEM_DEFS[4]`，价值 50）；其余怪维持原 `expValue` 选档逻辑零改动，100% 掉落不变。`onEnemyKilled` 调用处补传 `enemy.type`（def 对象，非字符串 key）。
 
 ## 2. 技术栈
@@ -52,7 +52,7 @@
 - **动态逻辑分辨率**：
   - 桌面/横屏：960×540
   - **移动端锁竖屏（v0.24+，不再支持横屏）**：宽 540，高度按屏幕比例动态计算（960~1400）；横持时仍按竖屏渲染、等比缩放居中留黑边
-- **Canvas DPR 去虚（v0.26+）**：`canvas.width/height = LOGICAL * min(devicePixelRatio,2)`，`ctx.setTransform(dpr,0,0,dpr,0,0)`，CSS 尺寸保持逻辑像素→高 DPI 屏（尤其手机）锐利不发虚；DPR 封顶 2x 防 3x 手机内存爆炸
+- **Canvas DPR 去虚（v0.26+）**：`canvas.width/height = LOGICAL * min(devicePixelRatio,2)`，`ctx.setTransform(dpr,0,0,dpr,0,0)`，CSS 尺寸保持逻辑像素→高 DPI 屏（尤其手机）锐利不发虚；DPR 封顶 2x 防 3x 手机内存爆炸。**副作用**：DOM 覆盖层（如 loot beacon）用 canvas 坐标映射 CSS 须 `÷ CONFIG.LOGICAL_*`（逻辑像素），不可 `÷ canvas.width`（含 dpr），否则位置/尺寸缩半（v0.39 已修 loot beacon 圈不住/箭头偏位）。
 - **跨设备瞄准一致（v0.26+）**：`pickTarget` 屏内优先（手机竖屏/桌面横屏都只锁可见最近敌）；`TARGET_RADIUS=540` 统一雷劫索敌；敌人回收环固定 `RECYCLE_RADIUS=900`（取代原 `LOGICAL_WIDTH*1.6`，设备无关）
 - **切后台自动暂停（v0.24+）**：`visibilitychange` 监听，`hidden` 且 `playing` 时自动进暂停界面，恢复时 dt 从零起步
 - **触屏检测**：`ontouchstart` + `maxTouchPoints` + `pointer: coarse` 多重检测，给 `<html>` 加 `.touch-device` class

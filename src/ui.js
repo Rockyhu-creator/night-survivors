@@ -172,7 +172,9 @@ export class UIManager {
 
     const canvas = g.canvas;
     const rect = canvas.getBoundingClientRect();
-    const sx = rect.width / canvas.width, sy = rect.height / canvas.height;
+    // 世界坐标为逻辑像素，画布内部分辨率 = LOGICAL×dpr（game.js:89）；映射到 CSS 必须除以 LOGICAL 尺寸，
+    // 而非 canvas.width（含 dpr 倍），否则高分屏(dpr=2)下环/箭头整体缩到约一半位置 → 圈不住宝箱 / 箭头歪。
+    const sx = rect.width / CONFIG.LOGICAL_WIDTH, sy = rect.height / CONFIG.LOGICAL_HEIGHT;
     const cssX = rect.left + (best.x - cam.ox) * sx;
     const cssY = rect.top + (best.y - cam.oy) * sy;
     const m = this._lootInset;

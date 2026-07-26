@@ -9,6 +9,25 @@ const TARGET_RADIUS = 540;
 // body=鞭身主色(熔金琥珀) / edge=深渊青铜描边(核心辨识) / tip=白热尖端 / trail·spark 备未来用。
 const ETERNALWHIP_TINT = { body:'#ffb847', edge:'#4a2f12', tip:'#fff1c9', trail:'#d4af37', spark:'#f1c40f', sparkHot:'#fff1c9', dmg:'#e0a93b' };
 
+// 圣光矩阵觉醒投射物辉光：一次性缓存的径向渐变贴图，加法合成替代逐帧 shadowBlur（性能修复）。
+// 原理同 systems.js 宝箱辉光——shadowBlur 是 Canvas2D 头号性能杀手（O(面积) 模糊），dpr=2 下模糊面积×4 → 严重掉帧。
+let _matrixGlowSprite = null;
+function getMatrixGlowSprite() {
+  if (_matrixGlowSprite) return _matrixGlowSprite;
+  const s = 96;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(s / 2, s / 2, 3, s / 2, s / 2, s / 2);
+  grad.addColorStop(0, 'rgba(255,210,74,0.95)');
+  grad.addColorStop(0.45, 'rgba(255,210,74,0.35)');
+  grad.addColorStop(1, 'rgba(255,210,74,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, s, s);
+  _matrixGlowSprite = c;
+  return c;
+}
+
 // 亡魂收割者（reaper）撕裂 DOT 初值 [PLACEHOLDER 待真机校准]：
 // REND_DPS 为基础每秒伤害（实际施加时再乘 player.damageMul，随 build 成长）；
 // REND_DURATION 为单次撕裂持续秒数（命中会刷新）。
@@ -768,14 +787,16 @@ export class WeaponSystem {
       ctx.save();
       ctx.translate(sx, sy);
       if (p.kind === 'cross' && p.matrix) {
-        // 圣光矩阵觉醒：更大金色圣印 + additive 辉光 + 运动拖尾，与黎明圣印明显区分（纯观感）
+        // 圣光矩阵觉醒：更大金色圣印 + additive 辉光 + 运动拖尾，与黎明圣印明显区分（纯观感）。
+        // 性能修复：禁止逐帧 shadowBlur（Canvas2D 头号性能杀手，dpr=2 下模糊面积×4 → 严重掉帧）；
+        // 改用一次性缓存的径向辉光贴图 + 加法合成，与 systems.js 宝箱辉光同源手法。
         const img = sprite('weapon_cross');
         const size = 42;
         const spin = (p.spin || 0) + (this.game.time || 0) * 2.2;
         const sp = Math.hypot(p.vx, p.vy) || 1;
         const ux = p.vx / sp, uy = p.vy / sp;
-        // 运动拖尾（沿 -v 方向，加法合成）
         ctx.globalCompositeOperation = 'lighter';
+        // 运动拖尾（沿 -v 方向，加法合成）
         ctx.globalAlpha = 0.4;
         ctx.strokeStyle = '#ffe6a0';
         ctx.lineWidth = 9;
@@ -783,17 +804,19 @@ export class WeaponSystem {
         ctx.moveTo(-ux * 24, -uy * 24);
         ctx.lineTo(ux * 24, uy * 24);
         ctx.stroke();
+        // 缓存辉光：径向渐变贴图仅创建一次，加法合成替代 shadowBlur
+        const glow = getMatrixGlowSprite();
+        const gs = 66;
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(glow, -gs / 2, -gs / 2, gs, gs);
         ctx.globalAlpha = 1;
         ctx.rotate(spin);
-        ctx.shadowColor = '#ffd24a';
-        ctx.shadowBlur = 18;
         if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
         else {
           ctx.fillStyle = '#ffd76a';
           ctx.fillRect(-size / 2, -4, size, 8);
           ctx.fillRect(-4, -size / 2, 8, size);
         }
-        ctx.shadowBlur = 0;
         ctx.globalCompositeOperation = 'source-over';
       } else if (p.kind === 'cross') {
         // 黎明圣印：金色圣印贴图 + 辉光 + 缓慢自旋，与红色飞刃区分

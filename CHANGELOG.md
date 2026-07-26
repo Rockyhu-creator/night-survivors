@@ -5,6 +5,20 @@
 
 ---
 
+## v0.39（2026-07-26 · 待回填）
+
+### 修复
+- **圣光矩阵合成后严重掉帧（性能）**：`weapons.js` matrix 投射物渲染原每帧 `ctx.shadowBlur=18` + 加法合成——`shadowBlur` 是 Canvas2D 头号性能杀手，dpr=2 下模糊面积×4 → 高分屏严重掉帧。改为一次性缓存的径向辉光贴图（`getMatrixGlowSprite()`）+ 加法合成，与 `systems.js` 宝箱辉光同源手法，零逐帧模糊；观感基本一致。
+- **宝箱指引圆环圈不住宝箱 / 箭头偏位（坐标缩放）**：`ui.js updateLootBeacon()` 缩放因子误用 `rect.width / canvas.width`，而画布内部分辨率 = `LOGICAL×dpr`、世界坐标为逻辑像素 → 高分屏(dpr=2)下环/箭头整体缩到约一半位置。改为 `÷ CONFIG.LOGICAL_WIDTH/HEIGHT`，环直径 `chestSize*sx*1.4` 与箭头位置一并修正。dpr=1 测试机此前掩盖此 bug。
+
+### 说明
+- 「未选秘法魔典却合成圣光矩阵」非代码 bug：matrix 配方硬要求被动 `tome`（实名「秘法魔典」，+10% 全伤，maxLevel 5），且进化在开任意宝箱时**自动触发**（`game.js onChestOpened`）。玩家持有秘法魔典（口称"魔法秘典"）+ 黎明圣印满级时开宝箱即自动合成，并不点选。若希望进化改为显式确认，属设计变更，另行评估。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台报错）；`node --check src/weapons.js`、`node --check src/ui.js` 通过；宝箱指引屏外箭头/旋转、屏内脉冲环断言均过。
+
+---
+
 ## v0.38（2026-07-26 · `a9435b8`）
 
 ### 新增
