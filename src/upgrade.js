@@ -180,18 +180,11 @@ export class UpgradeSystem {
       const info = this.describe(option);
       const card = document.createElement('div');
       card.className = 'upgrade-card';
-      // D5：被动走程序化 CSS 徽标（零 PNG）；武器/神器仍用 sprite 贴图
-      if (option.kind === 'passive') {
-        const badge = this.game.ui.passiveBadge(option.def);
-        badge.classList.add('uc-badge');
-        card.appendChild(badge);
-      } else {
-        const img = document.createElement('img');
-        const src = sprite(info.icon);
-        img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
-        img.alt = info.title;
-        card.appendChild(img);
-      }
+      const img = document.createElement('img');
+      const src = sprite(info.icon);
+      img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
+      img.alt = info.title;
+      card.appendChild(img);
       const tag = document.createElement('div');
       tag.className = `uc-kind ${info.tagClass}`;
       tag.textContent = info.tag;

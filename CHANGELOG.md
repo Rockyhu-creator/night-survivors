@@ -5,6 +5,20 @@
 
 ---
 
+## v1.6（2026-07-26 · 待提交）
+
+> 升级卡 UI 一致性 + 移动端适配修复：① 强化选择时 13 个被动 icon 与武器 icon 渲染不统一（风格/尺寸双不一致）；② 移动端升级卡文字被横向 flex 压成竖向窄条。
+
+### 修复
+- **`src/upgrade.js`：升级卡 icon 统一渲染**。原武器走 `<img>`（`.upgrade-card img`：84×84、灰边、暗底、object-fit:cover），被动却走 `passiveBadge()`（分类彩边发光 div、object-fit:contain）——同卡两套风格；移动端武器被压 56px 而被动徽标仍 84px，尺寸也不一致。现把武器/被动双路渲染合并为单一 `<img>`（共用 `sprite(info.icon)`），两者完全一致。（`passiveBadge` 方法保留，仍供装备栏 HUD 与图鉴 codex 使用。）
+- **`src/style.css`：移动端升级卡文字竖向 bug**。`.touch-device .upgrade-card` 原设 `display:flex`（横向），使卡内 icon+标签+标题+描述+按钮全挤进同一行 → 文字被压成竖向窄条。改为纵向堆叠（`text-align:center`，移除 `display:flex/align-items/gap/text-align:left`），修复后恢复正常的纵向卡片布局。
+- **`src/style.css`：清理死规则 + 版本横幅移动端防御**。删除升级卡不再使用的 `.uc-badge` 规则（保留 `.passive-badge`/`.codex-badge`/装备栏规则）；为 `#update-prompt` 补 `.touch-device` 移动端规则（安全区 padding、`.up-inner` 换行、文字/按钮居中），避免版本更新横幅在手机上溢出。
+
+### 验证
+- `vite build` 零错误；e2e 升级相关用例（升级三选一流程 / 武器图鉴被动13张 / 卡片总数31）全 PASS。（注：e2e 套件存在固有时序抖动，偶发 1–2 条失败为已知现象、与本次改动无关。）
+
+---
+
 ## v1.5（2026-07-26 · `96bdff68de86f32be0d518aec5a5144923e3b431`）
 
 > 修复微信浏览器下护盾条不可见问题：根因并非缓存，而是 `maxShield===0` 时护盾条被 `class="hidden"`（`display:none!important`）整条隐藏，新开局未拿护盾被动即完全看不到。
