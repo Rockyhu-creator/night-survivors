@@ -872,16 +872,18 @@ html, body {
 /* 暂停层「属性」入口按钮 */
 .pause-stats-btn { margin: 16px 0 0; }
 
-/* ---------- 护盾条 HUD（D4：HP 条下方独立灰底蓝量细条） ---------- */
+/* ---------- 护盾条 HUD（D4：HP 条下方独立盾槽 + 青色盾量段） ---------- */
 #shield-bar {
-  position: absolute; left: 0; bottom: -7px; height: 4px; width: 100%;
-  background: #2a2a33;                 /* 灰底空槽 */
-  box-shadow: 0 0 6px rgba(90,200,250,.5);
+  position: absolute; left: 0; bottom: -11px; height: 8px; width: 100%;
+  background: #16202b;                 /* 暗蓝空槽（区别于普灰） */
+  border: 1px solid rgba(90,200,250,.4);
+  box-shadow: 0 0 8px rgba(90,200,250,.5);
   overflow: hidden;
 }
 #shield-fill {
   height: 100%; width: 0%;
-  background: linear-gradient(90deg, #1a4a8a, #5ac8fa);   /* 蓝盾量段 */
+  background: linear-gradient(90deg, #19b6ff, #7ef0ff);   /* 亮青盾量段 */
+  box-shadow: 0 0 10px rgba(90,200,250,.85);
   transition: width .12s linear;
 }
 
