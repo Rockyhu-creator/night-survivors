@@ -322,7 +322,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-PLACEHOLDER v1.11 钢铁意志icon重制(亮底银盾) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
+ca3281d22e64949058c316af750a6e04be2e7fd2 v1.11 钢铁意志icon重制(亮底银盾) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
 
 b3b234ed1807993475d6a942416df87e25216b36 v1.10 升级卡合成路径提示 A+B（upgrade.js/style.css 进化就绪金徽章 + 精炼配方行，引擎同源零误导，尊重隐藏）
 
