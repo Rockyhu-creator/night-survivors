@@ -264,7 +264,7 @@ git push origin main
 
 图鉴界面（`#codex-screen`）显示解锁状态。
 
-> **武器特效 / tint 链路（v0.36）**：各神器觉醒武器的专属视觉差异目前集中在渲染层 tint。永劫之鞭（eternalwhip）在 `src/weapons.js` 顶部定义 `ETERNALWHIP_TINT`（熔金黑鞭配色：body #ffb847 / edge #4a2f12 / tip #fff1c9），经 `applyWhip` 第 5 参透传至 slash，render 描边与尖端高光改 tint 感知；基础鞭不传 tint 走原粉色。其余神器（storm/devour/spiral/stormcall/crimson/tempest/sepulcher/matrix）的专属特效沿用各自既有渲染分支。规格扩展项（残影光晕 / 命中火花 / 主题伤害数字）尚未实现，预留 `trail`/`spark` 键待补。
+> **武器特效 / tint 链路（v0.36）**：各神器觉醒武器的专属视觉差异目前集中在渲染层 tint。永劫之鞭（eternalwhip）在 `src/weapons.js` 顶部定义 `ETERNALWHIP_TINT`（熔金黑鞭配色：body #ffb847 / edge #4a2f12 / tip #fff1c9），经 `applyWhip` 第 5 参透传至 slash，render 描边与尖端高光改 tint 感知；基础鞭不传 tint 走原粉色。其余神器（storm/devour/spiral/stormcall/crimson/tempest/sepulcher/matrix）的专属特效沿用各自既有渲染分支。规格扩展项（残影光晕 / 命中火花 / 主题伤害数字）已于 v0.38 实现：additive 残影光晕（`sl.tint.trail` #d4af37）+ 命中金色火花（`spawnSparks` 6×`spark`+3×`sparkHot`）+ 鎏金主题伤害数字（`tint.dmg` #e0a93b），均 gate 在 `sl.tint` 存在性上，基础鞭零变化。
 
 > **第 10 神器：亡魂收割者 Reaper's Scythe（v0.37）**：新增 scythe 武器（亡魂镰刀，回旋镰刀投射物=大范围回旋镰斩）+ reaper 神器（由 scythe 武器 + 贪婪之魂 被动进化，配方见 `RECIPES`）。觉醒后 scythe 攻击追加：① 撕裂 DOT（`entities.js` 敌人身上的 `rend` 字段，每帧按 `dps*dt` 结算）② 收割回能（被 scythe/rend 击杀且持有 reaper 时归还少量 HP）。两项觉醒效果均门控 `hasArtifact('reaper')`，基础 scythe 不受影响。骨白 #e8e0c0 + 幽魂绿 #7fff9f 专属配色（`weapon_scythe.png` / `art_reaper.png`）。数值（镰刀数量 / 伤害 / rend dps / 回血量）标 `[PLACEHOLDER]` 待真机校准。
 

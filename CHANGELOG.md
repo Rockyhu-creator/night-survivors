@@ -5,6 +5,16 @@
 
 ---
 
+## v0.38（2026-07-26 · `a9435b8`）
+
+### 新增
+- **永劫之鞭扩展特效（补全 v0.36 规格 §3.1/§3.3）**：① 残影光晕——挥砍时 additive（`globalCompositeOperation='lighter'`）鎏金残影描边（#d4af37）；② 命中火花——eternalwhip 命中迸 6×余烬金(#f1c40f)+3×白热高光(#fff1c9) 火花；③ 主题伤害数字——eternalwhip 伤害数字呈鎏金色(#e0a93b)。三项均 gate 在 `sl.tint` 存在性上，基础噬魂长鞭（无 tint）仍为粉色、无火花无光晕，向前兼容零变化。`ETERNALWHIP_TINT` 扩为 7 键（新增 sparkHot/dmg）。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台报错）；`node --check src/weapons.js` 通过；无新 PNG / assets.js 未动。
+
+---
+
 ## v0.37（2026-07-26 · `71cbf72`）
 
 ### 新增
