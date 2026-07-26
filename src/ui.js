@@ -22,87 +22,8 @@ const MONSTER_LORE = {
 // 被动像素 icon（程序化 CSS，零 PNG，D5）。每项是 8×8 ASCII 像素图，
 // 字符→调色板见 PX；运行时由 spriteShadow() 转成 box-shadow 拼出像素 icon，
 // 单元尺寸由 CSS 变量 --pb-px 控制（升级卡/图鉴/装备栏分别缩放），图像用 image-rendering:pixelated。
-const PX = {
-  '.': null,
-  K: '#150f24', // 描边/暗部（近黑紫，贴合哥特底）
-  W: '#ece3cf', // 骨白高光
-  G: '#d4af37', // 金
-  P: '#8e44ad', // 紫
-  R: '#d83a3a', // 红
-  B: '#3a8fd5', // 蓝
-  S: '#9aa6b8', // 钢
-  C: '#4fd6e0', // 青（能量）
-};
-const PASSIVE_PIXELS = {
-  boots: { g: [
-    '..KKKK..', '.KSSSSK.', '.KS..SK.', '.KS..SK.',
-    '.KSSSSK.', '.KS...K.', '.KSSSK..', '.KKKKK..',
-  ] },
-  heart: { g: [
-    '..KKKK..', '.KRRRRK.', 'KRRRRRRK', 'KRRRRRRK',
-    'KRRRRRRK', '.KRRRRK.', '..KRRK..', '...KK...',
-  ] },
-  tome: { g: [
-    '.KKKKKK.', '.KPPPPK.', 'KPWWWWPK', 'KPWKKWPK',
-    'KPWKKWPK', 'KPWWWWPK', '.KPPPPK.', '..K..K..',
-  ] },
-  magnet: { g: [
-    '.KK..KK.', 'K..KK..K', 'K......K', 'K......K',
-    'K......K', 'K......K', '.K....K.', '..KKKK..',
-  ] },
-  greed: { g: [
-    '..KKKK..', '.KGGGGK.', 'KGWWGGK.', 'KGWGGGK.',
-    'KGWGGGK.', 'KGWWGGK.', '.KGGGGK.', '..KKKK..',
-  ] },
-  guard: { g: [
-    '..KKKK..', '.KSSSSK.', 'KSSSSSSK', 'KSSWSSSK',
-    'KSSWSSSK', '.KSSSSK.', '..KSSK..', '...KK...',
-  ] },
-  regen: { g: [
-    '...KK...', '..KRRK..', '.KRRRRK.', 'KRRRRRRK',
-    'KRRRRRRK', 'KRRRRRRK', '.KRRRRK.', '..KRRK..',
-  ] },
-  critrate: { g: [
-    '...KK...', '...KR...', '...KR...', 'KRKRKRKR',
-    '...KR...', '...KR...', '...KR...', '...KK...',
-  ] },
-  critdmg: { g: [
-    '...KK...', '...KS...', '...KS...', '...KS...',
-    '...KS...', '..KGSK..', '..KGSK..', '...KK...',
-  ] },
-  shield: { g: [
-    '..KKKK..', '.KCCCCK.', 'KCCWWCCK', 'KCWWWWCK',
-    'KCWWWWCK', '.KCCCCK.', '..KCCK..', '...KK...',
-  ] },
-  shieldregen: { g: [
-    '..KKKK..', '.K....K.', 'K.KK.K..', 'K.K..K..',
-    'K.K..KK.', 'K.KK.K..', '.K....K.', '..KKKK..',
-  ] },
-  armor: { g: [
-    '.KKKKKK.', 'KSSSSSSK', 'KS.KK.SK', 'KS.KK.SK',
-    'KSSSSSSK', '.KSSSSK.', '..KSSK..', '...KK...',
-  ] },
-  dodge: { g: [
-    '...KK...', '..KWWK..', '.KWKWWK.', 'KWKWKWKK',
-    'KWKWKWKK', '.KWWWWK.', '.KW..WK.', '.K....K.',
-  ] },
-};
-
-// 将 8×8 ASCII 像素图转成 box-shadow 字符串；像素单元 = var(--pb-px)，
-// 以网格中心(3.5,3.5)为原点对称偏移，使 icon 在徽标内居中。
-function spriteShadow(grid) {
-  const off = (grid[0].length - 1) / 2;
-  const out = [];
-  for (let r = 0; r < grid.length; r++) {
-    const row = grid[r];
-    for (let c = 0; c < row.length; c++) {
-      const col = PX[row[c]];
-      if (!col) continue;
-      out.push(`calc(var(--pb-px)*${c - off}) calc(var(--pb-px)*${r - off}) 0 0 ${col}`);
-    }
-  }
-  return out.join(',');
-}
+// 被动 icon 现在走 AI PNG + gen_passive_pixels.py 像素化管线（v1.4），
+// 不再使用 CSS box-shadow 拼图。以下旧数据已移除。
 
 export class UIManager {
   constructor(game) {
@@ -420,19 +341,19 @@ export class UIManager {
     }
   }
 
-  // ===== S 档：被动像素 icon（程序化 CSS，零 PNG，D5）=====
-  // 供升级卡 / 装备栏 / 图鉴复用：哥特像素框 + 按 category 着色，
-  // 内部 <i class="pb-sprite"> 由 box-shadow 拼出 8×8 像素图（见 PASSIVE_PIXELS）。
+  // ===== S 档：被动像素 icon（AI PNG + 像素化 sprite，v1.4）=====
+// 供升级卡 / 装备栏 / 图鉴复用：哥特像素框 + 按 category 着色，
+// 内部 <img> 取 passive_<id>.png（80x80 RGBA，由 gen_passive_pixels.py 生成）。
   passiveBadge(def) {
     const cat = (def && def.category) || 'utility';
     const el = document.createElement('div');
     el.className = `passive-badge cat-${cat}`;
     el.title = def ? def.name : '';
-    const sp = document.createElement('i');
-    sp.className = 'pb-sprite';
-    const data = def && PASSIVE_PIXELS[def.id];
-    if (data) sp.style.boxShadow = spriteShadow(data.g);
-    el.appendChild(sp);
+    const img = document.createElement('img');
+    img.src = this.iconURL(def ? def.icon : '');
+    img.alt = def ? def.name : '';
+    img.style.imageRendering = 'pixelated';
+    el.appendChild(img);
     return el;
   }
 

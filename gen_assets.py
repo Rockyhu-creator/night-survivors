@@ -55,6 +55,11 @@ AI_OWNED = {
     "weapon_blade.png", "weapon_holywater.png", "weapon_axe.png", "weapon_lightning.png",
     "gem_small.png", "gem_medium.png", "gem_large.png",
     "ground.png", "bg_title.png", "icon_skull.png",
+    # 被动 icon（13 张，由 gen_passive_pixels.py 从 AI 原图像素化生成）
+    "passive_boots.png", "passive_heart.png", "passive_tome.png", "passive_magnet.png",
+    "passive_greed.png", "passive_guard.png", "passive_regen.png",
+    "passive_critrate.png", "passive_critdmg.png", "passive_shield.png",
+    "passive_shieldregen.png", "passive_armor.png", "passive_dodge.png",
 }
 
 def save(img, name, scale=1):

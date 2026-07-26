@@ -5,7 +5,29 @@
 
 ---
 
-## v1.3（2026-07-26 · `14b054ecc1a5efd4d97194b4a9467e7fc1b1d28f`）
+## v1.4（2026-07-26 · 待提交）
+
+> 被动 icon 全面升级：从 8×8 CSS box-shadow 方框替换为 AI 文生图 + Pillow 像素化管线生成的 80×80 哥特像素 sprite。
+
+### 新增
+- **被动 icon AI 管线**：`gen_passive_pixels.py`（AI PNG → 众数背景键控 → 40 网格像素化 → NEAREST 2x → 1px 暗描边 → 80×80 RGBA），对齐武器/神器规格。13 张 `passive_*.png` 全部由 ImageGen 生成 + 脚本后处理。
+- **assets.js 注册 7 个新 key**：`passive_regen/critrate/critdmg/shield/shieldregen/armor/dodge`（原仅 6 个旧被动）。
+- **`regen.icon` 从 `potion` 改为 `passive_regen`**（不再复用药水瓶贴图，拥有专属图标）。
+- **`gen_assets.py` AI_OWNED 扩容**：13 个 `passive_*.png` 加入保护集，防止程序化生成器覆盖 AI 美术。
+
+### 调整
+- **`ui.js passiveBadge()` 渲染改造**：从 `<i class="pb-sprite">`（CSS box-shadow 拼 8×8 ASCII）改为 `<img>`（取 `passive_<id>.png`，`image-rendering:pixelated`）。删除 `PASSIVE_PIXELS`/`PX`/`spriteShadow` 死代码（~90 行）。
+- **CSS 适配**：`.passive-badge img` 新增 `width:100%;height:100%;object-fit:contain;image-rendering:pixelated`；移除 `.pb-sprite` / `--pb-px` 变量体系。
+
+### 清理
+- 删除孤儿文件 `passive_rage.png`、`passive_swift.png`（旧合并被动残留，无代码引用）。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台错误）；13 个 passive PNG dev server 200 验证通过。
+
+---
+
+## v1.3（2026-07-26 · `14b054ecc1a5efd4d97194b4a9467e7fc1b1d28f`)
 
 > 修复桌面端缺失的暂停入口；护盾机制实测无 bug。
 

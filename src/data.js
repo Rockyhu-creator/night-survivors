@@ -234,7 +234,7 @@ export const PASSIVES = {
   greed: { id: 'greed', name: '财富之魂', icon: 'passive_greed', maxLevel: 99, category: 'utility', desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
   guard: { id: 'guard', name: '钢铁意志', icon: 'passive_guard', maxLevel: 99, category: 'survival', desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
   // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 满级 4 HP/s
-  regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, category: 'survival', desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
+  regen: { id: 'regen', name: '血色再生', icon: 'passive_regen', maxLevel: 5, category: 'survival', desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
   // ===== S 档新被动（2026-07-26，默认全开放入池，不进 RECIPES）=====
   critrate: {
     id: 'critrate', name: '致命专注', icon: 'passive_critrate',

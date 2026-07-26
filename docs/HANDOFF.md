@@ -1,12 +1,12 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.3 桌面端暂停按钮补全推送后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.4 被动 icon AI 像素化升级推送后）
 
 ---
 
 ## 0. ✅ 大版本 S 档（属性面板 + 被动扩展）——v1.0 已开发完成并推送
 
-**线上现状**：v1.0（`1e20a0115bd82da06063a40d1ecd655b223e8bea`）已推送上线，在 v0.39 基础上落地 S 档全部内容；v1.1（`2dc7f04`，见 §11）为被动徽标视觉重设计（D5 像素 icon 落地细化），零 PNG 程序化路线不变。v0.39 修复了圣光矩阵 shadowBlur 卡顿与宝箱指引 dpr 缩放。
+**线上现状**：v1.0（`1e20a0115bd82da06063a40d1ecd655b223e8bea`）已推送上线，在 v0.39 基础上落地 S 档全部内容；v1.1（`2dc7f04`，见 §11）为被动徽标视觉重设计（D5 像素 icon 落地细化）；**v1.4 将 13 个被动 icon 从 CSS box-shadow 8×8 方框升级为 AI 文生图（ImageGen）+ Pillow 像素化产出的 80×80 哥特像素 sprite（`passive_*.png`），并纳入 AI_OWNED 保护**——至此被动 icon 路线由「零 PNG 程序化」转为「AI 美术 + 脚本后处理」。v0.39 修复了圣光矩阵 shadowBlur 卡顿与宝箱指引 dpr 缩放。
 
 **大版本状态**：**已开发完成**。用户确认「根据方案进入开发」后，按主方案 v1.1 的 D1~D5 决议落地 9 项任务（属性面板 + 6 新被动 + 同类合并 + 分类权重 + 暴击接入 + 护盾条 + CSS 徽标）；e2e 全量回归 ALL PASS（零控制台报错）。
 
@@ -23,13 +23,13 @@
 - **D2** 暴击按默认值落地：`critChance +5%/级`（基础 0.05，硬上限 0.75）、`critMul +15%/级`（基础 1.5）。`player.rollCrit()` 在 `weapons.js hitEnemy` 接入，DOT 每 tick 独立 roll；暴击飘字金字放大 +「暴击 」前缀（14/帧节流）。
 - **D3** 被动分类权重（`buildPool` 内 `w = 1 + 0.6·catCount[category]`）+ 同类被动合并：删 `swift`/`rage`，`boots` 吸并移速（+6%/级·ML99）、`tome` 吸并全伤（+8%/级·ML99）。保底：**池中有武器时优先武器**（保证每层可拿武器），无武器可给时才退化为进攻向被动（防"三张全生存向"卡 build）。
 - **D4** 护盾条：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条，蓝色盾量段；受击后 `shieldRegen` 暂停 3s（见 `entities.js` 护盾恢复）。
-- **D5** 被动/属性 icon 全程序化 CSS 徽标（v1.0 初版 `PASSIVE_BADGE_SYMBOL` 单字 + `.passive-badge`；**v1.1 重设计为 `PASSIVE_BADGE_PIXELS` 8×8 像素 sprite**，`passiveBadge()` 用 `box-shadow` 逐格拼图 + 哥特画框，三档 `--pb-px` 缩放），**零新 PNG**，未碰 AI_OWNED 15 张，未跑 `gen_assets.sh`。
+- **D5** 被动 icon 视觉方案（已演进）：v1.0 初版为 `PASSIVE_BADGE_SYMBOL` 单字 + `.passive-badge`；**v1.1 重设计为 8×8 CSS box-shadow 像素 sprite**（`passiveBadge()` 用 `--pb-px` + `box-shadow` 逐格拼图 + 哥特画框）；**v1.4 废弃 CSS 方案**，改为 **AI 文生图（`gen_passive_pixels.py`：ImageGen 原图 → 众数色背景键控 → 40 网格 LANCZOS → NEAREST 2x 至 80×80 → 1px 暗描边 `(8,4,14)`）→ `passive_*.png`**，渲染侧 `passiveBadge()` 改输出 `<img class="passive-badge">`（`object-fit:contain` + `image-rendering:pixelated`）。新 13 张 `passive_*.png` 已加入 `gen_assets.py` AI_OWNED 保护集，防程序化生成器覆盖。
 
 **S 档最终范围（已交付）**：① 9 属性机制（critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance 六字段；承伤顺序：闪避→防御 `max(1,(raw-armor)×damageTakenMul)`→护盾→扣血）② 6 新被动（致命专注/毁灭之刃/幽能屏障/灵能回响/暗夜铠甲/魅影身法，均 ML5）③ 同类被动合并 + 分类权重 ④ 属性面板 UI（`#stats-panel`：暂停内嵌 + 结算屏，Tab/C 切换）⑤ 护盾灰色细条。**未做（留 M 档）**：局内任务、新武器/神器、新怪词缀。
 
 **被动总数**：13（boots/heart/tome/magnet/greed/guard/regen + critrate/critdmg/shield/shieldregen/armor/dodge）。图鉴卡片总数 31（8 武器 + 13 被动 + 10 神器）。
 
-**其他注意**：`gen_assets.py` 仍含 `gen_passive_rage/swift` 生成器（产物 `passive_rage.png`/`passive_swift.png` 已无引用，属死代码）；`assets.js` 已移除这两项孤儿引用（A8 清理）。
+**其他注意**：`gen_assets.py` 旧 `gen_passive_rage/swift` 生成器产物（`passive_rage.png`/`passive_swift.png`）已于 v1.4 删除（孤儿、无引用）；13 张 AI 被动 `passive_*.png`（boots/heart/tome/magnet/greed/guard/regen/critrate/critdmg/shield/shieldregen/armor/dodge）现已纳入 AI_OWNED 保护集，重跑 `gen_assets.py` 不会覆盖。
 
 ---
 
@@ -320,6 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+<PLACEHOLDER> feat: 被动 icon AI 像素化升级 v1.4（13 张 passive_*.png + gen_passive_pixels.py + 渲染切 img + AI_OWNED 扩容）
 b2785fb docs: 回填 v0.39 commit 哈希 a8828af
 a8828af fix: 圣光矩阵shadowBlur卡顿改缓存辉光 + 宝箱指引DPR缩放修正圈不住/箭头偏位 (v0.39)
 55cd381 art: 大版本S档 16张AI像素icon生成脚本(gen_icons.sh)；文生图服务降级暂无法出图，待恢复复跑
