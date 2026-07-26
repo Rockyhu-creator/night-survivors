@@ -5,6 +5,19 @@
 
 ---
 
+## v1.7（2026-07-26 · 待提交）
+
+> 五大神器「双硬指标」重校（直伤 ≥ 满级原武器 ×1.3、含专属机制总效能 ≥ ×1.6）+ 视觉强制区分，根治「进化没提升 / 看不见」反馈。性能红线：所有新渲染分支零 per-frame shadowBlur（统一走离屏缓存辉光贴图 + additive）。
+
+### 优化
+- **crimson 猩红之拥**：弹幕 count 2→4、damage 32→35、pierce 2→3（直伤 DPS 256→840，≈ blade L5 的 1.62×）；渲染改缓存辉光 + 猩红菱形，移除 shadowBlur；ARTIFACTS 描述去掉「伤害翻倍」不符措辞。
+- **matrix 圣光矩阵**：mxTimer 1.2→0.8、damage 30→40（直伤 DPS 600→1200，≈ cross L5 的 1.67×）；新增常驻八向星纹 sigil（预渲染一次缓存、旋转绘制），解决「看不到范围 / 弹幕」。
+- **reaper 亡魂收割者**：镰刀 n 3→4、REND_DPS 12→16、REND_HARVEST_HP 3→4（直伤 DPS ≈ scythe L5 的 1.47×，含撕裂 DOT + 收割回血总效能 ≥ ×1.6）；加 reaper 标记 + 紫魂辉光大号镰刀，与基础骨白绿镰强区分。
+- **devour 圣洁吞噬**：radius 110→140（探出亡灵光环满级 162 内侧）、damage 16→34（直伤 DPS 40→85，≈ holywater L5 的 1.42×）；环改圣金白配色 + 缓存辉光、伤害飘字转金，不被红环遮罩。
+- **tempest 雷劫**：移动阈值 60→42、新增 0.35s 静止兜底、damage 30→56、chains 2→4、chainRange 160→200（走位 DPS ≈ lightning L5 的 2.22×、站桩 1.33×）；strikeLightning 加 color 参数（雷劫紫电 #b07cff / 雷霆循环金雷 #ffd76e）彻底区分，雷劫行经落雷印 AoE（对象池上限 24）；bolt 移除 shadowBlur=12 改缓存辉光。
+- **stormcall 雷霆循环**：数值不变（已 2.31×），仅补金雷色区分。
+- **性能基线**：新增统一 getGlowSprite(colorKey,size,color) 缓存辉光 helper；matrix sigil 预渲染一次；tempest thunderRunes 对象池（≤24）无逐帧 new；所有光晕 additive。存量 3 处基础 cross/blade/scythe 渲染 shadowBlur 与红环 drawRedAuraRing 非本次范围，留后续 hotfix。
+
 ## v1.6（2026-07-26 · `6643b93089668486922732bed2ea907b0e1a4fd7`）
 
 > 升级卡 UI 一致性 + 移动端适配修复：① 强化选择时 13 个被动 icon 与武器 icon 渲染不统一（风格/尺寸双不一致）；② 移动端升级卡文字被横向 flex 压成竖向窄条。

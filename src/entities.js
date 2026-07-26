@@ -8,7 +8,7 @@ const MAX_ENEMY_PROJECTILES = 400;
 const RECYCLE_RADIUS = 900;
 // 亡魂收割者（reaper）·收割回能初值 [PLACEHOLDER 待真机校准]：
 // 被 scythe/rend 击杀且持有 reaper 神器时，给玩家回收的 HP 量。
-const REND_HARVEST_HP = 3;
+const REND_HARVEST_HP = 4;
 
 export class Player {
   constructor() { this.reset(); }

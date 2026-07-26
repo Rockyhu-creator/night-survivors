@@ -28,10 +28,51 @@ function getMatrixGlowSprite() {
   return c;
 }
 
+// 统一辉光贴图缓存：所有神器光晕走离屏缓存 + 加法合成，彻底规避逐帧 shadowBlur（性能红线）。
+const _glowCache = new Map();
+function getGlowSprite(key, size, color) {
+  const ck = key + '_' + size + '_' + color;
+  if (_glowCache.has(ck)) return _glowCache.get(ck);
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  const r = size / 2;
+  const grad = g.createRadialGradient(r, r, 0, r, r, r);
+  grad.addColorStop(0, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad; g.beginPath(); g.arc(r, r, r, 0, Math.PI * 2); g.fill();
+  _glowCache.set(ck, c); return c;
+}
+
+// 圣光矩阵八向星纹 sigil：8 条 spoke 预渲染一次（金 #f5d76e），玩家脚下每帧 additive 旋转绘制。
+let _matrixSigilSprite = null;
+function getMatrixSigilSprite() {
+  if (_matrixSigilSprite) return _matrixSigilSprite;
+  const s = 108;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d');
+  g.translate(s / 2, s / 2);
+  const R = s / 2 - 4;
+  g.strokeStyle = '#f5d76e';
+  g.lineWidth = 3;
+  g.lineCap = 'round';
+  for (let i = 0; i < 8; i += 1) {
+    const ang = (i / 8) * Math.PI * 2;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(Math.cos(ang) * R, Math.sin(ang) * R);
+    g.stroke();
+  }
+  g.fillStyle = '#f5d76e';
+  g.beginPath(); g.arc(0, 0, 5, 0, Math.PI * 2); g.fill();
+  _matrixSigilSprite = c;
+  return c;
+}
+
 // 亡魂收割者（reaper）撕裂 DOT 初值 [PLACEHOLDER 待真机校准]：
 // REND_DPS 为基础每秒伤害（实际施加时再乘 player.damageMul，随 build 成长）；
 // REND_DURATION 为单次撕裂持续秒数（命中会刷新）。
-const REND_DPS = 12;
+const REND_DPS = 16;
 const REND_DURATION = 3;
 
 export class WeaponSystem {
@@ -42,7 +83,8 @@ export class WeaponSystem {
     this.bolts = [];
     this.slashes = [];
     this.vials = [];
-    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
+    this.thunderRunes = [];
+    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
 
@@ -52,7 +94,8 @@ export class WeaponSystem {
     this.bolts.length = 0;
     this.slashes.length = 0;
     this.vials.length = 0;
-    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, lastX: 0, lastY: 0 };
+    this.thunderRunes.length = 0;
+    this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
 
@@ -111,6 +154,7 @@ export class WeaponSystem {
     this.updateBolts(dt);
     this.updateVials(dt);
     this.updateSlashes(dt);
+    this.updateThunderRunes(dt);
   }
 
   updateSlashes(dt) {
@@ -145,7 +189,7 @@ export class WeaponSystem {
       }
     } else if (weapon.id === 'devour') {
       st.devourAngle += dt;
-      if (!this.devourPool) this.devourPool = { radius: 110, tick: 0.4, tickTimer: 0 };
+      if (!this.devourPool) this.devourPool = { radius: 140, tick: 0.4, tickTimer: 0 };
       const pool = this.devourPool;
       pool.x = player.x;
       pool.y = player.y;
@@ -154,7 +198,7 @@ export class WeaponSystem {
         pool.tickTimer = pool.tick;
         for (const e of game.enemies.enemiesNear(player.x, player.y, pool.radius + 30)) {
           if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < pool.radius) {
-            this.hitEnemy(e, 16 * player.damageMul, 0, 0, '#a8d8ff');
+            this.hitEnemy(e, 34 * player.damageMul, 0, 0, '#ffd76a');
           }
         }
       }
@@ -178,14 +222,14 @@ export class WeaponSystem {
         st.stormcallTimer = 1.2;
         for (let i = 0; i < 6; i += 1) {
           const target = enemies[Math.floor(Math.random() * enemies.length)];
-          this.strikeLightning(target, { damage: 40 * player.damageMul, chains: 6, chainRange: 220 }, new Set());
+          this.strikeLightning(target, { damage: 40 * player.damageMul, chains: 6, chainRange: 220, color: '#ffd76e' }, new Set());
         }
       }
     } else if (weapon.id === 'crimson') {
       st.stormTimer -= dt;
       if (st.stormTimer <= 0 && enemies.length > 0) {
         st.stormTimer = 0.5;
-        for (let i = 0; i < 2; i += 1) {
+        for (let i = 0; i < 4; i += 1) {
           const target = this.pickTarget(i);
           if (!target) break;
           const dx = target.x - player.x;
@@ -194,7 +238,7 @@ export class WeaponSystem {
           this.projectiles.push({
             kind: 'blade', x: player.x, y: player.y,
             vx: (dx / d) * 400, vy: (dy / d) * 400,
-            damage: 32 * player.damageMul, pierce: 2, life: 1.5, spin: 0, hitSet: new Set(), lifeSteal: true,
+            damage: 35 * player.damageMul, pierce: 3, life: 1.5, spin: 0, hitSet: new Set(), lifeSteal: true,
             tint: '#ff3b6b', // 猩红之拥：猩红碎片
           });
         }
@@ -204,10 +248,15 @@ export class WeaponSystem {
       st.tempestDistance += moved;
       st.lastX = player.x;
       st.lastY = player.y;
-      if (st.tempestDistance > 60 && enemies.length > 0) {
+      if (st.tempestDistance > 42 && enemies.length > 0) {
         st.tempestDistance = 0;
-        const target = game.enemies.nearestTo(player.x, player.y, TARGET_RADIUS);
-        if (target) this.strikeLightning(target, { damage: 30 * player.damageMul, chains: 2, chainRange: 160 }, new Set());
+        this.fireTempest(player);
+      }
+      // 静止兜底：长时间未移动也触发一次，避免站桩无输出（复用 fireTempest）
+      st.tempestIdleTimer = (st.tempestIdleTimer || 0) + dt;
+      if (st.tempestIdleTimer >= 0.35 && enemies.length > 0) {
+        st.tempestIdleTimer = 0;
+        this.fireTempest(player);
       }
     } else if (weapon.id === 'sepulcher') {
       // 寂灭结界：更大光环持续伤害 + 每 1.2s 向 4 向迸射骨刺
@@ -243,17 +292,17 @@ export class WeaponSystem {
         }
       }
     } else if (weapon.id === 'matrix') {
-      // 圣光矩阵：每 1.2s 常驻八向放射、穿透 3
+      // 圣光矩阵：每 0.8s 常驻八向放射、穿透 3
       st.mxTimer = (st.mxTimer || 0) - dt;
       if (st.mxTimer <= 0) {
-        st.mxTimer = 1.2;
+        st.mxTimer = 0.8;
         const n = 8;
         for (let i = 0; i < n; i += 1) {
           const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
           this.projectiles.push({
             kind: 'cross', x: player.x, y: player.y,
             vx: Math.cos(ang) * 440, vy: Math.sin(ang) * 440,
-            damage: 30 * player.damageMul, pierce: 3, life: 1.6, spin: 0, hitSet: new Set(),
+            damage: 40 * player.damageMul, pierce: 3, life: 1.6, spin: 0, hitSet: new Set(),
             matrix: true, // 圣光矩阵觉醒标记：渲染时用专属特效区分于黎明圣印
           });
         }
@@ -265,7 +314,7 @@ export class WeaponSystem {
       st.reaperTimer = (st.reaperTimer || 0) - dt;
       if (st.reaperTimer <= 0 && enemies.length > 0) {
         st.reaperTimer = 1.0; // [PLACEHOLDER] 觉醒镰斩节奏
-        const n = 3;          // [PLACEHOLDER] 觉醒镰刀数量（对齐满级 scythe）
+        const n = 4;          // [PLACEHOLDER] 觉醒镰刀数量（对齐满级 scythe）
         for (let i = 0; i < n; i += 1) {
           const target = this.pickTarget(i) || enemies[i % enemies.length];
           const ang = target
@@ -279,6 +328,7 @@ export class WeaponSystem {
             damage: 44 * player.damageMul, // [PLACEHOLDER] 觉醒镰刀伤害（对齐满级 scythe）
             pierce: 99, life: 3, spin: 0, traveled: 0, range: 320,
             returning: false, hitSet: new Set(),
+            reaper: true, // 觉醒标记：渲染用紫辉光 + 大号镰刀区分于基础 scythe
           });
         }
       }
@@ -474,12 +524,13 @@ export class WeaponSystem {
 
   strikeLightning(startEnemy, s, hitSet) {
     const game = this.game;
+    const color = s.color || '#f5d76e'; // 雷色区分：stormcall 金雷 / tempest 紫电 / 基础 lightning 默认金
     let current = startEnemy;
     const firstX = current.x, firstY = current.y;
     const points = [{ x: firstX, y: firstY - 360, sky: true }, { x: firstX, y: firstY }];
     let remaining = s.chains;
     hitSet.add(current);
-    this.hitEnemy(current, s.damage * game.player.damageMul, 0, 0, '#f5d76e');
+    this.hitEnemy(current, s.damage * game.player.damageMul, 0, 0, color);
     while (remaining > 0) {
       const next = game.enemies.enemiesNear(current.x, current.y, s.chainRange)
         .filter((e) => !hitSet.has(e) && e.hp > 0)
@@ -487,13 +538,47 @@ export class WeaponSystem {
       if (!next) break;
       hitSet.add(next);
       points.push({ x: next.x, y: next.y });
-      this.hitEnemy(next, s.damage * game.player.damageMul * 0.85, 0, 0, '#f5d76e');
+      this.hitEnemy(next, s.damage * game.player.damageMul * 0.85, 0, 0, color);
       current = next;
       remaining -= 1;
     }
-    this.bolts.push({ points, life: 0.22, maxLife: 0.22 });
-    game.fx.spawnSparks(firstX, firstY, '#f5d76e', 10);
+    this.bolts.push({ points, life: 0.22, maxLife: 0.22, color });
+    game.fx.spawnSparks(firstX, firstY, color, 10);
     game.audio.zap();
+  }
+
+  // 雷劫（tempest）专属雷印 AoE：临时留场紫色光环，对象池复用、上限 24，无逐帧 new 数组
+  fireTempest(player) {
+    const target = this.game.enemies.nearestTo(player.x, player.y, TARGET_RADIUS);
+    if (!target) return;
+    this.strikeLightning(target, { damage: 56 * player.damageMul, chains: 4, chainRange: 200, color: '#b07cff' }, new Set());
+    this.spawnThunderRune(player.x, player.y, 20 * player.damageMul);
+  }
+
+  spawnThunderRune(x, y, damage) {
+    if (this.thunderRunes.length >= 24) return; // 对象池硬上限，避免留场对象无界增长
+    this.thunderRunes.push({
+      x, y, radius: 70, damage,
+      tick: 0.2, tickTimer: 0, duration: 1.2, color: '#b07cff',
+    });
+  }
+
+  updateThunderRunes(dt) {
+    const game = this.game;
+    for (let i = this.thunderRunes.length - 1; i >= 0; i -= 1) {
+      const r = this.thunderRunes[i];
+      r.duration -= dt;
+      r.tickTimer -= dt;
+      if (r.tickTimer <= 0) {
+        r.tickTimer += r.tick;
+        for (const e of game.enemies.enemiesNear(r.x, r.y, r.radius + 30)) {
+          if (e.hp > 0 && Math.hypot(e.x - r.x, e.y - r.y) < r.radius) {
+            this.hitEnemy(e, r.damage, 0, 0, r.color);
+          }
+        }
+      }
+      if (r.duration <= 0) this.thunderRunes.splice(i, 1);
+    }
   }
 
   updateProjectiles(dt) {
@@ -692,6 +777,21 @@ export class WeaponSystem {
       const sy = this.game.player.y - cam.oy;
       this.drawRedAuraRing(ctx, sx, sy, 150, this.game.time, 1.15);
     }
+    // 神器：圣光矩阵八向星纹 sigil（脚下持续场，金，additive 预渲染，无 shadowBlur）
+    if (this.hasArtifact('matrix')) {
+      const player = this.game.player;
+      const sx = player.x - cam.ox;
+      const sy = player.y - cam.oy;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(this.game.time * 0.8);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(getMatrixSigilSprite(), -54, -54, 108, 108);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    }
     // 长鞭横扫：锥形曲线鞭 + 末端裂响
     const qbez = (x0, y0, cx, cy, x1, y1, u) => {
       const m = 1 - u;
@@ -769,17 +869,44 @@ export class WeaponSystem {
       const sy = player.y - cam.oy;
       const r = this.devourPool.radius;
       ctx.save();
+      // additive 金白光晕（替代 shadowBlur，与亡灵红环/圣水蓝池三色正交）
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(getGlowSprite('devour', r * 2, 'rgba(255,215,106,0.8)'), sx - r, sy - r, r * 2, r * 2);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 0.3;
-      ctx.fillStyle = '#4aa3df';
+      ctx.fillStyle = 'rgba(255,215,106,0.85)';
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 0.6;
-      ctx.strokeStyle = '#a8d8ff';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#fff3c4';
+      ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(sx, sy, r * (0.9 + Math.sin(this.artifactState.devourAngle * 5) * 0.06), 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+
+    // 雷劫专属雷印 AoE（临时留场紫光环，对象池上限 24，无逐帧 new 数组）
+    for (const r of this.thunderRunes) {
+      const sx = r.x - cam.ox;
+      const sy = r.y - cam.oy;
+      const a = Math.max(0, r.duration / 1.2); // 生命衰减 alpha
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.5 * a;
+      ctx.drawImage(getGlowSprite('tempest', r.radius * 2, 'rgba(176,124,255,0.8)'), sx - r.radius, sy - r.radius, r.radius * 2, r.radius * 2);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.35 * a;
+      ctx.fillStyle = 'rgba(176,124,255,0.35)';
+      ctx.beginPath(); ctx.arc(sx, sy, r.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.7 * a;
+      ctx.strokeStyle = '#b07cff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx, sy, r.radius * (0.85 + Math.sin(this.game.time * 5) * 0.06), 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
 
@@ -794,7 +921,7 @@ export class WeaponSystem {
         // 性能修复：禁止逐帧 shadowBlur（Canvas2D 头号性能杀手，dpr=2 下模糊面积×4 → 严重掉帧）；
         // 改用一次性缓存的径向辉光贴图 + 加法合成，与 systems.js 宝箱辉光同源手法。
         const img = sprite('weapon_cross');
-        const size = 42;
+        const size = 48;
         const spin = (p.spin || 0) + (this.game.time || 0) * 2.2;
         const sp = Math.hypot(p.vx, p.vy) || 1;
         const ux = p.vx / sp, uy = p.vy / sp;
@@ -809,7 +936,7 @@ export class WeaponSystem {
         ctx.stroke();
         // 缓存辉光：径向渐变贴图仅创建一次，加法合成替代 shadowBlur
         const glow = getMatrixGlowSprite();
-        const gs = 66;
+        const gs = 78;
         ctx.globalAlpha = 0.6;
         ctx.drawImage(glow, -gs / 2, -gs / 2, gs, gs);
         ctx.globalAlpha = 1;
@@ -831,11 +958,12 @@ export class WeaponSystem {
         if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
         else { ctx.fillStyle = '#ffd76a'; ctx.fillRect(-size / 2, -3, size, 6); }
       } else if (p.kind === 'blade' && p.tint) {
-        // 神器专属飞弹：按主题色渲染菱形碎片，区别于基础红飞刀
+        // 神器专属飞弹：菱形碎片 + additive 缓存辉光，彻底移除逐帧 shadowBlur
         ctx.rotate(Math.atan2(p.vy, p.vx));
-        const size = 24;
-        ctx.shadowColor = p.tint;
-        ctx.shadowBlur = 8;
+        const size = 26;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5;
+        ctx.drawImage(getGlowSprite('crimson', 44, 'rgba(255,59,107,0.9)'), -22, -22, 44, 44);
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = p.tint;
         ctx.beginPath();
         ctx.moveTo(size / 2, 0);
@@ -847,10 +975,17 @@ export class WeaponSystem {
       } else if (p.kind === 'scythe') {
         // 亡魂镰刀：骨白镰刀贴图自旋绘制（复用 axe 的 drawImage+rotate 写法，尺寸按 scythe 贴图）
         const img = sprite('scythe');
-        const size = 40;
+        const size = p.reaper ? 48 : 40;
         ctx.rotate(p.spin);
-        if (img) {
-          // 幽魂绿辉光，呼应「撕裂/收割」主题
+        if (p.reaper) {
+          // 亡魂收割者觉醒：紫辉光 + 大号镰刀，强区分于基础 scythe
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55;
+          ctx.drawImage(getGlowSprite('reaper', 60, 'rgba(176,124,255,0.9)'), -30, -30, 60, 60);
+          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+          if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
+          else { ctx.fillStyle = '#b07cff'; ctx.fillRect(-size / 2, -3, size, 6); }
+        } else if (img) {
+          // 基础 scythe：保持原样（存量 shadowBlur 留后续 hotfix，本次不动）
           ctx.shadowColor = '#7CFC00';
           ctx.shadowBlur = 8;
           ctx.drawImage(img, -size / 2, -size / 2, size, size);
@@ -875,12 +1010,22 @@ export class WeaponSystem {
     // 闪电（含天降落雷）
     for (const bolt of this.bolts) {
       const alpha = bolt.life / bolt.maxLife;
+      const color = bolt.color || '#f5d76e';
+      const impact = bolt.points.find((p) => !p.sky);
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = '#f5d76e';
       ctx.lineWidth = 3;
-      ctx.shadowColor = '#fff2a8';
-      ctx.shadowBlur = 12;
+      ctx.lineJoin = 'round';
+      // additive 辉光替代 shadowBlur（性能修复，彻底移除 shadowBlur；雷色随神器区分）
+      if (impact) {
+        const ix = impact.x - cam.ox, iy = impact.y - cam.oy;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.drawImage(getGlowSprite(color, 64, color), ix - 32, iy - 32, 64, 64);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
       ctx.beginPath();
       bolt.points.forEach((pt, idx) => {
         const sx = pt.x - cam.ox + (Math.random() * 2 - 1) * 4;
@@ -893,14 +1038,12 @@ export class WeaponSystem {
         }
       });
       ctx.stroke();
-      // 落点爆闪（additive）
-      const impact = bolt.points.find((p) => !p.sky);
+      // 落点爆闪（additive，随 bolt.color 区分）
       if (impact) {
         const ix = impact.x - cam.ox, iy = impact.y - cam.oy;
-        ctx.shadowBlur = 0;
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = alpha * 0.85;
-        ctx.fillStyle = 'rgba(255,245,180,0.9)';
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(ix, iy, 5 + alpha * 9, 0, Math.PI * 2);
         ctx.fill();
