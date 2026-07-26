@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.11 钢铁意志 icon 重制 + 图鉴拆四分类后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.12 icon纠错 + loot beacon隐藏 + 护盾自然回盾后）
 
 ---
 
@@ -10,7 +10,7 @@
 
 **大版本状态**：**已开发完成**。用户确认「根据方案进入开发」后，按主方案 v1.1 的 D1~D5 决议落地 9 项任务（属性面板 + 6 新被动 + 同类合并 + 分类权重 + 暴击接入 + 护盾条 + CSS 徽标）；e2e 全量回归 ALL PASS（零控制台报错）。
 
-**暂停入口（v1.3 补全）**：桌面端右上角 `#btn-pause`（⏸，紧邻静音按钮左侧，`z-index:50`，`.touch-device` 下隐藏）+ 键盘 Esc/P；触屏端 `#touch-pause-btn`（mobile-controls.js 动态创建，自带）。暂停层 `#pause-overlay` 含「继续」「属性(Tab/C)」。护盾机制（受击扣盾不扣血 / 受击 3s 内不回盾 / 3s 后回盾 / 封顶）v1.3 实测无 bug。
+**暂停入口（v1.3 补全）**：桌面端右上角 `#btn-pause`（⏸，紧邻静音按钮左侧，`z-index:50`，`.touch-device` 下隐藏）+ 键盘 Esc/P；触屏端 `#touch-pause-btn`（mobile-controls.js 动态创建，自带）。暂停层 `#pause-overlay` 含「继续」「属性(Tab/C)」。护盾机制（受击扣盾不扣血 / 受击 3s 内不回盾 / 3s 后自然回盾(基础速率+被动加成) / 封顶）v1.3 实测无 bug；v1.12 起新增 `SHIELD_REGEN_BASE` 基础回盾速率，无「灵能回响」被动也能自然回盾。
 
 **版本号规范（用户 2026-07-26 指定）**：S 档为**首个大版本 v1.0**；今后「大版本」（多系统/机制跃迁）跳主版本号 **1.0 → 2.0 → 3.0…**；大版本内小补丁/热修用次版本号 **x.1 / x.2…**（如 1.1、1.2）。每次发版同步 CHANGELOG + HANDOFF（含 §11 commit 历史）。
 
@@ -22,7 +22,7 @@
 - **D1** 局内挑战任务移出 S 档（降 M 档，未在 S 档实现）。
 - **D2** 暴击按默认值落地：`critChance +5%/级`（基础 0.05，硬上限 0.75）、`critMul +15%/级`（基础 1.5）。`player.rollCrit()` 在 `weapons.js hitEnemy` 接入，DOT 每 tick 独立 roll；暴击飘字金字放大 +「暴击 」前缀（14/帧节流）。
 - **D3** 被动分类权重（`buildPool` 内 `w = 1 + 0.6·catCount[category]`）+ 同类被动合并：删 `swift`/`rage`，`boots` 吸并移速（+6%/级·ML99）、`tome` 吸并全伤（+8%/级·ML99）。保底：**池中有武器时优先武器**（保证每层可拿武器），无武器可给时才退化为进攻向被动（防"三张全生存向"卡 build）。
-- **D4** 护盾条：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条，蓝色盾量段；受击后 `shieldRegen` 暂停 3s（见 `entities.js` 护盾恢复）。
+- **D4** 护盾条：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条，蓝色盾量段；护盾恢复=受击打断 `SHIELD_REGEN_DELAY=3`s 后开始自然回盾，`rate = SHIELD_REGEN_BASE(2/s, 基础) + shieldRegen(被动加成)`，封顶 `maxShield`（v1.12 起无被动也能回盾，详见 entities.js）。
 - **D5** 被动 icon 视觉方案（已演进）：v1.0 初版为 `PASSIVE_BADGE_SYMBOL` 单字 + `.passive-badge`；**v1.1 重设计为 8×8 CSS box-shadow 像素 sprite**（`passiveBadge()` 用 `--pb-px` + `box-shadow` 逐格拼图 + 哥特画框）；**v1.4 废弃 CSS 方案**，改为 **AI 文生图（`gen_passive_pixels.py`：ImageGen 原图 → 众数色背景键控 → 40 网格 LANCZOS → NEAREST 2x 至 80×80 → 1px 暗描边 `(8,4,14)`）→ `passive_*.png`**，渲染侧 `passiveBadge()` 改输出 `<img class="passive-badge">`（`object-fit:contain` + `image-rendering:pixelated`）。新 13 张 `passive_*.png` 已加入 `gen_assets.py` AI_OWNED 保护集，防程序化生成器覆盖。
 
 **S 档最终范围（已交付）**：① 9 属性机制（critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance 六字段；承伤顺序：闪避→防御 `max(1,(raw-armor)×damageTakenMul)`→护盾→扣血）② 6 新被动（致命专注/毁灭之刃/幽能屏障/灵能回响/暗夜铠甲/魅影身法，均 ML5）③ 同类被动合并 + 分类权重 ④ 属性面板 UI（`#stats-panel`：暂停内嵌 + 结算屏，Tab/C 切换）⑤ 护盾灰色细条。**未做（留 M 档）**：局内任务、新武器/神器、新怪词缀。
@@ -31,7 +31,9 @@
 
 **其他注意**：`gen_assets.py` 旧 `gen_passive_rage/swift` 生成器产物（`passive_rage.png`/`passive_swift.png`）已于 v1.4 删除（孤儿、无引用）；13 张 AI 被动 `passive_*.png`（boots/heart/tome/magnet/greed/guard/regen/critrate/critdmg/shield/shieldregen/armor/dodge）现已纳入 AI_OWNED 保护集，重跑 `gen_assets.py` 不会覆盖。
 
-**v1.11 小补丁（钢铁意志 icon 重制 + 图鉴拆四分类）**：① `passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255），`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰；② 游戏图鉴由「神器/怪物/武器」3 类扩为「被动/神器/怪物/武器」4 类独立屏——`index.html` 新增 `#codex-passives` 屏、`ui.js` hub 菜单 cats 扩为 4 个 + `renderCodexPassives()` 仅渲染被动、`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定、`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`（红色线：未动 15 张 AI_OWNED、未跑 gen_assets.sh）。
+**v1.11 小补丁（暗夜铠甲 icon 重制【误标为钢铁意志】+ 图鉴拆四分类）**：① `passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255）——【此处为误改：把「暗夜铠甲」armor 当成了「钢铁意志」】，`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰；② 游戏图鉴由「神器/怪物/武器」3 类扩为「被动/神器/怪物/武器」4 类独立屏——`index.html` 新增 `#codex-passives` 屏、`ui.js` hub 菜单 cats 扩为 4 个 + `renderCodexPassives()` 仅渲染被动、`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定、`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`（红色线：未动 15 张 AI_OWNED、未跑 gen_assets.sh）。
+
+**v1.12 修复（icon 纠错 + loot beacon 隐藏 + 护盾自然回盾）**：① icon 纠错——`passive_armor.png` 还原为 v1.9 之前暗夜铠甲原版（git checkout v1.8 提交），`passive_guard.png`(真正的钢铁意志) 经 ImageGen 重做亮银骑士盾+十字（亮度 177、居中清晰）；② `src/ui.js` loot beacon 在 `showTitle()` 补 `hideLootBeacon()` 且 `updateLootBeacon()` 非 playing 态强制隐藏，通关/返回主界面不再残留宝箱圆圈；③ `src/entities.js`+`src/data.js` 新增 `SHIELD_REGEN_BASE=2` 基础回盾速率，护盾不受击 3s 后自然回盾（带「灵能回响」被动后共 3.5/s）。红线：未动 15 张 AI_OWNED 其他图、未跑 gen_assets.sh。
 
 ---
 
@@ -322,7 +324,9 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-ca3281d22e64949058c316af750a6e04be2e7fd2 v1.11 钢铁意志icon重制(亮底银盾) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
+PLACEHOLDER v1.12 icon纠错(还原暗夜铠甲armor原版 + 重做钢铁意志guard亮银盾) + loot beacon通关/返回主界面隐藏 + 护盾自然回盾(SHIELD_REGEN_BASE=2)
+
+ca3281d22e64949058c316af750a6e04be2e7fd2 v1.11 暗夜铠甲icon误改(亮底银盾，原误标钢铁意志，v1.12已更正) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
 
 b3b234ed1807993475d6a942416df87e25216b36 v1.10 升级卡合成路径提示 A+B（upgrade.js/style.css 进化就绪金徽章 + 精炼配方行，引擎同源零误导，尊重隐藏）
 

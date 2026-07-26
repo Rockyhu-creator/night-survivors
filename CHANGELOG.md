@@ -5,12 +5,26 @@
 
 ---
 
-## v1.11（2026-07-26 · `ca3281d22e64949058c316af750a6e04be2e7fd2`）
+## v1.12（2026-07-26 · `PLACEHOLDER`）
 
-> 重制钢铁意志 icon（亮底银盾，彻底解决"只有头部"观感）+ 游戏图鉴拆为 武器/被动/神器/怪物 四独立分类。
+> 三处修复：① 钢铁意志 icon 重做（此前误改了暗夜铠甲，本次还原暗夜铠甲 + 重做钢铁意志）② 通关/返回主界面后宝箱指引圆圈不再残留 ③ 护盾不受击 3 秒后自然回盾。
 
 ### 修复
-- **`public/assets/passive_armor.png` + `gen_passive_pixels.py`：钢铁意志 icon 重制**。`passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255）；`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰。
+- **`public/assets/passive_guard.png` + `public/assets/passive_armor.png`：被动 icon 纠错（v1.9/v1.11 误改）**。此前把「钢铁意志」(passive id=`guard`) 误认成「暗夜铠甲」(passive id=`armor`)，实际改的是 `passive_armor.png`。本次：**`passive_armor.png` 还原为 v1.9 之前的暗夜铠甲原版**（git checkout v1.8 提交）；**`passive_guard.png` 重做**——ImageGen 生成亮银骑士盾+十字（亮度 177、质心居中清晰），`gen_passive_pixels.py` 走标准管线（key_bg 抠底 + 去水印 64 小连通域 + 像素化 + 描边 + 质心居中 + auto_brighten）。注：`passive_guard`/`passive_armor` 均属 AI_OWNED，本次为有意为之的主动重制，未跑 `gen_assets.py` 故不冲突。
+- **`src/ui.js`：宝箱指引圆圈(loot beacon) 在通关/返回主界面后不再显示**。根因：`showTitle()`（ui.js:103）未调 `hideLootBeacon()`，返回主界面经 `game.showTitle()` 转场后 beacon 残留；且 `updateLootBeacon()` 仅按「有无宝箱」显隐。修复：`updateLootBeacon()` 顶部加非 `playing` 态直接隐藏并返回（ui.js:186）；`showTitle()` 内补 `this.hideLootBeacon()`（ui.js:108）。`showVictory`/`showGameOver` 原有隐藏逻辑保留。
+- **`src/entities.js` + `src/data.js`：护盾不受击 3 秒后自然回盾**。根因：回盾条件 `this.shieldRegen > 0`（entities.js:80），而 `shieldRegen` 初始 0、仅「灵能回响」被动>0，故不带该被动时护盾永不回。修复：新增 `SHIELD_REGEN_BASE = 2`（盾/秒，[校准]）作为基础回盾速率；回盾条件改为 `maxShield>0 && hp>0`，速率 = `SHIELD_REGEN_BASE + shieldRegen`，仍受 `SHIELD_REGEN_DELAY=3` 秒受击打断门控、封顶 `maxShield`。满盾 20 约 10 秒回满（不含延迟）；带「灵能回响」后共 3.5/秒。
+
+### 验证
+- `vite build` 零错误（216ms）；`node --check` 三个 JS 文件全过；红线未碰（未动 15 张 AI_OWNED 其他图、未跑 gen_assets.sh、`passive_guard/armor` 重制经 gen_passive_pixels.py 不触发 gen_assets.py 覆盖）。
+
+---
+
+## v1.11（2026-07-26 · `ca3281d22e64949058c316af750a6e04be2e7fd2`）
+
+> 重制暗夜铠甲 icon（亮底银盾，彻底解决"只有头部"观感）+ 游戏图鉴拆为 武器/被动/神器/怪物 四独立分类。（注：v1.11 时误把「暗夜铠甲」记成「钢铁意志」，v1.12 已更正）
+
+### 修复
+- **`public/assets/passive_armor.png` + `gen_passive_pixels.py`：暗夜铠甲 icon 重制**。`passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255）；`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰。
 - **`index.html` + `src/ui.js` + `src/main.js` + `src/style.css`：图鉴拆为四独立分类**。武器图鉴副标题改「武器」（原「武器·被动·神器」）；新增 `#codex-passives` 屏（被动图鉴）；`ui.js` hub 菜单 cats 由 3 个（artifacts/monsters/weapons）扩为 4 个（+passives），`renderCodexArtifacts/Weapons/Monsters` 各自只渲染本类、`renderCodexPassives` 只渲染 passives；`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定；`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`。
 
 ### 验证

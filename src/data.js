@@ -76,6 +76,7 @@ export const CRIT_CHANCE_CAP  = 0.75;  // 暴击率硬上限
 export const CRIT_MUL_BASE    = 1.5;   // 暴击伤害基础倍率
 export const DODGE_CAP        = 0.35;  // 闪避率硬上限
 export const SHIELD_REGEN_DELAY = 3;   // 护盾受击打断秒数 [校准]
+export const SHIELD_REGEN_BASE = 2;    // 护盾自然回盾基础速率(盾/秒) [校准]
 export const DAMAGE_MIN       = 1;     // 防御减免后的保底伤害
 
 export const ENEMY_TYPES = {

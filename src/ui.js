@@ -105,6 +105,7 @@ export class UIManager {
     this.gameoverScreen.classList.add('hidden');
     this.victoryScreen.classList.add('hidden');
     this.hud.classList.add('hidden');
+    this.hideLootBeacon();
     const best = loadBest();
     if (best) {
       this.bestRecordEl.classList.remove('hidden');
@@ -182,6 +183,7 @@ export class UIManager {
 
   // 战利品指引：每帧定位最近的未拾取宝箱，屏外给边缘方向箭头、屏内给精确脉冲环
   updateLootBeacon() {
+    if (this.game.state !== 'playing') { this.lootBeacon.classList.add('hidden'); return; }
     const g = this.game, cam = g.camera, player = g.player;
     const gems = g.pickups ? g.pickups.gems : null;
     let best = null, bestD = Infinity;

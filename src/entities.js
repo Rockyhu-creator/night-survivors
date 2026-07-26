@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, DAMAGE_MIN } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN } from './data.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
@@ -76,11 +76,12 @@ export class Player {
     if (this.regenRate > 0 && this.hp > 0) {
       this.hp = Math.min(this.maxHp, this.hp + this.regenRate * dt);
     }
-    // 护盾恢复：受击打断 SHIELD_REGEN_DELAY 秒后开始回盾（封顶 maxShield），死亡后不回
-    if (this.maxShield > 0 && this.shieldRegen > 0 && this.hp > 0) {
+    // 护盾恢复：受击打断 SHIELD_REGEN_DELAY 秒后开始自然回盾（基础速率 + 被动加成，封顶 maxShield），死亡后不回
+    if (this.maxShield > 0 && this.hp > 0) {
       const nowT = this.game ? this.game.time : 0;
       if (nowT - this.lastHitTime >= SHIELD_REGEN_DELAY) {
-        this.shield = Math.min(this.maxShield, this.shield + this.shieldRegen * dt);
+        const rate = SHIELD_REGEN_BASE + this.shieldRegen;
+        if (rate > 0) this.shield = Math.min(this.maxShield, this.shield + rate * dt);
       }
     }
   }
