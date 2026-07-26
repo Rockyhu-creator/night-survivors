@@ -320,7 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-<PLACEHOLDER> feat: 被动 icon AI 像素化升级 v1.4（13 张 passive_*.png + gen_passive_pixels.py + 渲染切 img + AI_OWNED 扩容）
+21cbb2e3dfc5e10cc848af28767157a833034403 feat: 被动 icon AI 像素化升级 v1.4（13 张 passive_*.png + gen_passive_pixels.py + 渲染切 img + AI_OWNED 扩容）
 b2785fb docs: 回填 v0.39 commit 哈希 a8828af
 a8828af fix: 圣光矩阵shadowBlur卡顿改缓存辉光 + 宝箱指引DPR缩放修正圈不住/箭头偏位 (v0.39)
 55cd381 art: 大版本S档 16张AI像素icon生成脚本(gen_icons.sh)；文生图服务降级暂无法出图，待恢复复跑
