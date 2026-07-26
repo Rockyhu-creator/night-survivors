@@ -320,7 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-<PLACEHOLDER> v1.10 升级卡合成路径提示 A+B（upgrade.js/style.css 进化就绪金徽章 + 精炼配方行，引擎同源零误导，尊重隐藏）
+b3b234ed1807993475d6a942416df87e25216b36 v1.10 升级卡合成路径提示 A+B（upgrade.js/style.css 进化就绪金徽章 + 精炼配方行，引擎同源零误导，尊重隐藏）
 
 ba42a4ef4e97500266329153fcde0d95b50ee937 v1.9 三图标去水印+提亮 + 初始护盾满 + 选择按钮右置（gen_passive_pixels.py 去水印保障 + passive_critrate/regen/armor 重制 + entities.js 20/20 + upgrade.js/style.css 按钮三栏右置）
 d59714ce6f6a3e2de9f6e8ada08555ac5951db28 v1.8 升级卡横排恢复 + 被动icon去水印居中（style.css/upgrade.js flex横排 + gen_passive_pixels.py 去水印三重保障 + 7张passive_*.png重制）
