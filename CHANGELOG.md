@@ -5,6 +5,20 @@
 
 ---
 
+## v0.37（2026-07-26 · `71cbf72`）
+
+### 新增
+- **第 10 神器「亡魂收割者 Reaper's Scythe」**：新增 scythe 武器（亡魂镰刀，回旋镰刀投射物=大范围回旋镰斩）+ reaper 神器（由 scythe 武器 + 贪婪之魂 被动进化）。觉醒后 scythe 攻击追加：① 撕裂 DOT（rend，命中施加持续掉血）；② 收割回能（被 scythe/rend 击杀归还少量生命）。两项觉醒效果均门控 `hasArtifact('reaper')`，基础 scythe 不受影响。骨白 #e8e0c0 + 幽魂绿 #7fff9f 专属配色。
+- 资产：`weapon_scythe.png`（80×80）/`art_reaper.png`（80×80）程序化生成（art 提交 `0ee4b80`），md5 校验 15 张 AI_OWNED 字节不变。
+
+### 优化
+- 数值（镰刀数量 / 伤害 / rend dps / 收割回血量）标 `[PLACEHOLDER]`，待真机校准。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台报错）；`node --check` 改动 JS 全过；`test_game.py` 新增 `scythe→greed→reaper` 进化路径断言。
+
+---
+
 ## v0.36（2026-07-26 · `594785e`）
 
 ### 新增
