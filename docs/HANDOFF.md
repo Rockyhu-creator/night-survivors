@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.10 升级卡合成路径提示 A+B 后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.11 钢铁意志 icon 重制 + 图鉴拆四分类后）
 
 ---
 
@@ -30,6 +30,8 @@
 **被动总数**：13（boots/heart/tome/magnet/greed/guard/regen + critrate/critdmg/shield/shieldregen/armor/dodge）。图鉴卡片总数 31（8 武器 + 13 被动 + 10 神器）。
 
 **其他注意**：`gen_assets.py` 旧 `gen_passive_rage/swift` 生成器产物（`passive_rage.png`/`passive_swift.png`）已于 v1.4 删除（孤儿、无引用）；13 张 AI 被动 `passive_*.png`（boots/heart/tome/magnet/greed/guard/regen/critrate/critdmg/shield/shieldregen/armor/dodge）现已纳入 AI_OWNED 保护集，重跑 `gen_assets.py` 不会覆盖。
+
+**v1.11 小补丁（钢铁意志 icon 重制 + 图鉴拆四分类）**：① `passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255），`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰；② 游戏图鉴由「神器/怪物/武器」3 类扩为「被动/神器/怪物/武器」4 类独立屏——`index.html` 新增 `#codex-passives` 屏、`ui.js` hub 菜单 cats 扩为 4 个 + `renderCodexPassives()` 仅渲染被动、`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定、`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`（红色线：未动 15 张 AI_OWNED、未跑 gen_assets.sh）。
 
 ---
 
@@ -291,7 +293,7 @@ git push origin main
 - 雷霆之矛 + 旋风之斧 → 风暴使者
 - 等等（详见 evolution.js 的 recipe 表）
 
-图鉴界面（`#codex-screen`）显示解锁状态。
+图鉴界面（`#codex-screen`）：一级菜单分「被动 / 神器 / 怪物 / 武器」4 类独立屏（`#codex-hub` → `#codex-passives`/`#codex-artifacts`/`#codex-monsters`/`#codex-weapons`），每类只渲染本类卡片；被动图鉴 v1.11 起独立拆出（此前被动/神器/武器混在武器图鉴内）。各卡显示解锁状态。
 
 > **武器特效 / tint 链路（v0.36）**：各神器觉醒武器的专属视觉差异目前集中在渲染层 tint。永劫之鞭（eternalwhip）在 `src/weapons.js` 顶部定义 `ETERNALWHIP_TINT`（熔金黑鞭配色：body #ffb847 / edge #4a2f12 / tip #fff1c9），经 `applyWhip` 第 5 参透传至 slash，render 描边与尖端高光改 tint 感知；基础鞭不传 tint 走原粉色。其余神器（storm/devour/spiral/stormcall/crimson/tempest/sepulcher/matrix）的专属特效沿用各自既有渲染分支。规格扩展项（残影光晕 / 命中火花 / 主题伤害数字）已于 v0.38 实现：additive 残影光晕（`sl.tint.trail` #d4af37）+ 命中金色火花（`spawnSparks` 6×`spark`+3×`sparkHot`）+ 鎏金主题伤害数字（`tint.dmg` #e0a93b），均 gate 在 `sl.tint` 存在性上，基础鞭零变化。
 
@@ -320,6 +322,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+PLACEHOLDER v1.11 钢铁意志icon重制(亮底银盾) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
+
 b3b234ed1807993475d6a942416df87e25216b36 v1.10 升级卡合成路径提示 A+B（upgrade.js/style.css 进化就绪金徽章 + 精炼配方行，引擎同源零误导，尊重隐藏）
 
 ba42a4ef4e97500266329153fcde0d95b50ee937 v1.9 三图标去水印+提亮 + 初始护盾满 + 选择按钮右置（gen_passive_pixels.py 去水印保障 + passive_critrate/regen/armor 重制 + entities.js 20/20 + upgrade.js/style.css 按钮三栏右置）

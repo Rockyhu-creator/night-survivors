@@ -152,6 +152,30 @@ def recenter_com(im):
     shifted.paste(im, (offset_x, offset_y), im)
     return shifted
 
+def auto_brighten(im, min_brightness=100, max_boost=4.0):
+    """若非透明像素平均亮度低于阈值，自动增强（修复暗色主题 key_bg 吃掉亮部的问题）"""
+    from PIL import ImageStat, ImageEnhance
+    try:
+        import numpy as np
+        arr = np.array(im)
+        mask = arr[:,:,3] > 16
+        if mask.any():
+            avg = float(arr[:,:,:3][mask].mean())
+        else:
+            return im
+    except ImportError:
+        stat = ImageStat.Stat(im.convert('RGB'))
+        avg = float(stat.mean[0])
+    if avg < min_brightness:
+        factor = min(max_boost, min_brightness / max(avg, 1))
+        out = ImageEnhance.Brightness(im).enhance(factor)
+        stat2 = ImageStat.Stat(out.convert('RGB'))
+        if float(stat2.mean[0]) < min_brightness * 0.8:
+            out = ImageEnhance.Contrast(out).enhance(1.5)
+        return out
+    return im
+
+
 def process(id_):
     src_glob = glob.glob(os.path.join(RAW, id_, '*.png'))
     if not src_glob:
@@ -199,6 +223,8 @@ def process(id_):
     out = add_outline(out)
     # 最终质心再居中：修正所有前序步骤的累积偏移
     out = recenter_com(out)
+    # 亮度兜底：若主体平均亮度过低（暗色主题图 key_bg 吃掉亮部），自动增强
+    out = auto_brighten(out)
     dst = os.path.join(OUT, f'passive_{id_}.png')
     out.save(dst, compress_level=9)
     print(f'OK   passive_{id_}.png  ({out.size}, src={os.path.basename(src)})')

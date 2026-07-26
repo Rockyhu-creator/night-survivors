@@ -5,6 +5,19 @@
 
 ---
 
+## v1.11（2026-07-26 · `PLACEHOLDER`）
+
+> 重制钢铁意志 icon（亮底银盾，彻底解决"只有头部"观感）+ 游戏图鉴拆为 武器/被动/神器/怪物 四独立分类。
+
+### 修复
+- **`public/assets/passive_armor.png` + `gen_passive_pixels.py`：钢铁意志 icon 重制**。`passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255）；`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰。
+- **`index.html` + `src/ui.js` + `src/main.js` + `src/style.css`：图鉴拆为四独立分类**。武器图鉴副标题改「武器」（原「武器·被动·神器」）；新增 `#codex-passives` 屏（被动图鉴）；`ui.js` hub 菜单 cats 由 3 个（artifacts/monsters/weapons）扩为 4 个（+passives），`renderCodexArtifacts/Weapons/Monsters` 各自只渲染本类、`renderCodexPassives` 只渲染 passives；`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定；`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`。
+
+### 验证
+- `vite build` 零错误（`.ns-build-v11-final` 170ms）；红线未碰（未动 15 张 AI_OWNED、未跑 gen_assets.sh）。
+
+---
+
 ## v1.10（2026-07-26 · `b3b234ed1807993475d6a942416df87e25216b36`）
 
 > 升级卡「武器+被动→神器」合成路径提示（方案 A+B）：进化就绪金徽章 + 精炼配方行，以引擎 findEvolvableRecipe 为单一事实源、零误导、尊重隐藏配方。

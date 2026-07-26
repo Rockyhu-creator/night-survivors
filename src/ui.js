@@ -523,9 +523,10 @@ export class UIManager {
     const root = document.getElementById('codex-hub-grid');
     root.innerHTML = '';
     const cats = [
+      { id: 'weapons', icon: 'codex_weapons', name: '武器图鉴', sub: '攻击武器', color: 'red' },
+      { id: 'passives', icon: 'passive_heart', name: '被动图鉴', sub: '被动道具与增益', color: 'cyan' },
       { id: 'artifacts', icon: 'codex_artifacts', name: '神器图鉴', sub: '合成配方', color: 'gold' },
       { id: 'monsters', icon: 'codex_monsters', name: '怪物图鉴', sub: '夜行造物', color: 'purple' },
-      { id: 'weapons', icon: 'codex_weapons', name: '武器图鉴', sub: '武器/被动/神器', color: 'red' },
     ];
     for (const c of cats) {
       const card = document.createElement('button');
@@ -542,9 +543,10 @@ export class UIManager {
       sub.textContent = c.sub;
       card.append(img, name, sub);
       card.addEventListener('click', () => {
-        if (c.id === 'artifacts') this.renderCodexArtifacts();
+        if (c.id === 'weapons') this.renderCodexWeapons();
+        else if (c.id === 'passives') this.renderCodexPassives();
+        else if (c.id === 'artifacts') this.renderCodexArtifacts();
         else if (c.id === 'monsters') this.renderCodexMonsters();
-        else if (c.id === 'weapons') this.renderCodexWeapons();
       });
       root.appendChild(card);
     }
@@ -552,13 +554,13 @@ export class UIManager {
     document.getElementById('codex-hub').classList.remove('hidden');
   }
 
-  // 神器图鉴（合成配方，原合成图鉴内容）
+  // 神器图鉴（仅神器，合成配方）
   renderCodexArtifacts() {
     const { unlocked } = loadCollection();
     const data = buildCollectionData(unlocked);
     const root = document.getElementById('codex-artifacts-content');
     root.innerHTML = '';
-    const sections = [['武器', data.weapons], ['被动道具', data.passives], ['神器', data.artifacts]];
+    const sections = [['神器', data.artifacts]];
     for (const [title, items] of sections) {
       const sec = document.createElement('div');
       sec.className = 'codex-section';
@@ -588,6 +590,46 @@ export class UIManager {
     }
     this.hideAllScreens();
     document.getElementById('codex-artifacts').classList.remove('hidden');
+  }
+
+  // 被动图鉴（仅被动道具）
+  renderCodexPassives() {
+    const { unlocked } = loadCollection();
+    const data = buildCollectionData(unlocked);
+    const root = document.getElementById('codex-passives-content');
+    root.innerHTML = '';
+    const sec = document.createElement('div');
+    sec.className = 'codex-section';
+    const h = document.createElement('h3');
+    h.textContent = '被动道具';
+    sec.appendChild(h);
+    const grid = document.createElement('div');
+    grid.className = 'codex-grid';
+    for (const item of data.passives) {
+      const card = document.createElement('div');
+      card.className = `codex-card cat-cyan ${item.unlocked ? '' : 'locked'}`;
+      const def = PASSIVES[item.id];
+      if (def) {
+        const badge = this.passiveBadge(def);
+        badge.classList.add('codex-badge');
+        card.appendChild(badge);
+      }
+      const tag = document.createElement('span');
+      tag.className = 'cat-tag tag-cyan';
+      tag.textContent = '被动';
+      const name = document.createElement('p');
+      name.className = 'cc-name';
+      name.textContent = item.name;
+      const desc = document.createElement('p');
+      desc.className = 'cc-hint';
+      desc.textContent = item.desc && item.unlocked ? item.desc : '';
+      card.append(tag, name, desc);
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid);
+    root.appendChild(sec);
+    this.hideAllScreens();
+    document.getElementById('codex-passives').classList.remove('hidden');
   }
 
   // 词缀图鉴缩略图：自然精灵 + 彩色光环 + 头顶徽标（与游戏内视觉一致，不染色本体）
@@ -690,7 +732,7 @@ export class UIManager {
     document.getElementById('codex-monsters').classList.remove('hidden');
   }
 
-  // 武器图鉴：武器/被动/神器 分类配色标签（⑤）
+  // 武器图鉴（仅武器）
   renderCodexWeapons() {
     const { unlocked } = loadCollection();
     const data = buildCollectionData(unlocked);
@@ -698,8 +740,6 @@ export class UIManager {
     root.innerHTML = '';
     const sections = [
       { title: '武器', items: data.weapons, cat: 'red' },
-      { title: '被动', items: data.passives, cat: 'cyan' },
-      { title: '神器', items: data.artifacts, cat: 'gold' },
     ];
     for (const s of sections) {
       const sec = document.createElement('div');
@@ -758,7 +798,7 @@ export class UIManager {
 
   // 隐藏所有图鉴相关屏 + 主菜单，避免残留
   hideAllScreens() {
-    for (const id of ['codex-hub', 'codex-artifacts', 'codex-monsters', 'codex-weapons']) {
+    for (const id of ['codex-hub', 'codex-artifacts', 'codex-monsters', 'codex-weapons', 'codex-passives']) {
       document.getElementById(id).classList.add('hidden');
     }
   }

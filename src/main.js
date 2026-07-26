@@ -61,6 +61,8 @@ document.getElementById('btn-codex-artifacts-back').addEventListener('click', ()
 document.getElementById('btn-codex-artifacts-topback').addEventListener('click', () => game.ui.backToCodexHub());
 document.getElementById('btn-codex-monsters-back').addEventListener('click', () => game.ui.backToCodexHub());
 document.getElementById('btn-codex-monsters-topback').addEventListener('click', () => game.ui.backToCodexHub());
+document.getElementById('btn-codex-passives-back').addEventListener('click', () => game.ui.backToCodexHub());
+document.getElementById('btn-codex-passives-topback').addEventListener('click', () => game.ui.backToCodexHub());
 document.getElementById('btn-codex-weapons-back').addEventListener('click', () => game.ui.backToCodexHub());
 document.getElementById('btn-codex-weapons-topback').addEventListener('click', () => game.ui.backToCodexHub());
 document.getElementById('btn-altar').addEventListener('click', () => game.ui.showAltar());
