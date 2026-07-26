@@ -162,16 +162,15 @@ export class UIManager {
     if (h.t !== t) { h.t = t; this.timerEl.textContent = t; }
     const k = `☠ ${game.kills}`;
     if (h.k !== k) { h.k = k; this.killEl.textContent = k; }
-    // S 档护盾条（D4）：灰底空槽 + 蓝盾量段，HP 条下方；maxShield===0 整体隐藏
-    const hasShield = player.maxShield > 0;
-    if (h.hasShield !== hasShield) {
-      h.hasShield = hasShield;
-      this.shieldBar.classList.toggle('hidden', !hasShield);
-    }
-    if (hasShield) {
-      const ratio = Math.max(0, Math.min(1, player.shield / player.maxShield));
+    // S 档护盾条（D4）：灰底空槽 + 青色盾量段，HP 条下方。
+    // 常驻显示（maxShield===0 时显示空槽），避免「无护盾流派」下护盾条完全不可见；
+    // null-guard 防止微信 X5 缓存旧 HTML（缺 #shield-bar）时每帧 classList 报错拖垮 HUD。
+    if (this.shieldBar) {
+      const ratio = player.maxShield > 0
+        ? Math.max(0, Math.min(1, player.shield / player.maxShield))
+        : 0;
       const sw = `${(ratio * 100).toFixed(1)}%`;
-      if (h.sw !== sw) { h.sw = sw; this.shieldFill.style.width = sw; }
+      if (h.sw !== sw) { h.sw = sw; if (this.shieldFill) this.shieldFill.style.width = sw; }
     }
     if (this.vignetteAlpha > 0) {
       this.vignetteAlpha = Math.max(0, this.vignetteAlpha - dt * 2.4);

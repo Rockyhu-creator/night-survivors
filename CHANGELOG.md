@@ -5,6 +5,21 @@
 
 ---
 
+## v1.5（2026-07-26 · 待提交）
+
+> 修复微信浏览器下护盾条不可见问题：根因并非缓存，而是 `maxShield===0` 时护盾条被 `class="hidden"`（`display:none!important`）整条隐藏，新开局未拿护盾被动即完全看不到。
+
+### 修复
+- **`index.html`：`#shield-bar` 移除初始 `class="hidden"`**，护盾槽改为常驻渲染（无护盾时显示暗蓝空槽）。
+- **`ui.js` 护盾更新逻辑改造**：去掉 `classList.toggle('hidden', !hasShield)` 的显隐门控，改为始终按 `shield/maxShield` 比例刷新 `#shield-fill` 宽度（无护盾时为 0% 空槽）；并加 `this.shieldBar` / `this.shieldFill` 的 null 守卫，防止微信 X5 缓存旧 HTML（缺 `#shield-bar` 元素）时每帧 `classList` 报错拖垮整个 HUD 更新循环。
+- **CSS 确认**：`#hp-wrap` 无 `overflow:hidden`，`#shield-bar` 的 `bottom:-11px` 负偏移不会被裁切；空槽 `#16202b` 暗蓝底 + 青色描边/辉光，0% 时亦可见。
+
+### 说明
+- 缓存非主因：`public/_headers` 早已对 `/` 与 `/index.html` 设 `Cache-Control:no-store`，微信每次都会重拉最新 HTML；构建产物 JS 文件名带哈希，天然防缓存。故无需改动缓存策略。
+- 验证：`vite build` 零错误；e2e **ALL PASS**（无控制台报错）；13 张被动 PNG dev server 全 200。
+
+---
+
 ## v1.4（2026-07-26 · `21cbb2e3dfc5e10cc848af28767157a833034403`）
 
 > 被动 icon 全面升级：从 8×8 CSS box-shadow 方框替换为 AI 文生图 + Pillow 像素化管线生成的 80×80 哥特像素 sprite。
