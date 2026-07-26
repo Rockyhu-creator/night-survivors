@@ -34,8 +34,8 @@ export class Player {
     // ===== S 档新属性（2026-07-26）=====
     this.critChance = CRIT_CHANCE_BASE;  // 暴击率（0~1，硬上限 CRIT_CHANCE_CAP）
     this.critMul = CRIT_MUL_BASE;        // 暴击伤害倍率（≥1）
-    this.maxShield = 0;                  // 护盾上限（0=无护盾流派）
-    this.shield = 0;                     // 当前护盾
+    this.maxShield = 20;                 // 护盾上限（开局基础值，护盾被动可叠加）
+    this.shield = 20;                    // 当前护盾（开局满盾）
     this.shieldRegen = 0;                // 护盾恢复速度（盾/秒）
     this.armor = 0;                      // 防御（固定减伤值）
     this.dodgeChance = 0;                // 闪避率（0~1，硬上限 DODGE_CAP，基础 0）

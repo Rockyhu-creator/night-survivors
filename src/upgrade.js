@@ -194,11 +194,12 @@ export class UpgradeSystem {
       h3.textContent = info.title;
       const p = document.createElement('p');
       p.textContent = info.desc;
+      body.append(tag, h3, p);
+      card.appendChild(body);
       const pickBtn = document.createElement('button');
       pickBtn.className = 'uc-pick';
       pickBtn.textContent = '选择';
-      body.append(tag, h3, p, pickBtn);
-      card.appendChild(body);
+      card.appendChild(pickBtn);
       // 卡片本体点击=标记为放逐目标；按钮点击=选择该项
       card.addEventListener('click', () => {
         this.cardsEl.querySelectorAll('.upgrade-card').forEach((c) => c.classList.remove('selected'));

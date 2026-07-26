@@ -5,6 +5,20 @@
 
 ---
 
+## v1.9（2026-07-26 · 待提交）
+
+> 修复三处被动 icon 残留（致命专注/血色再生右下角水印、钢铁意志太暗）+ 初始护盾空槽 + 升级卡「选择」按钮位置。
+
+### 修复
+- **`gen_passive_pixels.py` + 3 张 icon：被动 icon 残留清理**。致命专注（critrate，右下角「CRIT」水印→红准星）、血色再生（regen，右下角「CRD」水印→红心光晕）经 ImageGen 重生成 + 去水印三重保障（critrate 清 193 个水印连通域、regen 清 10 个），主体偏移 <2px、零文字；钢铁意志（armor，原图过暗不可辨→亮钢盔甲，prompt 强约束 VERY BRIGHT/HIGH CONTRAST）。
+- **`src/entities.js`：初始护盾满值**。`Player` 初始化 `maxShield`/`shield` 从 `0/0` 改为 `20/20`，开局护盾条即满（不再是空槽），对齐 S 档「护盾 HUD 常驻」设计。
+- **`src/upgrade.js` + `src/style.css`：升级卡「选择」按钮右置**。`pickBtn` 从 `.uc-body` 内部（文字下方）移到 `#upgrade-card` 直接子级，与 icon/文字区形成 `[图标] [文字] [选择]` 三栏横排；`.upgrade-card` 桌面端统一 `display:flex; flex-direction:row`（与移动端一致），`.uc-pick` 加 `flex-shrink:0; white-space:nowrap` 不被挤压。
+
+### 验证
+- `vite build` 零错误；3 张 icon 质心偏移 <2px（脚本自检全 PASS）。
+
+---
+
 ## v1.8（2026-07-26 · `d59714ce6f6a3e2de9f6e8ada08555ac5951db28`）
 
 > 修复两处回归：① v1.6 把升级卡改成纯纵向堆叠，移动端/桌面端丢失「icon + 文字 + 按钮」横排；② 7 张被动 icon（ImageGen 强制右下角水印「图片由AI生成」/旧版英文残留）致主体偏左上角不居中、图鉴与���化选择均偏移。
