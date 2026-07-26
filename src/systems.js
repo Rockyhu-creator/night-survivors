@@ -241,7 +241,7 @@ export class FXSystem {
     this._frameP = 0;
   }
 
-  spawnDamageNumber(x, y, amount, color = '#fff') {
+  spawnDamageNumber(x, y, amount, color = '#fff', isCrit = false) {
     // L2: 每帧至多 14 个伤害数字，避免 AoE 密集命中时刷屏与数组抖动
     if (this._frameN >= 14) return;
     this._frameN += 1;
@@ -251,8 +251,9 @@ export class FXSystem {
       y,
       text: String(amount),
       color,
-      life: 0.7,
-      vy: -55,
+      isCrit,
+      life: isCrit ? 0.95 : 0.7,
+      vy: isCrit ? -72 : -55,
     });
   }
 
@@ -348,10 +349,12 @@ export class FXSystem {
     ctx.textAlign = 'center';
     for (const n of this.numbers) {
       ctx.globalAlpha = Math.min(1, n.life * 3);
+      const label = n.isCrit ? `暴击 ${n.text}` : n.text;
+      ctx.font = n.isCrit ? 'bold 17px "Press Start 2P", monospace' : 'bold 13px "Press Start 2P", monospace';
       ctx.fillStyle = '#000';
-      ctx.fillText(n.text, n.x - cam.ox + 1, n.y - cam.oy + 1);
+      ctx.fillText(label, n.x - cam.ox + 1, n.y - cam.oy + 1);
       ctx.fillStyle = n.color;
-      ctx.fillText(n.text, n.x - cam.ox, n.y - cam.oy);
+      ctx.fillText(label, n.x - cam.ox, n.y - cam.oy);
     }
     ctx.restore();
   }

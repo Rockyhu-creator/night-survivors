@@ -15,7 +15,7 @@
     <div id="hud" class="hidden">
       <div id="exp-bar-wrap"><div id="exp-bar"></div><span id="level-text">LV.1</span></div>
       <div id="hud-top">
-        <div id="hp-wrap"><div id="hp-bar"></div><span id="hp-text">100</span></div>
+        <div id="hp-wrap"><div id="hp-bar"></div><div id="shield-bar" class="hidden"><div id="shield-fill"></div></div><span id="hp-text">100</span></div>
         <div id="timer">00:00</div>
         <div id="kill-count">☠ 0</div>
       </div>
@@ -215,8 +215,27 @@
     <div id="pause-overlay" class="hidden">
       <p class="pause-title">已 暂 停</p>
       <p class="pause-hint desktop-only">按 ESC 或 P 继续</p>
+      <button id="btn-stats" class="gothic-btn ghost pause-stats-btn">属 性</button>
+      <p class="pause-hint desktop-only">按 Tab 或 C 查看属性</p>
       <p class="pause-hint touch-only">点击下方继续</p>
       <button id="btn-resume" class="gothic-btn pause-resume-btn">继 续</button>
+    </div>
+
+    <!-- 角色属性面板（S 档：暂停内嵌 + 结算复用同一渲染） -->
+    <div id="stats-panel" class="screen hidden">
+      <div class="stats-card">
+        <div class="stats-header">
+          <div id="stats-portrait" class="stats-portrait"></div>
+          <div class="stats-title-wrap">
+            <p id="stats-bloodline" class="stats-bloodline">流浪者</p>
+            <p id="stats-level" class="stats-level">LV.1</p>
+          </div>
+          <button id="btn-stats-close" class="gothic-btn ghost stats-close">返回</button>
+        </div>
+        <div id="stats-grid" class="stats-grid"><!-- renderStats() 注入 --></div>
+        <p class="stats-section-title">其他属性</p>
+        <div id="stats-grid-extra" class="stats-grid extra"><!-- renderStats() 注入 --></div>
+      </div>
     </div>
 
     <!-- 运行时版本自检：顶部滑入更新横幅（非阻断，hidden 由 JS 控制显隐） -->

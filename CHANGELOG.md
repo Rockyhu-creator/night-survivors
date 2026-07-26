@@ -5,6 +5,33 @@
 
 ---
 
+## v1.0（2026-07-26 · `<HASH>`）
+
+> 大版本 S 档（属性面板 + 被动扩展）。方案：主方案 v1.1（D1~D5 决议）；工程 GDD 同步 v1.1。
+
+### 新增
+- **9 属性角色系统**：承伤四段顺序固定为 闪避 → 防御 `max(1,(raw-armor)×damageTakenMul)` → 护盾 → 扣血（`entities.js takeDamage`）；新增 `critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance` 六字段，基础暴击率 0.05 / 暴击伤害 1.5 / 闪避硬上限 / 护盾受击打断 3s。
+- **暴击接入战斗**：`weapons.js hitEnemy()` 统一走 `player.rollCrit()`，所有直伤点（含 aura/whip/lightning/投射物/pool/sepulcher）接入；DOT 每 tick 独立 roll。`systems.js` 暴击飘字金字放大 +「暴击 」前缀（14/帧节流）。
+- **6 个 S 档新被动**（均 ML5，默认全开放入池）：致命专注（暴击率 +5%/级）/ 毁灭之刃（暴击伤害 +15%/级）/ 幽能屏障（护盾 +20）/ 灵能回响（护盾恢复 1.5/s）/ 暗夜铠甲（防御 +2）/ 魅影身法（闪避 +4%/级）。
+- **属性面板 UI（`#stats-panel`）**：暂停内嵌「属 性」按钮（Tab/C 切换，状态保持 paused）+ 结算屏「本局最终属性」区块；两列网格展示核心 9 项 + 衍生 7 项（`ui.js _collectStats/_collectStatsExtra/renderStats`）。
+- **护盾条（D4）**：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条 + 蓝色盾量段，首次获得护盾才显形（`ui.js update` 走 `_hudCache`）。
+- **程序化 CSS 徽标（D5，零新 PNG）**：被动/属性 icon 全走 `PASSIVE_BADGE_SYMBOL` + `.passive-badge`（按 category 着色 offense/survival/utility），升级卡 / 装备栏 / 图鉴被动卡 / 结算屏统一复用；未碰 AI_OWNED 15 张、未跑 `gen_assets.sh`。
+
+### 调整
+- **同类被动合并（D3）**：删 `swift`/`rage`，`boots` 吸并移速（+6%/级·ML99）、`tome` 吸并全伤（+8%/级·ML99）；被动总数 7 → 13。
+- **升级池分类权重（D3）**：候选被动权重 `w = 1 + 0.6·catCount[category]`（catCount=已投该系等级和）；保底改为**池中有武器时优先武器**（保证每层可拿武器），仅当无武器可给时退化为进攻向被动（防"三张全生存向"卡 build）。
+- 图鉴被动卡由 `<img>` 改为 CSS 徽标（与新被动无 PNG 一致）；图鉴卡片总数 27 → 31（8 武器 + 13 被动 + 10 神器）。
+
+### 修复
+- **升级卡渲染崩溃**：`upgrade.js open()` 被动分支引用未定义 `img`（`ReferenceError` 致升级界面白屏），改为被动走徽标、武器/神器走 `<img>`，二者各自 append。
+- **A8 孤儿引用清理**：`assets.js` 移除 `passive_rage`/`passive_swift` 两项已删被动的 files-map 条目（PNG 仍留盘但无引用）。
+
+### 测试
+- e2e 全量回归 ALL PASS（零控制台报错），含权重配额、分类权重公式、长鞭去重、属性面板、护盾条、图鉴 31 卡、暴击飘字等新增断言；`node --check` 改动 JS 全过。
+- 注意：`test_game.py` 中「狼群/爆破」词缀断言为 RNG/时机敏感偶发抖动（词缀系统 2026-07-24 既有，与 S 档无关），非 S 档回归。
+
+---
+
 ## v0.39（2026-07-26 · `a8828af`）
 
 ### 修复

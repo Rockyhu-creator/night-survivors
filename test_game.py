@@ -301,7 +301,7 @@ with sync_playwright() as p:
     expect('S3 已满武器仍可升级(weapon-up>0)', capped['upW'] > 0)
     expect('S3 武器数=上限', capped['count'] == capped['max'])
 
-    # --- 后期偏置：t>=540 时新武器权重下降、被动新权重上升（前期不变）---
+    # --- 后期偏置：t>=540 时新武器权重下降（前期不变）---
     lateW = page.evaluate("""() => {
       const g = window.__game;
       g.state = 'playing';
@@ -314,16 +314,30 @@ with sync_playwright() as p:
       g.time = 900; const late = g.upgrade.buildPool();
       const wnE = early.find(o => o.kind === 'weapon-new').weight;
       const wnL = late.find(o => o.kind === 'weapon-new').weight;
-      // 被动统一 kind:'passive'，用"未拥有的被动(非 boots)"取 passiveNew 权重
-      const newP = (pool) => pool.find(o => o.kind === 'passive' && o.id !== 'boots').weight;
-      const pnE = newP(early), pnL = newP(late);
-      return { wnE, wnL, pnE, pnL };
+      return { wnE, wnL };
     }""")
     expect('前期新武器权重=2(未动)', lateW['wnE'] == 2)
     expect('后期新武器权重下降(<1)', lateW['wnL'] < 1)
-    expect('后期被动新权重上升(>前期)', lateW['pnL'] > lateW['pnE'])
-    # 回退 time，避免污染后续
-    page.evaluate("() => { window.__game.time = 0; }")
+    # --- 分类权重(D5/§5.3)：已投资某分类→同系被动权重上升；公式 w = 1 + Δ·catCount[category] ---
+    catW = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      g.enemies.enemies = [];
+      g.player.weapons = [{ id: 'blade', level: 1, timer: 0.4 }];
+      g.player.passives = new Map([['tome', 3]]);   // offense L3 → catCount.offense=3
+      g.player.maxWeapons = 6; g.player.maxPassives = 6;
+      g.upgrade.banned.clear();
+      g.time = 0;
+      const pool = g.upgrade.buildPool();
+      const wOff  = pool.find(o => o.id === 'critrate').weight;  // offense，catCount=3
+      const wUtil = pool.find(o => o.id === 'magnet').weight;    // utility，catCount=0
+      return { wOff, wUtil, expect: 1 + 0.6 * 3 };
+    }""")
+    expect('分类权重 已投offense→同系被动权重=1+Δ·catCount', abs(catW['wOff'] - catW['expect']) < 1e-6)
+    expect('分类权重 未投分类被动权重基准=1', abs(catW['wUtil'] - 1) < 1e-6)
+    expect('分类权重 同系被动权重>未投分类', catW['wOff'] > catW['wUtil'])
+    # 回退，避免污染后续
+    page.evaluate("() => { window.__game.time = 0; window.__game.player.passives = new Map(); }")
 
     # 祭坛 +1 槽：购买后 startRun 注入上限提升
     page.evaluate("""() => {
@@ -445,6 +459,7 @@ with sync_playwright() as p:
       g.state = 'playing';
       g.enemies.enemies = [];
       g.player.lifesteal = 0;
+      g.player.critChance = 0;  // 隔离暴击 RNG，专测去重（否则暴击使 ratio>1.25 误判）
       const type = g.enemies.pickType();
       const dummy = g.enemies.createEnemy(type, g.enemies.statScale(), g.player.x + 30, g.player.y);
       dummy.hp = 1000; dummy.maxHp = 1000; dummy.speed = 0; dummy.radius = 40;
@@ -525,11 +540,11 @@ with sync_playwright() as p:
       return { total: document.querySelectorAll('#codex-weapons .codex-card').length, byTitle,
                tags: document.querySelectorAll('#codex-weapons .cat-tag').length };
     }""")
-    expect('武器图鉴 卡片总数 27 (8武器+9被动+10神器)', codex['total'] == 27)
+    expect('武器图鉴 卡片总数 31 (8武器+13被动+10神器)', codex['total'] == 31)
     expect('武器图鉴 武器8张', codex['byTitle'].get('武器') == 8)
-    expect('武器图鉴 被动9张', codex['byTitle'].get('被动') == 9)
+    expect('武器图鉴 被动13张', codex['byTitle'].get('被动') == 13)
     expect('武器图鉴 神器10张', codex['byTitle'].get('神器') == 10)
-    expect('武器图鉴 分类配色标签 27 个', codex['tags'] == 27)
+    expect('武器图鉴 分类配色标签 31 个', codex['tags'] == 31)
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('#codex-weapons .codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     # 怪物图鉴
     page.click('#btn-codex-weapons-topback')

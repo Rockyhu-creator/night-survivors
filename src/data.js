@@ -70,6 +70,14 @@ export const NIGHT_START = 540;   // 9 分钟：永夜加深触发
 export const ENDGAME_BOSS_TIME = 720; // 12 分钟：永夜化身降临
 export const GAME_HARD_CAP = 900;    // 15 分钟硬上限：到点仍有终局 Boss 存活则判失败
 
+// ---------- S 档新属性：基础值与硬上限（2026-07-26）----------
+export const CRIT_CHANCE_BASE = 0.05;  // 暴击率基础值
+export const CRIT_CHANCE_CAP  = 0.75;  // 暴击率硬上限
+export const CRIT_MUL_BASE    = 1.5;   // 暴击伤害基础倍率
+export const DODGE_CAP        = 0.35;  // 闪避率硬上限
+export const SHIELD_REGEN_DELAY = 3;   // 护盾受击打断秒数 [校准]
+export const DAMAGE_MIN       = 1;     // 防御减免后的保底伤害
+
 export const ENEMY_TYPES = {
   bat: {
     name: '夜行蝙蝠', sprite: 'bat', hp: 12, speed: 95, damage: 8, exp: 1,
@@ -217,17 +225,53 @@ export const WEAPONS = {
 if (typeof window !== 'undefined') window.__weapons = WEAPONS;
 
 export const PASSIVES = {
-  boots: { id: 'boots', name: '疾行之靴', icon: 'passive_boots', maxLevel: 5, desc: '移动速度 +8%', apply: (p) => { p.speedMul += 0.08; } },
-  heart: { id: 'heart', name: '巨人之心', icon: 'passive_heart', maxLevel: 5, desc: '生命上限 +20,并回复 20', apply: (p) => { p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20); } },
-  tome: { id: 'tome', name: '秘法魔典', icon: 'passive_tome', maxLevel: 5, desc: '所有伤害 +10%', apply: (p) => { p.damageMul += 0.1; } },
-  magnet: { id: 'magnet', name: '引力宝珠', icon: 'passive_magnet', maxLevel: 5, desc: '拾取范围 +25%', apply: (p) => { p.magnetMul += 0.25; } },
+  // ===== 同类被动合并（D3，v1.1）：boots 吸收 swift / tome 吸收 rage，保留主键，删 swift/rage =====
+  boots: { id: 'boots', name: '疾行之靴', icon: 'passive_boots', maxLevel: 99, category: 'utility', desc: '移动速度 +6%', apply: (p) => { p.speedMul += 0.06; } },
+  heart: { id: 'heart', name: '巨人之心', icon: 'passive_heart', maxLevel: 5, category: 'survival', desc: '生命上限 +20,并回复 20', apply: (p) => { p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20); } },
+  tome: { id: 'tome', name: '秘法魔典', icon: 'passive_tome', maxLevel: 99, category: 'offense', desc: '所有伤害 +8%', apply: (p) => { p.damageMul += 0.08; } },
+  magnet: { id: 'magnet', name: '引力宝珠', icon: 'passive_magnet', maxLevel: 5, category: 'utility', desc: '拾取范围 +25%', apply: (p) => { p.magnetMul += 0.25; } },
   // 无限成长被动：20+ 级后期每次升级依然有意义
-  rage: { id: 'rage', name: '战斗狂热', icon: 'passive_rage', maxLevel: 99, desc: '所有伤害 +3%', apply: (p) => { p.damageMul += 0.03; } },
-  swift: { id: 'swift', name: '极速猎手', icon: 'passive_swift', maxLevel: 99, desc: '移动速度 +3%', apply: (p) => { p.speedMul += 0.03; } },
-  greed: { id: 'greed', name: '财富之魂', icon: 'passive_greed', maxLevel: 99, desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
-  guard: { id: 'guard', name: '钢铁意志', icon: 'passive_guard', maxLevel: 99, desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
+  greed: { id: 'greed', name: '财富之魂', icon: 'passive_greed', maxLevel: 99, category: 'utility', desc: '经验获取 +8%', apply: (p) => { p.expMul += 0.08; } },
+  guard: { id: 'guard', name: '钢铁意志', icon: 'passive_guard', maxLevel: 99, category: 'survival', desc: '受到伤害 -2%', apply: (p) => { p.damageTakenMul = Math.max(0.3, (p.damageTakenMul || 1) * 0.98); } },
   // 续航被动：与血瓶掉落互补，解决"掉血不可逆"的核心挫败。0.8/级 满级 4 HP/s
-  regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
+  regen: { id: 'regen', name: '血色再生', icon: 'potion', maxLevel: 5, category: 'survival', desc: '每秒回复 0.8 生命', apply: (p) => { p.regenRate = (p.regenRate || 0) + 0.8; } },
+  // ===== S 档新被动（2026-07-26，默认全开放入池，不进 RECIPES）=====
+  critrate: {
+    id: 'critrate', name: '致命专注', icon: 'passive_critrate',
+    maxLevel: 5, category: 'offense',
+    desc: '暴击率 +5%',
+    apply: (p) => { p.critChance = Math.min(CRIT_CHANCE_CAP, p.critChance + 0.05); },
+  },
+  critdmg: {
+    id: 'critdmg', name: '毁灭之刃', icon: 'passive_critdmg',
+    maxLevel: 5, category: 'offense',
+    desc: '暴击伤害 +15%',
+    apply: (p) => { p.critMul += 0.15; },
+  },
+  shield: {
+    id: 'shield', name: '幽能屏障', icon: 'passive_shield',
+    maxLevel: 5, category: 'survival',
+    desc: '护盾上限 +20,并立即可获得 20 护盾',
+    apply: (p) => { p.maxShield += 20; p.shield = Math.min(p.maxShield, p.shield + 20); },
+  },
+  shieldregen: {
+    id: 'shieldregen', name: '灵能回响', icon: 'passive_shieldregen',
+    maxLevel: 5, category: 'survival',
+    desc: '每秒恢复 1.5 护盾(受击后 3 秒内暂停)',
+    apply: (p) => { p.shieldRegen += 1.5; },
+  },
+  armor: {
+    id: 'armor', name: '暗夜铠甲', icon: 'passive_armor',
+    maxLevel: 5, category: 'survival',
+    desc: '防御 +2(每次受击固定少受 2 点伤害)',
+    apply: (p) => { p.armor += 2; },
+  },
+  dodge: {
+    id: 'dodge', name: '魅影身法', icon: 'passive_dodge',
+    maxLevel: 5, category: 'survival',
+    desc: '闪避率 +4%',
+    apply: (p) => { p.dodgeChance = Math.min(DODGE_CAP, p.dodgeChance + 0.04); },
+  },
 };
 
 export function expForLevel(level) {

@@ -55,14 +55,20 @@ export class UpgradeSystem {
     // 后期偏置：t>=NIGHT_START(540) 起渐强，至 ENDGAME(900) 满档；前期 late=0 与现状完全一致。
     const t = this.game.time || 0;
     const late = Math.max(0, Math.min(1, (t - NIGHT_START) / 360));
-    // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级装备权重大幅高于新装备，加速单 build 成型
-    // 后期压低"再拿新武器"概率、抬升被动，避免 build 失衡；前期不动。
+    // 加权随机（对齐吸血鬼幸存者"越拿越来"）：已有未满级武器权重大幅高于新武器，加速单 build 成型
+    // 后期压低"再拿新武器"概率，避免 build 失衡；前期不动。
     const W = {
       weaponUp: 5,
-      passiveUp: 3 * (1 + 0.5 * late),
       weaponNew: 2 * (1 - 0.85 * late),
-      passiveNew: 1 * (1 + 1.0 * late),
     };
+    // D3 分类权重：统计玩家已投资各分类的被动等级总和。
+    // 候选被动最终权重 = 1 + Δ·catCount[category]（Δ=0.6[校准]），走某流派时更易滚到同系被动、成型更顺。
+    const DELTA = 0.6;
+    const catCount = { offense: 0, survival: 0, utility: 0 };
+    for (const [pid, lv] of player.passives) {
+      const def = PASSIVES[pid];
+      if (def && def.category) catCount[def.category] += lv;
+    }
     // S3 武器计数含神器（同 player.weapons 数组），与 addWeapon 口径一致
     const weaponCount = player.weapons.length;
     for (const def of Object.values(WEAPONS)) {
@@ -82,7 +88,8 @@ export class UpgradeSystem {
       if (lv >= def.maxLevel) continue;
       // S3：满被动槽时，只跳过尚未拥有的"新被动"；已拥有的被动升级照常（保留后期成长）
       if (lv === 0 && player.passives.size >= player.maxPassives) continue;
-      pool.push({ kind: 'passive', id: def.id, def, weight: lv > 0 ? W.passiveUp : W.passiveNew, isWeapon: false });
+      const catW = def.category ? 1 + DELTA * catCount[def.category] : 1;
+      pool.push({ kind: 'passive', id: def.id, def, weight: catW, isWeapon: false });
     }
     return pool;
   }
@@ -100,10 +107,16 @@ export class UpgradeSystem {
       }
       return arr.pop();
     };
-    // 武器配额：池里有武器向时先保底 1 个，杜绝"3 个全是被动"卡 build
-    if (pool.some((o) => o.isWeapon)) {
-      const weaponsOnly = pool.filter((o) => o.isWeapon);
+    // 保底 1 张武器向：池中有武器时优先武器（保证每层至少能拿到武器，对齐玩家预期与旧配额测试）；
+    // 仅当无武器可给（全武器满级）时才退化为进攻向被动（D5/§5.3：防"三张全生存向"卡 build）。
+    const weaponsOnly = pool.filter((o) => o.isWeapon);
+    const offenseFallback = pool.filter((o) => o.def && o.def.category === 'offense');
+    if (weaponsOnly.length > 0) {
       const picked = pickWeighted(weaponsOnly);
+      options.push(picked);
+      pool.splice(pool.indexOf(picked), 1);
+    } else if (offenseFallback.length > 0) {
+      const picked = pickWeighted(offenseFallback);
       options.push(picked);
       pool.splice(pool.indexOf(picked), 1);
     }
@@ -167,10 +180,18 @@ export class UpgradeSystem {
       const info = this.describe(option);
       const card = document.createElement('div');
       card.className = 'upgrade-card';
-      const img = document.createElement('img');
-      const src = sprite(info.icon);
-      img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
-      img.alt = info.title;
+      // D5：被动走程序化 CSS 徽标（零 PNG）；武器/神器仍用 sprite 贴图
+      if (option.kind === 'passive') {
+        const badge = this.game.ui.passiveBadge(option.def);
+        badge.classList.add('uc-badge');
+        card.appendChild(badge);
+      } else {
+        const img = document.createElement('img');
+        const src = sprite(info.icon);
+        img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
+        img.alt = info.title;
+        card.appendChild(img);
+      }
       const tag = document.createElement('div');
       tag.className = `uc-kind ${info.tagClass}`;
       tag.textContent = info.tag;
@@ -181,7 +202,7 @@ export class UpgradeSystem {
       const pickBtn = document.createElement('button');
       pickBtn.className = 'uc-pick';
       pickBtn.textContent = '选择';
-      card.append(img, tag, h3, p, pickBtn);
+      card.append(tag, h3, p, pickBtn);
       // 卡片本体点击=标记为放逐目标；按钮点击=选择该项
       card.addEventListener('click', () => {
         this.cardsEl.querySelectorAll('.upgrade-card').forEach((c) => c.classList.remove('selected'));

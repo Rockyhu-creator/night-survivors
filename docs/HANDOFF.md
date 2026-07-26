@@ -1,6 +1,33 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.0 大版本S档上线后）
+
+---
+
+## 0. ✅ 大版本 S 档（属性面板 + 被动扩展）——v1.0 已开发完成并推送
+
+**线上现状**：v1.0（`<HASH>`）已推送上线，在 v0.39 基础上落地 S 档全部内容。v0.39 修复了圣光矩阵 shadowBlur 卡顿与宝箱指引 dpr 缩放。
+
+**大版本状态**：**已开发完成**。用户确认「根据方案进入开发」后，按主方案 v1.1 的 D1~D5 决议落地 9 项任务（属性面板 + 6 新被动 + 同类合并 + 分类权重 + 暴击接入 + 护盾条 + CSS 徽标）；e2e 全量回归 ALL PASS（零控制台报错）。
+
+**版本号规范（用户 2026-07-26 指定）**：S 档为**首个大版本 v1.0**；今后「大版本」（多系统/机制跃迁）跳主版本号 **1.0 → 2.0 → 3.0…**；大版本内小补丁/热修用次版本号 **x.1 / x.2…**（如 1.1、1.2）。每次发版同步 CHANGELOG + HANDOFF（含 §11 commit 历史）。
+
+**方案文档**：
+- 主方案：`docs/plans/2026-07-26-major-update-design.md`（**v1.1，以此为准**）
+- 工程 GDD：`docs/plans/2026-07-26-s-tier-gdd.md`（**已同步 v1.1，D1~D5 决议落地**）
+
+**已落地决策（D1~D5）**：
+- **D1** 局内挑战任务移出 S 档（降 M 档，未在 S 档实现）。
+- **D2** 暴击按默认值落地：`critChance +5%/级`（基础 0.05，硬上限 0.75）、`critMul +15%/级`（基础 1.5）。`player.rollCrit()` 在 `weapons.js hitEnemy` 接入，DOT 每 tick 独立 roll；暴击飘字金字放大 +「暴击 」前缀（14/帧节流）。
+- **D3** 被动分类权重（`buildPool` 内 `w = 1 + 0.6·catCount[category]`）+ 同类被动合并：删 `swift`/`rage`，`boots` 吸并移速（+6%/级·ML99）、`tome` 吸并全伤（+8%/级·ML99）。保底：**池中有武器时优先武器**（保证每层可拿武器），无武器可给时才退化为进攻向被动（防"三张全生存向"卡 build）。
+- **D4** 护盾条：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条，蓝色盾量段；受击后 `shieldRegen` 暂停 3s（见 `entities.js` 护盾恢复）。
+- **D5** 被动/属性 icon 全程序化 CSS 徽标（`PASSIVE_BADGE_SYMBOL` + `.passive-badge` + `.stat-*` `--ic`），**零新 PNG**，未碰 AI_OWNED 15 张，未跑 `gen_assets.sh`。
+
+**S 档最终范围（已交付）**：① 9 属性机制（critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance 六字段；承伤顺序：闪避→防御 `max(1,(raw-armor)×damageTakenMul)`→护盾→扣血）② 6 新被动（致命专注/毁灭之刃/幽能屏障/灵能回响/暗夜铠甲/魅影身法，均 ML5）③ 同类被动合并 + 分类权重 ④ 属性面板 UI（`#stats-panel`：暂停内嵌 + 结算屏，Tab/C 切换）⑤ 护盾灰色细条。**未做（留 M 档）**：局内任务、新武器/神器、新怪词缀。
+
+**被动总数**：13（boots/heart/tome/magnet/greed/guard/regen + critrate/critdmg/shield/shieldregen/armor/dodge）。图鉴卡片总数 31（8 武器 + 13 被动 + 10 神器）。
+
+**其他注意**：`gen_assets.py` 仍含 `gen_passive_rage/swift` 生成器（产物 `passive_rage.png`/`passive_swift.png` 已无引用，属死代码）；`assets.js` 已移除这两项孤儿引用（A8 清理）。
 
 ---
 
@@ -158,7 +185,7 @@ title → playing → paused（ESC/P/按钮/切后台自动触发）
 - 桌面：`WASD / 方向键` 移动
 - 移动：`触屏拖动` 移动
 - 基于 `.desktop-only` / `.touch-only` class + `.touch-device` 切换
-- 「玩法说明」弹层（`index.html` #guide-screen）已于 v0.26 对接现状：12 分钟终局 / 9 分钟入夜 / Boss 3·6·9·12′、8 武器 / 9 被动 / 10 神器进化 / 6 血裔 / 灵魂祭坛 / 词缀怪；标题栏新增「Boss 宝箱→进化神器」提示。改动指南须同步此处。
+- 「玩法说明」弹层（`index.html` #guide-screen）已于 v0.26 对接现状：12 分钟终局 / 9 分钟入夜 / Boss 3·6·9·12′、8 武器 / 13 被动 / 10 神器进化 / 6 血裔 / 灵魂祭坛 / 词缀怪；标题栏新增「Boss 宝箱→进化神器」提示。改动指南须同步此处。
 
 ### 竖屏布局（.portrait class，v0.24 起锁竖屏）
 - HUD 顶部元素垂直排列
@@ -240,12 +267,12 @@ git push origin main
 ## 8. 升级系统（src/upgrade.js）
 
 ### 升级选项池
-- 武器（6 件神器，初始解锁）
-- 被动（4 个无限成长被动 + 有限被动）
-  - 战斗狂热：+3% 伤害（无限）
-  - 极速猎手：+3% 移速（无限）
-  - 财富之魂：+8% 经验（无限）
-  - 钢铁意志：-2% 受伤（无限）
+- 武器（8 件，初始解锁）
+- 神器（10 件，两两合成进化解锁）
+- 被动（13 个，按 category 分类权重；同类合并后删 `swift`/`rage`）
+  - 无限成长（maxLevel 99）：`boots` 疾行之靴 +6% 移速（utility，吸并 swift）/`tome` 秘法魔典 +8% 全伤（offense，吸并 rage）/`greed` 财富之魂 +8% 经验（utility）/`guard` 钢铁意志 -2% 受伤（survival）
+  - 有限（maxLevel 5）：`heart` 巨人之心 +20 HP（survival）/`magnet` 引力宝珠 +25% 拾取（utility）/`regen` 血色再生 +0.8 HP/s（survival）/`critrate` 致命专注 +5% 暴击率（offense）/`critdmg` 毁灭之刃 +15% 暴击伤害（offense）/`shield` 幽能屏障 +20 护盾（survival）/`shieldregen` 灵能回响 +1.5 护盾/s（survival）/`armor` 暗夜铠甲 +2 防御（survival）/`dodge` 魅影身法 +4% 闪避（survival）
+- 分类权重（D3，`buildPool`）：候选被动权重 `w = 1 + 0.6·catCount[category]`（catCount=玩家已投该分类被动等级和）；保底优先武器，无武器可给时退化为进攻向被动（offense）。
 
 ### Reroll / Banish
 - 每局各 3 次
@@ -291,13 +318,13 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-ea4d947 狼群词缀去灰(琥珀金+脉冲圈)；宝石20s过期+平方距离；Boss弹幕三波错峰0.35s
-1f79014 切后台自动暂停+手机锁竖屏；渲染/瞄准/弹幕/HUD 热路径等价优化
-788da63 修复白闪常驻满白致小怪发白；词缀怪着色显形+图鉴同步换色
-425ed2b 图鉴图标/词缀着色/头像时间修复 + Boss 技能CD下调与弹幕三波 + e2e加固
-c34bed0 真机数值收敛：后期墙下调 + 超时失败修复
-2614b85 fix: 胜利结算弹窗背景遮罩+按钮关闭；e2e 回归覆盖；图鉴测试清理
-6618d2c feat: v0.19 数值校准+12min终局+15min超时失败+Boss技能循环+怪物Boss形象重绘
+b2785fb docs: 回填 v0.39 commit 哈希 a8828af
+a8828af fix: 圣光矩阵shadowBlur卡顿改缓存辉光 + 宝箱指引DPR缩放修正圈不住/箭头偏位 (v0.39)
+55cd381 art: 大版本S档 16张AI像素icon生成脚本(gen_icons.sh)；文生图服务降级暂无法出图，待恢复复跑
+d6cd3bd docs: v0.38 CHANGELOG + HANDOFF 同步（eternalwhip 扩展特效，哈希 a9435b8）
+a9435b8 feat: eternalwhip 扩展特效 残影光晕+命中火花+主题伤害数字（向前兼容基础鞭）
+4c4cbcf docs: v0.37 CHANGELOG + HANDOFF + 指南文案同步（亡魂收割者，哈希 71cbf72）
+71cbf72 feat: 第10神器 亡魂收割者 scythe 武器+reaper 进化(回旋镰斩/撕裂DOT/收割回能)
 ```
 
 完整版本变更见 [CHANGELOG.md](file:///Users/a34481/Documents/Trae_game/CHANGELOG.md)。
@@ -347,6 +374,8 @@ c34bed0 真机数值收敛：后期墙下调 + 超时失败修复
 - [手机端适配设计](file:///Users/a34481/Documents/Trae_game/docs/superpowers/specs/2026-07-22-mobile-adaptation-design.md)
 - [竖屏适配设计](file:///Users/a34481/Documents/Trae_game/docs/superpowers/specs/2026-07-22-portrait-adaptation-design.md)
 - [手机端适配实现计划](file:///Users/a34481/Documents/Trae_game/docs/superpowers/plans/2026-07-22-mobile-adaptation.md)
+- [大版本主方案 v1.1（当前进行中，见 §0）](file:///Users/a34481/Documents/Trae_game/docs/plans/2026-07-26-major-update-design.md)
+- [S 档工程 GDD v1.1（D1~D5 已同步）](file:///Users/a34481/Documents/Trae_game/docs/plans/2026-07-26-s-tier-gdd.md)
 
 ---
 

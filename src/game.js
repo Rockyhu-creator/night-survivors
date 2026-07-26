@@ -265,6 +265,13 @@ export class Game {
       this.togglePause();
     } else if (e.code === 'KeyM') {
       this.toggleMute();
+    } else if (e.code === 'Tab' || e.code === 'KeyC') {
+      // S 档属性面板：仅暂停态下可开关；state 保持 paused
+      if (this.state === 'paused') {
+        e.preventDefault(); // Tab 防浏览器焦点跳转
+        if (this.ui.statsPanel.classList.contains('hidden')) this.ui.showStatsPanel();
+        else this.ui.hideStatsPanel();
+      }
     }
   }
 
@@ -284,6 +291,7 @@ export class Game {
       this.state = 'playing';
       this.lastTs = 0;
       document.getElementById('pause-overlay').classList.add('hidden');
+      this.ui.hideStatsPanel(); // 兜底：解除暂停同时隐藏属性面板
     }
   }
 

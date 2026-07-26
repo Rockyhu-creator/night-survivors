@@ -82,6 +82,14 @@ export class WeaponSystem {
     return this.game.player.weapons.some((w) => w.artifact && w.id === id);
   }
 
+  // 伤害+飘字一把梭（所有直伤点改用此函数）：先经 player.rollCrit，暴击飘字金色放大
+  hitEnemy(e, baseDamage, knockX = 0, knockY = 0, color) {
+    const { damage, isCrit } = this.game.player.rollCrit(baseDamage);
+    this.game.enemies.damageEnemy(e, damage, knockX, knockY);
+    this.game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(damage), isCrit ? '#ffd24a' : color, isCrit);
+    return { damage, isCrit };
+  }
+
   stats(weapon) {
     return WEAPONS[weapon.id].levels[weapon.level - 1];
   }
@@ -146,8 +154,7 @@ export class WeaponSystem {
         pool.tickTimer = pool.tick;
         for (const e of game.enemies.enemiesNear(player.x, player.y, pool.radius + 30)) {
           if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < pool.radius) {
-            game.enemies.damageEnemy(e, 16 * player.damageMul);
-            game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(16 * player.damageMul), '#a8d8ff');
+            this.hitEnemy(e, 16 * player.damageMul, 0, 0, '#a8d8ff');
           }
         }
       }
@@ -160,8 +167,7 @@ export class WeaponSystem {
         for (const e of game.enemies.enemiesNear(bx, by, 40)) {
           if (e.hp > 0 && !e._spiralHit) {
             e._spiralHit = true;
-            game.enemies.damageEnemy(e, 24 * player.damageMul, Math.cos(ang), Math.sin(ang));
-            game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(24 * player.damageMul));
+            this.hitEnemy(e, 24 * player.damageMul, Math.cos(ang), Math.sin(ang));
             setTimeout(() => { e._spiralHit = false; }, 400);
           }
         }
@@ -209,7 +215,7 @@ export class WeaponSystem {
       const r = 150;
       for (const e of game.enemies.enemiesNear(player.x, player.y, r + 30)) {
         if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < r) {
-          game.enemies.damageEnemy(e, 20 * player.damageMul, 0, 0);
+          this.hitEnemy(e, 20 * player.damageMul, 0, 0, '#b07cff');
         }
       }
       st.sepTimer = (st.sepTimer || 0) - dt;
@@ -346,8 +352,7 @@ export class WeaponSystem {
       const r = s.radius * (player.areaMul || 1);
       for (const e of game.enemies.enemiesNear(player.x, player.y, r + 30)) {
         if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < r) {
-          game.enemies.damageEnemy(e, s.damage * player.damageMul, 0, 0);
-          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), '#c060a0');
+          this.hitEnemy(e, s.damage * player.damageMul, 0, 0, '#c060a0');
           // 血裔·吸血(嗜血者) 同步回血
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
         }
@@ -414,12 +419,11 @@ export class WeaponSystem {
         const perp = Math.abs(px * dy - py * dx);
         if (perp < halfW + e.radius) {
           hitSet.add(e);
-          game.enemies.damageEnemy(e, s.damage * player.damageMul, dx, dy);
+          this.hitEnemy(e, s.damage * player.damageMul, dx, dy, tint ? tint.dmg : '#c060a0');
           if (tint) {
             game.fx.spawnSparks(e.x, e.y, tint.spark, 6);
             game.fx.spawnSparks(e.x, e.y, tint.sparkHot, 3);
           }
-          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), tint ? tint.dmg : '#c060a0');
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
         }
       }
@@ -475,7 +479,7 @@ export class WeaponSystem {
     const points = [{ x: firstX, y: firstY - 360, sky: true }, { x: firstX, y: firstY }];
     let remaining = s.chains;
     hitSet.add(current);
-    game.enemies.damageEnemy(current, s.damage * game.player.damageMul);
+    this.hitEnemy(current, s.damage * game.player.damageMul, 0, 0, '#f5d76e');
     while (remaining > 0) {
       const next = game.enemies.enemiesNear(current.x, current.y, s.chainRange)
         .filter((e) => !hitSet.has(e) && e.hp > 0)
@@ -483,7 +487,7 @@ export class WeaponSystem {
       if (!next) break;
       hitSet.add(next);
       points.push({ x: next.x, y: next.y });
-      game.enemies.damageEnemy(next, s.damage * game.player.damageMul * 0.85);
+      this.hitEnemy(next, s.damage * game.player.damageMul * 0.85, 0, 0, '#f5d76e');
       current = next;
       remaining -= 1;
     }
@@ -528,9 +532,9 @@ export class WeaponSystem {
         if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + pad) {
           p.hitSet.add(e);
           const kd = Math.hypot(p.vx, p.vy) || 1;
-          game.enemies.damageEnemy(e, p.damage, p.vx / kd, p.vy / kd);
-          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(p.damage));
-          game.fx.spawnSparks(e.x, e.y, p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff'), 4);
+          const projColor = p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff');
+          this.hitEnemy(e, p.damage, p.vx / kd, p.vy / kd, projColor);
+          game.fx.spawnSparks(e.x, e.y, projColor, 4);
           if (p.lifeSteal) {
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + 1);
           }
@@ -564,8 +568,7 @@ export class WeaponSystem {
         const targets = game.enemies.enemiesNear(pool.x, pool.y, pool.radius + 30);
         for (const e of targets) {
           if (e.hp > 0 && Math.hypot(e.x - pool.x, e.y - pool.y) < pool.radius) {
-            game.enemies.damageEnemy(e, pool.damage);
-            game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(pool.damage), '#7ec8ff');
+            this.hitEnemy(e, pool.damage, 0, 0, '#7ec8ff');
           }
         }
       }

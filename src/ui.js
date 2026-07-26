@@ -19,6 +19,13 @@ const MONSTER_LORE = {
   avatar: '终局化身,存活至 12 分钟降临,击杀即通关',
 };
 
+// 被动徽标符号（程序化 CSS 绘制，不加载 PNG，D5）。key = passive id
+const PASSIVE_BADGE_SYMBOL = {
+  critrate: '暴', critdmg: '×', shield: '盾', shieldregen: '↻',
+  armor: '甲', dodge: '闪', boots: '靴', heart: '心', tome: '典',
+  magnet: '磁', greed: '魂', guard: '御', regen: '血',
+};
+
 export class UIManager {
   constructor(game) {
     this.game = game;
@@ -54,6 +61,15 @@ export class UIManager {
     this.warnName = document.getElementById('warn-name');
     this.guideScreen = document.getElementById('guide-screen');
     this.guideCloseBtn = document.getElementById('btn-guide-close');
+    // S 档：属性面板 + 护盾条 HUD
+    this.statsPanel = document.getElementById('stats-panel');
+    this.statsGrid = document.getElementById('stats-grid');
+    this.statsGridExtra = document.getElementById('stats-grid-extra');
+    this.statsPortrait = document.getElementById('stats-portrait');
+    this.statsBloodlineEl = document.getElementById('stats-bloodline');
+    this.statsLevelEl = document.getElementById('stats-level');
+    this.shieldBar = document.getElementById('shield-bar');
+    this.shieldFill = document.getElementById('shield-fill');
     this.vignetteAlpha = 0;
     // 战利品指引（指向未拾取宝箱）：左下角底边箭头 + 屏内脉冲环
     this.lootBeacon = document.getElementById('loot-beacon');
@@ -147,6 +163,17 @@ export class UIManager {
     if (h.t !== t) { h.t = t; this.timerEl.textContent = t; }
     const k = `☠ ${game.kills}`;
     if (h.k !== k) { h.k = k; this.killEl.textContent = k; }
+    // S 档护盾条（D4）：灰底空槽 + 蓝盾量段，HP 条下方；maxShield===0 整体隐藏
+    const hasShield = player.maxShield > 0;
+    if (h.hasShield !== hasShield) {
+      h.hasShield = hasShield;
+      this.shieldBar.classList.toggle('hidden', !hasShield);
+    }
+    if (hasShield) {
+      const ratio = Math.max(0, Math.min(1, player.shield / player.maxShield));
+      const sw = `${(ratio * 100).toFixed(1)}%`;
+      if (h.sw !== sw) { h.sw = sw; this.shieldFill.style.width = sw; }
+    }
     if (this.vignetteAlpha > 0) {
       this.vignetteAlpha = Math.max(0, this.vignetteAlpha - dt * 2.4);
       this.vignette.style.opacity = this.vignetteAlpha.toFixed(2);
@@ -306,15 +333,111 @@ export class UIManager {
       const def = PASSIVES[id];
       const div = document.createElement('div');
       div.className = 'loadout-icon passive';
-      const img = document.createElement('img');
-      img.src = this.iconURL(def.icon);
-      img.alt = def.name;
+      const badge = this.passiveBadge(def);
       const lvEl = document.createElement('span');
       lvEl.className = 'loadout-lv';
       lvEl.textContent = lv;
-      div.append(img, lvEl);
+      div.append(badge, lvEl);
       this.loadoutEl.appendChild(div);
     }
+  }
+
+  // ===== S 档：被动徽标（程序化 CSS，零 PNG，D5）=====
+  // 供升级卡 / 装备栏 / 图鉴复用：按 category 着色 + id 推导符号
+  passiveBadge(def) {
+    const el = document.createElement('div');
+    const cat = (def && def.category) || 'utility';
+    el.className = `passive-badge cat-${cat}`;
+    el.textContent = PASSIVE_BADGE_SYMBOL[def.id] || '?';
+    el.title = def ? def.name : '';
+    return el;
+  }
+
+  // ===== S 档：角色属性面板（§3）=====
+  // 核心 9 项（快照，打开时读一次）
+  _collectStats() {
+    const p = this.game.player;
+    const pct = (v) => `+${(v * 100).toFixed(0)}%`;
+    const pct1 = (v) => `${(v * 100).toFixed(1)}%`;
+    const x2 = (v) => `×${v.toFixed(2)}`;
+    return [
+      { sym: '♥', cls: 'stat-hp', name: '血量上限', value: `${Math.round(p.maxHp)}`, tone: 'good' },
+      { sym: '✦', cls: 'stat-exp', name: '经验加成', value: pct(p.expMul - 1), tone: 'good' },
+      { sym: '磁', cls: 'stat-magnet', name: '拾取范围', value: pct(p.magnetMul - 1), tone: 'good' },
+      { sym: '暴', cls: 'stat-critrate', name: '暴击率', value: pct1(p.critChance), tone: 'gold' },
+      { sym: '×', cls: 'stat-critmul', name: '暴击伤害', value: x2(p.critMul), tone: 'gold' },
+      { sym: '盾', cls: 'stat-shield', name: '护盾', value: p.maxShield > 0 ? `${Math.ceil(p.shield)} / ${p.maxShield}` : '—', tone: 'gold' },
+      { sym: '↻', cls: 'stat-shieldregen', name: '护盾恢复', value: p.shieldRegen > 0 ? `+${p.shieldRegen.toFixed(1)}/s` : '—', tone: 'good' },
+      { sym: '甲', cls: 'stat-armor', name: '防御', value: `${Math.round(p.armor)}`, tone: 'good' },
+      { sym: '闪', cls: 'stat-dodge', name: '闪避率', value: pct1(p.dodgeChance), tone: 'gold' },
+    ];
+  }
+
+  // 其他属性副区
+  _collectStatsExtra() {
+    const p = this.game.player;
+    const pct = (v) => `+${(v * 100).toFixed(0)}%`;
+    const x2 = (v) => `×${v.toFixed(2)}`;
+    const neg = (v) => `-${Math.round((1 - v) * 100)}%`;
+    return [
+      { sym: '伤', cls: 'stat-dmg', name: '伤害倍率', value: x2(p.damageMul), tone: 'gold' },
+      { sym: '速', cls: 'stat-speed', name: '移动速度', value: pct(p.speedMul - 1), tone: 'good' },
+      { sym: '冷', cls: 'stat-cd', name: '冷却缩减', value: neg(p.cooldownMul), tone: 'neutral' },
+      { sym: '范', cls: 'stat-area', name: '范围倍率', value: pct(p.areaMul - 1), tone: 'good' },
+      { sym: '减', cls: 'stat-taken', name: '受伤减免', value: neg(p.damageTakenMul), tone: 'neutral' },
+      { sym: '血', cls: 'stat-regen', name: '生命恢复', value: `+${p.regenRate.toFixed(1)}/s`, tone: 'good' },
+      { sym: '吸', cls: 'stat-lifesteal', name: '命中吸血', value: `+${p.lifesteal.toFixed(1)}/次`, tone: 'good' },
+    ];
+  }
+
+  _renderStatGrid(container, stats) {
+    container.innerHTML = '';
+    for (const s of stats) {
+      const row = document.createElement('div');
+      row.className = 'stat-row';
+      const icon = document.createElement('span');
+      icon.className = `stat-icon ${s.cls}`;
+      icon.textContent = s.sym;
+      const name = document.createElement('b');
+      name.textContent = s.name;
+      const val = document.createElement('span');
+      val.className = `stat-val tone-${s.tone}`;
+      val.textContent = s.value;
+      row.append(icon, name, val);
+      container.appendChild(row);
+    }
+  }
+
+  // 渲染属性面板（局内 + 结算同源）
+  renderStats() {
+    this._renderStatGrid(this.statsGrid, this._collectStats());
+    this._renderStatGrid(this.statsGridExtra, this._collectStatsExtra());
+    const blId = this.game.bloodline || getSelectedBloodline();
+    const bl = BLOODLINES.find((b) => b.id === blId) || BLOODLINES[0];
+    this.statsPortrait.className = `stats-portrait bl-${blId}`;
+    this.statsBloodlineEl.textContent = bl ? bl.name : '流浪者';
+    this.statsLevelEl.textContent = `LV.${this.game.player.level}`;
+  }
+
+  showStatsPanel() {
+    this.renderStats();
+    this.statsPanel.classList.remove('hidden');
+  }
+
+  hideStatsPanel() {
+    this.statsPanel.classList.add('hidden');
+  }
+
+  // 结算屏追加「本局最终属性」区块（与局内面板同源，§3.4）
+  _appendFinalAttributes(container) {
+    const title = document.createElement('p');
+    title.className = 'stats-section-title';
+    title.textContent = '本局最终属性';
+    container.appendChild(title);
+    const grid = document.createElement('div');
+    grid.className = 'stats-grid in-result';
+    this._renderStatGrid(grid, this._collectStats());
+    container.appendChild(grid);
   }
 
   showGameOver(reason = 'defeat') {
@@ -355,6 +478,7 @@ export class UIManager {
       div.append(b, span);
       this.finalStatsEl.appendChild(div);
     }
+    this._appendFinalAttributes(this.finalStatsEl);
     this.gameoverScreen.classList.remove('hidden');
   }
 
@@ -387,6 +511,7 @@ export class UIManager {
       div.append(b, span);
       this.victoryStatsEl.appendChild(div);
     }
+    this._appendFinalAttributes(this.victoryStatsEl);
     this.victoryScreen.classList.remove('hidden');
   }
 
@@ -584,9 +709,20 @@ export class UIManager {
       for (const item of s.items) {
         const card = document.createElement('div');
         card.className = `codex-card cat-${s.cat} ${item.unlocked ? '' : 'locked'} ${item.rarity === 'hidden' ? 'hidden-item' : ''}`;
-        const img = document.createElement('img');
-        img.src = this.iconURL(item.icon);
-        img.alt = item.name;
+        if (s.cat === 'cyan') {
+          // 被动：程序化 CSS 徽标（D5，零 PNG）。新 S 档被动无贴图，避免空白 <img>
+          const def = PASSIVES[item.id];
+          if (def) {
+            const badge = this.passiveBadge(def);
+            badge.classList.add('codex-badge');
+            card.appendChild(badge);
+          }
+        } else {
+          const img = document.createElement('img');
+          img.src = this.iconURL(item.icon);
+          img.alt = item.name;
+          card.appendChild(img);
+        }
         const tag = document.createElement('span');
         tag.className = `cat-tag tag-${s.cat}`;
         tag.textContent = s.title;
@@ -596,7 +732,7 @@ export class UIManager {
         const desc = document.createElement('p');
         desc.className = 'cc-hint';
         desc.textContent = item.hint || (item.desc && item.unlocked ? item.desc : '');
-        card.append(tag, img, name, desc);
+        card.append(tag, name, desc);
         grid.appendChild(card);
       }
       sec.appendChild(grid);

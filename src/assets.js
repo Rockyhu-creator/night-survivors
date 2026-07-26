@@ -53,8 +53,6 @@ const files = {
   passive_heart: 'passive_heart.png',
   passive_tome: 'passive_tome.png',
   passive_magnet: 'passive_magnet.png',
-  passive_rage: 'passive_rage.png',
-  passive_swift: 'passive_swift.png',
   passive_greed: 'passive_greed.png',
   passive_guard: 'passive_guard.png',
   codex_artifacts: 'codex_artifacts.png',

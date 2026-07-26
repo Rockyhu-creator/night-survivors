@@ -76,6 +76,14 @@ document.getElementById('btn-resume').addEventListener('click', () => {
   if (game.state === 'paused') game.togglePause();
 });
 
+// S 档属性面板：暂停层「属性」按钮 + 面板内「返回」按钮
+document.getElementById('btn-stats').addEventListener('click', () => {
+  if (game.state === 'paused') game.ui.showStatsPanel();
+});
+document.getElementById('btn-stats-close').addEventListener('click', () => {
+  game.ui.hideStatsPanel();
+});
+
 game.showTitle();
 
 // 声音开关：默认静音，点击切换（M 键同效，见 game.onKey）

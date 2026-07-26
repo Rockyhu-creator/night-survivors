@@ -864,3 +864,119 @@ html, body {
   transition: width .18s ease;
 }
 #load-pct { font-family: var(--pixel-font); font-size: 14px; color: var(--gold); text-shadow: 0 0 10px rgba(212,175,55,.6); margin-top: 14px; }
+
+/* =====================================================================
+   S 档（2026-07-26）：属性面板 + 护盾条 + 程序化徽标（零新 PNG，D5）
+   ===================================================================== */
+
+/* 暂停层「属性」入口按钮 */
+.pause-stats-btn { margin: 16px 0 0; }
+
+/* ---------- 护盾条 HUD（D4：HP 条下方独立灰底蓝量细条） ---------- */
+#shield-bar {
+  position: absolute; left: 0; bottom: -7px; height: 4px; width: 100%;
+  background: #2a2a33;                 /* 灰底空槽 */
+  box-shadow: 0 0 6px rgba(90,200,250,.5);
+  overflow: hidden;
+}
+#shield-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #1a4a8a, #5ac8fa);   /* 蓝盾量段 */
+  transition: width .12s linear;
+}
+
+/* ---------- 角色属性面板（§3） ---------- */
+#stats-panel { background: rgba(6,3,12,.85); z-index: 41; }  /* 盖在暂停层(40)上 */
+.stats-card {
+  width: min(720px, 92vw); max-height: 90vh; overflow-y: auto;
+  background: var(--bg); border: 3px solid var(--gold); outline: 2px solid #000;
+  box-shadow: 0 0 40px rgba(142,68,173,.5), inset 0 0 24px rgba(212,175,55,.12);
+  padding: 26px 30px 30px;
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+  animation: rise .3s ease-out both;
+}
+.stats-header { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.stats-portrait {
+  width: 64px; height: 64px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 50% 38%, #3a2a52, #140d22 72%);
+  border: 2px solid var(--gold); box-shadow: 0 0 14px rgba(212,175,55,.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.stats-portrait::after { content: '☠'; font-size: 30px; color: var(--gold); text-shadow: 0 0 10px rgba(212,175,55,.7); }
+.stats-title-wrap { flex: 1 1 auto; min-width: 0; }
+.stats-bloodline { font-family: var(--body-font); font-weight: 900; font-size: 22px; letter-spacing: 3px; color: var(--gold); }
+.stats-level { font-family: var(--pixel-font); font-size: 12px; color: var(--bone); opacity: .8; margin-top: 4px; }
+.stats-close { margin-left: auto; }
+
+.stats-section-title {
+  font-family: var(--body-font); font-weight: 700; letter-spacing: 6px;
+  color: var(--bone); opacity: .6; font-size: 13px;
+  margin: 22px 0 12px; border-top: 1px solid rgba(232,224,208,.12); padding-top: 16px;
+}
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; }
+.stat-row { display: flex; align-items: center; gap: 12px; padding: 6px 4px; border-bottom: 1px solid rgba(232,224,208,.06); }
+.stat-icon {
+  flex: none; width: 32px; height: 32px; border-radius: 7px; border: 2px solid;
+  background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center;
+  font-family: var(--body-font); font-weight: 900; font-size: 17px;
+  color: var(--ic, var(--bone)); border-color: var(--ic, var(--bone));
+}
+.stat-row b { font-family: var(--body-font); font-weight: 600; font-size: 14px; color: var(--bone); flex: 1 1 auto; }
+.stat-val { font-family: var(--pixel-font); font-size: 13px; white-space: nowrap; }
+.tone-gold { color: var(--gold); }
+.tone-good { color: #7dff9a; }
+.tone-neutral { color: var(--bone); }
+
+/* 属性徽标配色（stat-* → --ic） */
+.stat-hp { --ic: #e74c3c; }
+.stat-exp { --ic: #2ecc71; }
+.stat-magnet { --ic: #5ac8fa; }
+.stat-critrate { --ic: var(--gold); }
+.stat-critmul { --ic: var(--gold); }
+.stat-shield { --ic: #5ac8fa; }
+.stat-shieldregen { --ic: #5ac8fa; }
+.stat-armor { --ic: #7dff9a; }
+.stat-dodge { --ic: var(--gold); }
+.stat-dmg { --ic: var(--gold); }
+.stat-speed { --ic: #7dff9a; }
+.stat-cd { --ic: var(--bone); }
+.stat-area { --ic: #7dff9a; }
+.stat-taken { --ic: var(--bone); }
+.stat-regen { --ic: #7dff9a; }
+.stat-lifesteal { --ic: #e07ac0; }
+
+/* 结算屏内嵌变体：去卡片外框、字号降一档 */
+.stats-grid.in-result { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-top: 8px; }
+.stats-grid.in-result .stat-row { padding: 4px 2px; border-bottom: none; }
+.stats-grid.in-result .stat-icon { width: 26px; height: 26px; font-size: 14px; }
+.stats-grid.in-result .stat-row b { font-size: 12px; }
+.stats-grid.in-result .stat-val { font-size: 11px; }
+
+/* ---------- 程序化被动徽标（D5，零 PNG） ---------- */
+.passive-badge {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--body-font); font-weight: 900;
+  border-radius: 8px; border: 2px solid; background: rgba(0,0,0,.45);
+  width: 84px; height: 84px; font-size: 38px;
+}
+.passive-badge.cat-offense  { color: var(--gold);     border-color: var(--gold);     box-shadow: 0 0 14px rgba(212,175,55,.4); }
+.passive-badge.cat-survival { color: #7dff9a;         border-color: #3fae6a;         box-shadow: 0 0 14px rgba(46,204,113,.35); }
+.passive-badge.cat-utility  { color: #5ac8fa;         border-color: #2a7fb8;         box-shadow: 0 0 14px rgba(90,200,250,.35); }
+
+/* 升级卡内的徽标（替代原 <img>，与 .upgrade-card img 同尺寸） */
+.uc-badge { margin: 0 auto; }
+
+/* 图鉴被动卡内的徽标（替代原 52px <img>，D5 统一程序化 CSS） */
+.codex-badge { width: 52px; height: 52px; font-size: 26px; border-radius: 6px; margin: 0 auto; }
+
+/* 装备栏（HUD）内的被动徽标：填满 46px 格 */
+.loadout-icon.passive .passive-badge { width: 100%; height: 100%; font-size: 22px; border-radius: 6px; box-shadow: none; }
+
+/* 移动端：属性网格单列 */
+.touch-device .stats-grid,
+.touch-device .stats-grid.in-result { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+  .stats-grid, .stats-grid.in-result { grid-template-columns: 1fr; }
+}
+

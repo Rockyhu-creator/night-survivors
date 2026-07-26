@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, DAMAGE_MIN } from './data.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
@@ -31,6 +31,15 @@ export class Player {
     this.cooldownMul = 1;
     this.areaMul = 1;
     this.lifesteal = 0;
+    // ===== S 档新属性（2026-07-26）=====
+    this.critChance = CRIT_CHANCE_BASE;  // 暴击率（0~1，硬上限 CRIT_CHANCE_CAP）
+    this.critMul = CRIT_MUL_BASE;        // 暴击伤害倍率（≥1）
+    this.maxShield = 0;                  // 护盾上限（0=无护盾流派）
+    this.shield = 0;                     // 当前护盾
+    this.shieldRegen = 0;                // 护盾恢复速度（盾/秒）
+    this.armor = 0;                      // 防御（固定减伤值）
+    this.dodgeChance = 0;                // 闪避率（0~1，硬上限 DODGE_CAP，基础 0）
+    this.lastHitTime = -999;             // 最后一次实际承伤的游戏时间（受击打断回盾用）
     this.level = 1;
     this.exp = 0;
     this.weapons = [];
@@ -47,6 +56,12 @@ export class Player {
   get speed() { return this.baseSpeed * this.speedMul; }
   get magnetRange() { return this.baseMagnet * this.magnetMul; }
 
+  // 暴击结算：返回 { damage, isCrit }。所有「对敌伤害」必须先经此函数（含 DOT 每 tick）。
+  rollCrit(baseDamage) {
+    const isCrit = Math.random() < this.critChance;
+    return { damage: isCrit ? baseDamage * this.critMul : baseDamage, isCrit };
+  }
+
   update(dt, input) {
     const axis = input.axis();
     this.moving = axis.x !== 0 || axis.y !== 0;
@@ -61,11 +76,35 @@ export class Player {
     if (this.regenRate > 0 && this.hp > 0) {
       this.hp = Math.min(this.maxHp, this.hp + this.regenRate * dt);
     }
+    // 护盾恢复：受击打断 SHIELD_REGEN_DELAY 秒后开始回盾（封顶 maxShield），死亡后不回
+    if (this.maxShield > 0 && this.shieldRegen > 0 && this.hp > 0) {
+      const nowT = this.game ? this.game.time : 0;
+      if (nowT - this.lastHitTime >= SHIELD_REGEN_DELAY) {
+        this.shield = Math.min(this.maxShield, this.shield + this.shieldRegen * dt);
+      }
+    }
   }
 
+  // 承伤四段（顺序固定）：闪避 → 防御 → 护盾 → 扣血。返回 true=实际承伤；false=未承伤（iframes 中或闪避）。
   takeDamage(amount) {
     if (this.iframes > 0) return false;
-    this.hp -= amount * (this.damageTakenMul || 1);
+    // ① 闪避：概率完全免伤，但仍刷新 iframes 保持受击节奏
+    if (Math.random() < this.dodgeChance) {
+      this.iframes = 0.5;
+      this.game?.fx?.spawnDamageNumber(this.x, this.y - 18, '闪避!', '#9fd8ff');
+      return false;
+    }
+    // ② 防御：固定减伤后乘百分比乘区，保底 DAMAGE_MIN
+    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1);
+    // ③ 护盾吸收：先扣盾，扣完再扣血
+    if (this.shield > 0) {
+      const absorbed = Math.min(this.shield, dmg);
+      this.shield -= absorbed;
+      dmg -= absorbed;
+    }
+    // ④ 扣血 + 受击打断回盾计时
+    this.hp -= dmg;
+    this.lastHitTime = this.game ? this.game.time : 0;
     this.iframes = 0.5;
     if (navigator.vibrate) navigator.vibrate(50);
     return true;
@@ -468,12 +507,15 @@ export class EnemyManager {
 
       // 亡魂收割者·撕裂 DOT：scythe 命中(reaper 激活)写入 e.rend，每帧按 dps*dt 结算伤害并递减 time
       if (e.rend && e.rend.time > 0) {
-        const d = e.rend.dps * dt * (e.dmgTakenMul || 1);
-        e.hp -= d;
+        // rend 每 tick 独立 roll 暴击（DOT 定稿口径）；暴击飘字金色、非暴击沿用绿色
+        const base = e.rend.dps * dt;
+        const { damage: d, isCrit } = this.game.player.rollCrit(base);
+        const finalD = d * (e.dmgTakenMul || 1);
+        e.hp -= finalD;
         e.rend.time -= dt;
-        e.rend._acc = (e.rend._acc || 0) + d;
+        e.rend._acc = (e.rend._acc || 0) + finalD;
         if (e.rend._acc >= 1) {
-          this.game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(e.rend._acc), '#7CFC00');
+          this.game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(e.rend._acc), isCrit ? '#ffd24a' : '#7CFC00');
           e.rend._acc = 0;
         }
         if ((e.flashCd || 0) <= 0) { e.flash = 0.08; e.flashCd = 0.2; }
