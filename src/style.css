@@ -267,6 +267,37 @@ html, body {
   gap: 2px;
 }
 
+/* 方案 A：进化就绪金徽章（置顶，轻微脉冲，不占额外纵向高度） */
+.upgrade-card .uc-evo-ready {
+  align-self: flex-start;
+  font-family: var(--pixel-font);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #ffe9a8;
+  background: linear-gradient(180deg, rgba(212,175,55,.22), rgba(212,175,55,.10));
+  border: 1px solid #d4af37;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 2px;
+  box-shadow: 0 0 10px rgba(212,175,55,.35);
+  animation: evoReadyPulse 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes evoReadyPulse { 0%, 100% { opacity: 1; } 50% { opacity: .85; } }
+.upgrade-card .uc-evo-ready + .uc-kind { margin-top: 0; }
+
+/* 方案 B：精炼配方行（灰青，desc 下方，单行截断） */
+.upgrade-card .uc-recipe {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9fc5ff;
+  opacity: .9;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---------- 结算界面 ---------- */
 #gameover-screen,
 #victory-screen { background: rgba(8,3,6,.9); }
@@ -594,6 +625,8 @@ html, body {
   flex-direction: column;
   gap: 2px;
 }
+.touch-device .upgrade-card .uc-evo-ready { white-space: normal; font-size: 9px; }
+.touch-device .upgrade-card .uc-recipe { font-size: 10px; }
 .touch-device .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
 .touch-device .upgrade-card h3 { margin: 2px 0; font-size: 15px; }
 .touch-device .upgrade-card p { font-size: 11px; line-height: 1.4; }

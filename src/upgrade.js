@@ -1,5 +1,34 @@
-import { CONFIG, WEAPONS, PASSIVES, NIGHT_START, unlockInCollection } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, NIGHT_START, unlockInCollection, RECIPES, ARTIFACTS, loadCollection } from './data.js';
 import { sprite } from './assets.js';
+import { findEvolvableRecipe } from './evolution.js';
+
+// ---------- 合成提示（方案 A+B，详见 design/plans/2026-07-26-synth-hint-design.md §5）----------
+// 设置开关：当前项目无统一设置 UI（各模块各自读写 localStorage，见 audio.js / ui.js）。
+// 故此处默认开启，不新建复杂设置面板；后续版本接入统一设置时改为读取 localStorage（TODO）。
+const SHOW_RECIPE_HINTS = true;
+
+// 方案 A：选中此被动后，下一次开箱「真会」进化吗？
+// 「选后即持有」语义：把该被动临时并入模拟持有集合，再复用引擎 findEvolvableRecipe，
+// 不手动复制 passives.has（避免与真实进化逻辑漂移），并按 §1.4 全局顺序返回真实会触发的配方，杜绝误导。
+function readyRecipeForPassive(passiveId, player, weaponSystem) {
+  const simPassives = new Set(player.passives.keys());
+  simPassives.add(passiveId);
+  const r = findEvolvableRecipe({ passives: simPassives }, weaponSystem);
+  return r && r.passive === passiveId ? r : null;
+}
+
+// 本被动「尚未拥有」的全部配方（按 RECIPES 顺序），用于方案 B 精炼行；已拥有的神器不再提示，避免误导。
+function pendingRecipesForPassive(passiveId, weaponSystem) {
+  return RECIPES.filter((r) => r.passive === passiveId && !weaponSystem.hasArtifact(r.artifact));
+}
+
+// 神器显示名：hidden 且未解锁 → "???"，与图鉴 buildCollectionData 遮罩一致，不泄露隐藏配方。
+function artifactDisplayName(artifactId, unlockedSet) {
+  const def = ARTIFACTS[artifactId];
+  const hidden = def && def.rarity === 'hidden';
+  const unlocked = hidden ? unlockedSet.has(artifactId) : true;
+  return hidden && !unlocked ? '???' : (def ? def.name : artifactId);
+}
 
 export class UpgradeSystem {
   constructor(game) {
@@ -171,11 +200,21 @@ export class UpgradeSystem {
       return { tag: `升级 → LV.${lv + 1}`, tagClass: '', title: option.def.name, desc: bits.join(' · '), icon: option.def.icon };
     }
     const lv = player.passives.get(option.id) || 0;
-    return { tag: `属性 → LV.${lv + 1}`, tagClass: '', title: option.def.name, desc: option.def.desc, icon: option.def.icon };
+    const info = { tag: `属性 → LV.${lv + 1}`, tagClass: '', title: option.def.name, desc: option.def.desc, icon: option.def.icon };
+    // 方案 A+B：被动卡合成提示（仅被动卡）
+    const ready = readyRecipeForPassive(option.id, player, this.game.weapons);
+    if (ready) {
+      info.evoReady = ready; // 方案 A：选后即进化（金徽章）
+    } else if (SHOW_RECIPE_HINTS) {
+      const pending = pendingRecipesForPassive(option.id, this.game.weapons);
+      if (pending.length > 0) info.recipeHint = pending; // 方案 B：精炼配方行
+    }
+    return info;
   }
 
   open(options) {
     this.cardsEl.innerHTML = '';
+    const unlockedSet = new Set(loadCollection().unlocked);
     options.forEach((option, idx) => {
       const info = this.describe(option);
       const card = document.createElement('div');
@@ -194,7 +233,28 @@ export class UpgradeSystem {
       h3.textContent = info.title;
       const p = document.createElement('p');
       p.textContent = info.desc;
-      body.append(tag, h3, p);
+      // 方案 A：进化就绪金徽章（置顶，不占额外纵向高度；CSS 脉冲，无 per-frame shadowBlur）
+      if (info.evoReady) {
+        const badge = document.createElement('div');
+        badge.className = 'uc-evo-ready';
+        const artName = artifactDisplayName(info.evoReady.artifact, unlockedSet);
+        badge.textContent = `⚡ 进化就绪 · 拾箱即合成 ✨${artName}`;
+        body.append(badge, tag, h3, p);
+      } else {
+        body.append(tag, h3, p);
+      }
+      // 方案 B：精炼配方行（desc 下方，灰青；多目标只列首条 + 等 N 种）
+      if (info.recipeHint) {
+        const recipe = info.recipeHint[0];
+        const artName = artifactDisplayName(recipe.artifact, unlockedSet);
+        const wName = WEAPONS[recipe.weapon].name;
+        const row = document.createElement('div');
+        row.className = 'uc-recipe';
+        let text = `可合成 ✨${artName} = 满级🗡️${wName} + 本被动`;
+        if (info.recipeHint.length > 1) text += ` 等 ${info.recipeHint.length} 种 ›`;
+        row.textContent = text;
+        body.append(row);
+      }
       card.appendChild(body);
       const pickBtn = document.createElement('button');
       pickBtn.className = 'uc-pick';
