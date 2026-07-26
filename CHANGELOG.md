@@ -5,6 +5,19 @@
 
 ---
 
+## v1.8（2026-07-26 · 待提交）
+
+> 修复两处回归：① v1.6 把升级卡改成纯纵向堆叠，移动端/桌面端丢失「icon + 文字 + 按钮」横排；② 7 张被动 icon（ImageGen 强制右下角水印「图片由AI生成」/旧版英文残留）致主体偏左上角不居中、图鉴与���化选择均偏移。
+
+### 修复
+- **`src/style.css` + `src/upgrade.js`：升级卡恢复横向布局**。`touch-device .upgrade-card` 改回 `display:flex; flex-direction:row; align-items:center; gap:14px`（icon 左 + 文字右）；`upgrade.js` 把 tag/h3/p/pickBtn 包进新增 `.uc-body` 容器，内部文字纵向排列不挤压，彻底规避 v1.6 移动端竖向文字问题。
+- **`gen_passive_pixels.py`：被动 icon 去水印 + 质心居中三重保障**。① `remove_watermark()` BFS 连通域分析，保留最大连通域（主体图标）、删角落小面积孤立域（水印文字）；② COM 质心居中替代按尺寸居中；③ `recenter_com()` 最终 80×80 输出再做质心兜底。覆盖 heart/greed/guard/magnet/shieldregen/critdmg/dodge 共 7 张（右下角「图片由AI生成」/英文水印已清除），主体偏移量全部 <4px、居中清晰。
+
+### 验证
+- `vite build` 零错误；7 张 icon 质心偏移 <4px（脚本自检全 PASS）。
+
+---
+
 ## v1.7（2026-07-26 · `8ba95573442b34d9b667246e644af25a5ce23faf`）
 
 > 五大神器「双硬指标」重校（直伤 ≥ 满级原武器 ×1.3、含专属机制总效能 ≥ ×1.6）+ 视觉强制区分，根治「进化没提升 / 看不见」反馈。性能红线：所有新渲染分支零 per-frame shadowBlur（统一走离屏缓存辉光贴图 + additive）。

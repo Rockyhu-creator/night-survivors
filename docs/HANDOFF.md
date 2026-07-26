@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.7 五大神器双硬指标重校 + 视觉区分后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.8 升级卡横排恢复 + 被动 icon 去水印居中后）
 
 ---
 
@@ -320,6 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+<PLACEHOLDER> v1.8 升级卡横排恢复 + 被动icon去水印居中（style.css/upgrade.js flex横排 + gen_passive_pixels.py 去水印三重保障 + 7张passive_*.png重制）
 8ba95573442b34d9b667246e644af25a5ce23faf feat: 五大神器双硬指标重校 + 视觉区分 v1.7（crimson/matrix/reaper/devour/tempest 数值达标 + reaper 紫魂/devour 金白/matrix sigil/tempest 雷印紫电 + getGlowSprite 缓存辉光零 shadowBlur）
 6643b93089668486922732bed2ea907b0e1a4fd7 fix: 升级卡被动icon与武器统一 + 移动端文字竖向修复 v1.6（upgrade.js 单img渲染 + .touch-device .upgrade-card 改纵向 + 清.uc-badge + #update-prompt 移动端防御）
 96bdff68de86f32be0d518aec5a5144923e3b431 fix: 微信护盾条不可见修复 v1.5（#shield-bar 常驻 + ui.js 显隐门控移除 + null 守卫）

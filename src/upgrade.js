@@ -185,6 +185,8 @@ export class UpgradeSystem {
       img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
       img.alt = info.title;
       card.appendChild(img);
+      const body = document.createElement('div');
+      body.className = 'uc-body';
       const tag = document.createElement('div');
       tag.className = `uc-kind ${info.tagClass}`;
       tag.textContent = info.tag;
@@ -195,7 +197,8 @@ export class UpgradeSystem {
       const pickBtn = document.createElement('button');
       pickBtn.className = 'uc-pick';
       pickBtn.textContent = '选择';
-      card.append(tag, h3, p, pickBtn);
+      body.append(tag, h3, p, pickBtn);
+      card.appendChild(body);
       // 卡片本体点击=标记为放逐目标；按钮点击=选择该项
       card.addEventListener('click', () => {
         this.cardsEl.querySelectorAll('.upgrade-card').forEach((c) => c.classList.remove('selected'));

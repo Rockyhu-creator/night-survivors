@@ -48,6 +48,67 @@ def key_bg(im):
                 od[x, y] = (0, 0, 0, 0)
     return out
 
+def remove_watermark(im, min_area_ratio=0.02):
+    """去除小面积孤立连通域（水印/文字通常在角落且面积远小于主体）。
+       保留最大连通域作为主视觉，其余置透明。"""
+    a = im.split()[3]
+    w, h = im.size
+    total_pixels = w * h
+    visited = [[False] * w for _ in range(h)]
+    components = []
+
+    def bfs(sx, sy):
+        stack = [(sx, sy)]
+        pixels = []
+        while stack:
+            x, y = stack.pop()
+            if x < 0 or x >= w or y < 0 or y >= h:
+                continue
+            if visited[y][x]:
+                continue
+            if a.getpixel((x, y)) <= 16:
+                continue
+            visited[y][x] = True
+            pixels.append((x, y))
+            stack.extend([(x+1,y), (x-1,y), (x,y+1), (x,y-1)])
+        return pixels
+
+    for y in range(h):
+        for x in range(w):
+            if not visited[y][x] and a.getpixel((x, y)) > 16:
+                comp = bfs(x, y)
+                if comp:
+                    components.append(comp)
+
+    if not components:
+        return im
+
+    # 按面积排序，保留最大的
+    components.sort(key=len, reverse=True)
+    main_area = len(components[0])
+    min_area = total_pixels * min_area_ratio
+
+    # 构建清理后的 mask：仅保留最大连通域 + 超过阈值的中等连通域（防误删）
+    out = im.copy()
+    od = out.load()
+    keep_ids = {id(c) for c in components if len(c) > min_area or c is components[0]}
+    # 如果有多个大面积组件（如多部分图标），全保留；只删小的
+    if len(keep_ids) > 1:
+        pass  # 多个有效组件都保留
+    else:
+        keep_ids = {id(components[0])}  # 只保留最大的
+
+    removed = 0
+    for i, comp in enumerate(components):
+        if id(comp) not in keep_ids:
+            for x, y in comp:
+                od[x, y] = (0, 0, 0, 0)
+            removed += 1
+
+    if removed > 0:
+        print(f'     去除 {removed} 个小连通域（水印/噪点）')
+    return out
+
 def add_outline(im):
     # 透明像素若 4-邻域有非透明像素 -> 染成 OUTLINE（外描边）
     a = im.split()[3]
@@ -67,6 +128,30 @@ def add_outline(im):
                 od[x,y] = OUTLINE
     return out
 
+def recenter_com(im):
+    """最终 80x80 输出的质心再居中：将不透明像素质心对齐画布正中心。"""
+    w, h = im.size
+    px = im.load()
+    sum_x = sum_y = count = 0
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] > 16:
+                sum_x += x
+                sum_y += y
+                count += 1
+    if count == 0:
+        return im
+    com_x = sum_x / count
+    com_y = sum_y / count
+    offset_x = round(w / 2 - com_x)
+    offset_y = round(h / 2 - com_y)
+    if offset_x == 0 and offset_y == 0:
+        return im
+    # 平移：新建画布，偏移粘贴
+    shifted = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    shifted.paste(im, (offset_x, offset_y), im)
+    return shifted
+
 def process(id_):
     src_glob = glob.glob(os.path.join(RAW, id_, '*.png'))
     if not src_glob:
@@ -75,7 +160,9 @@ def process(id_):
     im = Image.open(src).convert('RGBA')
     if not has_real_alpha(im):
         im = key_bg(im)
-    # 裁剪到内容 bbox
+    # 去除水印/角落小面积孤立连通域（ImageGen 自动加水印文字）
+    im = remove_watermark(im)
+    # 裁剪到内容 bbox（去水印后 bbox 紧贴主体）
     bbox = im.getbbox()
     if bbox:
         im = im.crop(bbox)
@@ -86,12 +173,32 @@ def process(id_):
     scale = min(GRID / bw, GRID / bh)
     nw, nh = max(1, round(bw*scale)), max(1, round(bh*scale))
     grid = im.resize((nw, nh), Image.LANCZOS)
-    # 贴到 GRID*2 透明画布（留边，居中）
+    # 用质心居中贴到 GRID*2 透明画布（而非按尺寸居中——修正主体偏移）
     canvas = Image.new('RGBA', (FINAL, FINAL), (0,0,0,0))
-    canvas.paste(grid, ((FINAL-nw*2)//2, (FINAL-nh*2)//2), grid)
+    # 计算网格图的不透明像素质心
+    gx_arr = list(grid.getdata())
+    gw_gh = nw * nh
+    sum_x = sum_y = count = 0
+    for idx, pixel in enumerate(gx_arr):
+        if pixel[3] > 16:
+            sum_x += idx % nw
+            sum_y += idx // nw
+            count += 1
+    if count > 0:
+        com_x = sum_x / count
+        com_y = sum_y / count
+        # 偏移使质心对齐画布中心（放大 2x 后的坐标）
+        paste_x = int(FINAL/2 - com_x * 2)
+        paste_y = int(FINAL/2 - com_y * 2)
+    else:
+        paste_x = (FINAL - nw * 2) // 2
+        paste_y = (FINAL - nh * 2) // 2
+    canvas.paste(grid, (paste_x, paste_y), grid)
     # 最近邻放大 2x -> 2px 实心块
     out = canvas.resize((FINAL, FINAL), Image.NEAREST)
     out = add_outline(out)
+    # 最终质心再居中：修正所有前序步骤的累积偏移
+    out = recenter_com(out)
     dst = os.path.join(OUT, f'passive_{id_}.png')
     out.save(dst, compress_level=9)
     print(f'OK   passive_{id_}.png  ({out.size}, src={os.path.basename(src)})')

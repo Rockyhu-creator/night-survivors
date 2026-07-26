@@ -570,13 +570,24 @@ html, body {
 .touch-device .upgrade-card {
   width: min(420px, 88vw);
   padding: 14px 16px;
-  text-align: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
 }
-.touch-device .upgrade-card img { width: 56px; height: 56px; flex-shrink: 0; }
+.touch-device .upgrade-card > img { width: 56px; height: 56px; flex-shrink: 0; }
+.touch-device .upgrade-card .uc-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .touch-device .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
-.touch-device .upgrade-card h3 { margin: 4px 0 4px; font-size: 16px; }
-.touch-device .upgrade-card p { font-size: 12px; line-height: 1.5; }
-.touch-device .upgrade-card .uc-pick { flex-shrink: 0; }
+.touch-device .upgrade-card h3 { margin: 2px 0; font-size: 15px; }
+.touch-device .upgrade-card p { font-size: 11px; line-height: 1.4; }
+.touch-device .upgrade-card .uc-pick { margin-top: 6px; align-self: flex-start; flex-shrink: 0; }
 
 .touch-device .levelup-title { font-size: 32px; letter-spacing: 8px; }
 .touch-device .levelup-sub { margin: 8px 0 18px; letter-spacing: 3px; font-size: 13px; }
