@@ -211,10 +211,12 @@
     </div>
     <!-- 声音开关：默认静音，点击开启（M 键同效） -->
     <button id="btn-mute" aria-label="声音开关">🔇</button>
+    <!-- 桌面端 HUD 暂停按钮（触屏端用 #touch-pause-btn，本按钮在 .touch-device 下隐藏） -->
+    <button id="btn-pause" aria-label="暂停">⏸</button>
     <!-- 暂停覆盖层 -->
     <div id="pause-overlay" class="hidden">
       <p class="pause-title">已 暂 停</p>
-      <p class="pause-hint desktop-only">按 ESC 或 P 继续</p>
+      <p class="pause-hint desktop-only">按 ESC / P 或点右上角 ⏸ 继续</p>
       <button id="btn-stats" class="gothic-btn ghost pause-stats-btn">属 性</button>
       <p class="pause-hint desktop-only">按 Tab 或 C 查看属性</p>
       <p class="pause-hint touch-only">点击下方继续</p>

@@ -91,6 +91,11 @@ const muteBtn = document.getElementById('btn-mute');
 muteBtn.textContent = game.audio.enabled ? '🔊' : '🔇';
 muteBtn.addEventListener('click', () => game.toggleMute());
 
+// 桌面端 HUD 暂停按钮（仅 playing 态可暂停；触屏端复用 #touch-pause-btn，本按钮在 .touch-device 下隐藏）
+document.getElementById('btn-pause').addEventListener('click', () => {
+  if (game.state === 'playing') game.togglePause();
+});
+
 // 浏览器自动播放策略：首次用户手势时解锁 AudioContext
 // （AudioManager 内部已按 enabled 判断，未开启声音则不会真正创建上下文）
 const unlockAudio = () => { game.audio.ensureCtx(); };

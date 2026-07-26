@@ -518,6 +518,25 @@ html, body {
 .touch-device #touch-pause-btn:not(.hidden) { display: flex; }
 #touch-pause-btn:active { background: rgba(212, 175, 55, 0.3); }
 
+/* 桌面端 HUD 暂停按钮：右上角，紧邻静音按钮左侧（触屏端复用 #touch-pause-btn，本按钮在 .touch-device 下隐藏） */
+#btn-pause {
+  position: absolute;
+  top: calc(28px + env(safe-area-inset-top, 0px));
+  right: calc(66px + env(safe-area-inset-right, 0px));
+  width: 44px; height: 44px;
+  background: rgba(20, 14, 32, 0.8);
+  border: 2px solid rgba(212, 175, 55, 0.5);
+  color: var(--bone);
+  font-size: 20px;
+  border-radius: 6px;
+  z-index: 50; /* 高于各界面层(20/40)，暂停时仍可点击 */
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
+}
+#btn-pause:active { background: rgba(212, 175, 55, 0.3); }
+.touch-device #btn-pause { display: none; }
+
 /* 静音开关：固定在右上角（桌面端独占；触屏端与暂停按钮并排） */
 #btn-mute {
   position: absolute;

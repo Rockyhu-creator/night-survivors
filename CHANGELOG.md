@@ -5,6 +5,19 @@
 
 ---
 
+## v1.3（2026-07-26 · `<HASH>`）
+
+> 修复桌面端缺失的暂停入口；护盾机制实测无 bug。
+
+### 修复
+- **桌面端暂停按钮缺失**：原桌面 HUD 仅有键盘 Esc/P 暂停入口、无可见按钮（触屏端 `#touch-pause-btn` 正常），用户反馈"界面上的暂停功能不见了"。新增 `#btn-pause`（右上角，紧邻静音按钮左侧，`z-index:50`），点击 `playing` 态下 `togglePause()`；`.touch-device` 下隐藏（避免与触屏暂停按钮重复）。暂停层提示补"或点右上角 ⏸"。
+- 护盾机制（受击扣盾不扣血 / 受击 3s 内不回盾 / 3s 后自动回盾 / 封顶 maxShield）经 Playwright 实测**全部通过，无 bug**；`SHIELD_REGEN_DELAY=3`、`lastHitTime=-999` 初始化正确。
+
+### 测试
+- 双端暂停 Playwright 实测：桌面 `#btn-pause` 存在/可见/点击暂停生效/点继续恢复 + Esc 兼容；触屏 `#touch-pause-btn` 存在/可见/点击生效；护盾 4 项断言全 PASS。e2e 全量回归 ALL PASS（零控制台报错）。
+
+---
+
 ## v1.2（2026-07-26 · `56364207f46ef011e25bdfece4d3c4ac98ce660c`）
 
 > 护盾条 HUD 视觉修复（高度 + 颜色）。
