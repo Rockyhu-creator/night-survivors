@@ -19,12 +19,90 @@ const MONSTER_LORE = {
   avatar: '终局化身,存活至 12 分钟降临,击杀即通关',
 };
 
-// 被动徽标符号（程序化 CSS 绘制，不加载 PNG，D5）。key = passive id
-const PASSIVE_BADGE_SYMBOL = {
-  critrate: '暴', critdmg: '×', shield: '盾', shieldregen: '↻',
-  armor: '甲', dodge: '闪', boots: '靴', heart: '心', tome: '典',
-  magnet: '磁', greed: '魂', guard: '御', regen: '血',
+// 被动像素 icon（程序化 CSS，零 PNG，D5）。每项是 8×8 ASCII 像素图，
+// 字符→调色板见 PX；运行时由 spriteShadow() 转成 box-shadow 拼出像素 icon，
+// 单元尺寸由 CSS 变量 --pb-px 控制（升级卡/图鉴/装备栏分别缩放），图像用 image-rendering:pixelated。
+const PX = {
+  '.': null,
+  K: '#150f24', // 描边/暗部（近黑紫，贴合哥特底）
+  W: '#ece3cf', // 骨白高光
+  G: '#d4af37', // 金
+  P: '#8e44ad', // 紫
+  R: '#d83a3a', // 红
+  B: '#3a8fd5', // 蓝
+  S: '#9aa6b8', // 钢
+  C: '#4fd6e0', // 青（能量）
 };
+const PASSIVE_PIXELS = {
+  boots: { g: [
+    '..KKKK..', '.KSSSSK.', '.KS..SK.', '.KS..SK.',
+    '.KSSSSK.', '.KS...K.', '.KSSSK..', '.KKKKK..',
+  ] },
+  heart: { g: [
+    '..KKKK..', '.KRRRRK.', 'KRRRRRRK', 'KRRRRRRK',
+    'KRRRRRRK', '.KRRRRK.', '..KRRK..', '...KK...',
+  ] },
+  tome: { g: [
+    '.KKKKKK.', '.KPPPPK.', 'KPWWWWPK', 'KPWKKWPK',
+    'KPWKKWPK', 'KPWWWWPK', '.KPPPPK.', '..K..K..',
+  ] },
+  magnet: { g: [
+    '.KK..KK.', 'K..KK..K', 'K......K', 'K......K',
+    'K......K', 'K......K', '.K....K.', '..KKKK..',
+  ] },
+  greed: { g: [
+    '..KKKK..', '.KGGGGK.', 'KGWWGGK.', 'KGWGGGK.',
+    'KGWGGGK.', 'KGWWGGK.', '.KGGGGK.', '..KKKK..',
+  ] },
+  guard: { g: [
+    '..KKKK..', '.KSSSSK.', 'KSSSSSSK', 'KSSWSSSK',
+    'KSSWSSSK', '.KSSSSK.', '..KSSK..', '...KK...',
+  ] },
+  regen: { g: [
+    '...KK...', '..KRRK..', '.KRRRRK.', 'KRRRRRRK',
+    'KRRRRRRK', 'KRRRRRRK', '.KRRRRK.', '..KRRK..',
+  ] },
+  critrate: { g: [
+    '...KK...', '...KR...', '...KR...', 'KRKRKRKR',
+    '...KR...', '...KR...', '...KR...', '...KK...',
+  ] },
+  critdmg: { g: [
+    '...KK...', '...KS...', '...KS...', '...KS...',
+    '...KS...', '..KGSK..', '..KGSK..', '...KK...',
+  ] },
+  shield: { g: [
+    '..KKKK..', '.KCCCCK.', 'KCCWWCCK', 'KCWWWWCK',
+    'KCWWWWCK', '.KCCCCK.', '..KCCK..', '...KK...',
+  ] },
+  shieldregen: { g: [
+    '..KKKK..', '.K....K.', 'K.KK.K..', 'K.K..K..',
+    'K.K..KK.', 'K.KK.K..', '.K....K.', '..KKKK..',
+  ] },
+  armor: { g: [
+    '.KKKKKK.', 'KSSSSSSK', 'KS.KK.SK', 'KS.KK.SK',
+    'KSSSSSSK', '.KSSSSK.', '..KSSK..', '...KK...',
+  ] },
+  dodge: { g: [
+    '...KK...', '..KWWK..', '.KWKWWK.', 'KWKWKWKK',
+    'KWKWKWKK', '.KWWWWK.', '.KW..WK.', '.K....K.',
+  ] },
+};
+
+// 将 8×8 ASCII 像素图转成 box-shadow 字符串；像素单元 = var(--pb-px)，
+// 以网格中心(3.5,3.5)为原点对称偏移，使 icon 在徽标内居中。
+function spriteShadow(grid) {
+  const off = (grid[0].length - 1) / 2;
+  const out = [];
+  for (let r = 0; r < grid.length; r++) {
+    const row = grid[r];
+    for (let c = 0; c < row.length; c++) {
+      const col = PX[row[c]];
+      if (!col) continue;
+      out.push(`calc(var(--pb-px)*${c - off}) calc(var(--pb-px)*${r - off}) 0 0 ${col}`);
+    }
+  }
+  return out.join(',');
+}
 
 export class UIManager {
   constructor(game) {
@@ -342,14 +420,19 @@ export class UIManager {
     }
   }
 
-  // ===== S 档：被动徽标（程序化 CSS，零 PNG，D5）=====
-  // 供升级卡 / 装备栏 / 图鉴复用：按 category 着色 + id 推导符号
+  // ===== S 档：被动像素 icon（程序化 CSS，零 PNG，D5）=====
+  // 供升级卡 / 装备栏 / 图鉴复用：哥特像素框 + 按 category 着色，
+  // 内部 <i class="pb-sprite"> 由 box-shadow 拼出 8×8 像素图（见 PASSIVE_PIXELS）。
   passiveBadge(def) {
-    const el = document.createElement('div');
     const cat = (def && def.category) || 'utility';
+    const el = document.createElement('div');
     el.className = `passive-badge cat-${cat}`;
-    el.textContent = PASSIVE_BADGE_SYMBOL[def.id] || '?';
     el.title = def ? def.name : '';
+    const sp = document.createElement('i');
+    sp.className = 'pb-sprite';
+    const data = def && PASSIVE_PIXELS[def.id];
+    if (data) sp.style.boxShadow = spriteShadow(data.g);
+    el.appendChild(sp);
     return el;
   }
 

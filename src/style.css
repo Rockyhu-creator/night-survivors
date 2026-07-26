@@ -953,25 +953,38 @@ html, body {
 .stats-grid.in-result .stat-row b { font-size: 12px; }
 .stats-grid.in-result .stat-val { font-size: 11px; }
 
-/* ---------- 程序化被动徽标（D5，零 PNG） ---------- */
+/* ---------- 程序化被动像素 icon（D5，零 PNG） ---------- */
 .passive-badge {
+  box-sizing: border-box;
+  position: relative;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--body-font); font-weight: 900;
-  border-radius: 8px; border: 2px solid; background: rgba(0,0,0,.45);
-  width: 84px; height: 84px; font-size: 38px;
+  border-radius: 8px; border: 2px solid;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255,255,255,.10), rgba(0,0,0,.55) 72%),
+    rgba(0,0,0,.5);
+  width: 84px; height: 84px;
+  --pb-px: 6px;                 /* 像素单元尺寸，按场景缩放 */
+  image-rendering: pixelated;
 }
-.passive-badge.cat-offense  { color: var(--gold);     border-color: var(--gold);     box-shadow: 0 0 14px rgba(212,175,55,.4); }
-.passive-badge.cat-survival { color: #7dff9a;         border-color: #3fae6a;         box-shadow: 0 0 14px rgba(46,204,113,.35); }
-.passive-badge.cat-utility  { color: #5ac8fa;         border-color: #2a7fb8;         box-shadow: 0 0 14px rgba(90,200,250,.35); }
+.passive-badge.cat-offense  { border-color: var(--gold); box-shadow: 0 0 14px rgba(212,175,55,.4),  inset 0 0 10px rgba(212,175,55,.18); }
+.passive-badge.cat-survival { border-color: #3fae6a;       box-shadow: 0 0 14px rgba(46,204,113,.35), inset 0 0 10px rgba(46,204,113,.18); }
+.passive-badge.cat-utility  { border-color: #2a7fb8;       box-shadow: 0 0 14px rgba(90,200,250,.35), inset 0 0 10px rgba(90,200,250,.18); }
 
-/* 升级卡内的徽标（替代原 <img>，与 .upgrade-card img 同尺寸） */
+/* 像素 icon 本体：以 --pb-px 为单元、box-shadow 拼出 8×8 像素图（哥特/像素画风） */
+.pb-sprite {
+  width: var(--pb-px); height: var(--pb-px);
+  background: transparent; flex: none;
+  image-rendering: pixelated;
+}
+
+/* 升级卡内徽标（与 .upgrade-card img 同尺寸，居中） */
 .uc-badge { margin: 0 auto; }
 
-/* 图鉴被动卡内的徽标（替代原 52px <img>，D5 统一程序化 CSS） */
-.codex-badge { width: 52px; height: 52px; font-size: 26px; border-radius: 6px; margin: 0 auto; }
+/* 图鉴被动卡内徽标（替代原 52px <img>，D5 统一程序化 CSS） */
+.codex-badge { width: 52px; height: 52px; --pb-px: 3.5px; border-radius: 6px; margin: 0 auto; }
 
-/* 装备栏（HUD）内的被动徽标：填满 46px 格 */
-.loadout-icon.passive .passive-badge { width: 100%; height: 100%; font-size: 22px; border-radius: 6px; box-shadow: none; }
+/* 装备栏（HUD）内被动徽标：填满 46px 格 */
+.loadout-icon.passive .passive-badge { width: 100%; height: 100%; --pb-px: 3px; border-radius: 6px; box-shadow: none; }
 
 /* 移动端：属性网格单列 */
 .touch-device .stats-grid,

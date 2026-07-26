@@ -1,12 +1,12 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.0 大版本S档上线后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.1 被动徽标视觉重设计推送后）
 
 ---
 
 ## 0. ✅ 大版本 S 档（属性面板 + 被动扩展）——v1.0 已开发完成并推送
 
-**线上现状**：v1.0（`1e20a0115bd82da06063a40d1ecd655b223e8bea`）已推送上线，在 v0.39 基础上落地 S 档全部内容。v0.39 修复了圣光矩阵 shadowBlur 卡顿与宝箱指引 dpr 缩放。
+**线上现状**：v1.0（`1e20a0115bd82da06063a40d1ecd655b223e8bea`）已推送上线，在 v0.39 基础上落地 S 档全部内容；v1.1（`<HASH>`，见 §11）为被动徽标视觉重设计（D5 像素 icon 落地细化），零 PNG 程序化路线不变。v0.39 修复了圣光矩阵 shadowBlur 卡顿与宝箱指引 dpr 缩放。
 
 **大版本状态**：**已开发完成**。用户确认「根据方案进入开发」后，按主方案 v1.1 的 D1~D5 决议落地 9 项任务（属性面板 + 6 新被动 + 同类合并 + 分类权重 + 暴击接入 + 护盾条 + CSS 徽标）；e2e 全量回归 ALL PASS（零控制台报错）。
 
@@ -21,7 +21,7 @@
 - **D2** 暴击按默认值落地：`critChance +5%/级`（基础 0.05，硬上限 0.75）、`critMul +15%/级`（基础 1.5）。`player.rollCrit()` 在 `weapons.js hitEnemy` 接入，DOT 每 tick 独立 roll；暴击飘字金字放大 +「暴击 」前缀（14/帧节流）。
 - **D3** 被动分类权重（`buildPool` 内 `w = 1 + 0.6·catCount[category]`）+ 同类被动合并：删 `swift`/`rage`，`boots` 吸并移速（+6%/级·ML99）、`tome` 吸并全伤（+8%/级·ML99）。保底：**池中有武器时优先武器**（保证每层可拿武器），无武器可给时才退化为进攻向被动（防"三张全生存向"卡 build）。
 - **D4** 护盾条：`#shield-bar` 置于 HP 条下方独立灰底（`#2a2a33`）细条，蓝色盾量段；受击后 `shieldRegen` 暂停 3s（见 `entities.js` 护盾恢复）。
-- **D5** 被动/属性 icon 全程序化 CSS 徽标（`PASSIVE_BADGE_SYMBOL` + `.passive-badge` + `.stat-*` `--ic`），**零新 PNG**，未碰 AI_OWNED 15 张，未跑 `gen_assets.sh`。
+- **D5** 被动/属性 icon 全程序化 CSS 徽标（v1.0 初版 `PASSIVE_BADGE_SYMBOL` 单字 + `.passive-badge`；**v1.1 重设计为 `PASSIVE_BADGE_PIXELS` 8×8 像素 sprite**，`passiveBadge()` 用 `box-shadow` 逐格拼图 + 哥特画框，三档 `--pb-px` 缩放），**零新 PNG**，未碰 AI_OWNED 15 张，未跑 `gen_assets.sh`。
 
 **S 档最终范围（已交付）**：① 9 属性机制（critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance 六字段；承伤顺序：闪避→防御 `max(1,(raw-armor)×damageTakenMul)`→护盾→扣血）② 6 新被动（致命专注/毁灭之刃/幽能屏障/灵能回响/暗夜铠甲/魅影身法，均 ML5）③ 同类被动合并 + 分类权重 ④ 属性面板 UI（`#stats-panel`：暂停内嵌 + 结算屏，Tab/C 切换）⑤ 护盾灰色细条。**未做（留 M 档）**：局内任务、新武器/神器、新怪词缀。
 
