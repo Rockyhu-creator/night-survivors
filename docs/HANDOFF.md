@@ -320,7 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-<PLACEHOLDER> feat: 五大神器双硬指标重校 + 视觉区分 v1.7（crimson/matrix/reaper/devour/tempest 数值达标 + reaper 紫魂/devour 金白/matrix sigil/tempest 雷印紫电 + getGlowSprite 缓存辉光零 shadowBlur）
+8ba95573442b34d9b667246e644af25a5ce23faf feat: 五大神器双硬指标重校 + 视觉区分 v1.7（crimson/matrix/reaper/devour/tempest 数值达标 + reaper 紫魂/devour 金白/matrix sigil/tempest 雷印紫电 + getGlowSprite 缓存辉光零 shadowBlur）
 6643b93089668486922732bed2ea907b0e1a4fd7 fix: 升级卡被动icon与武器统一 + 移动端文字竖向修复 v1.6（upgrade.js 单img渲染 + .touch-device .upgrade-card 改纵向 + 清.uc-badge + #update-prompt 移动端防御）
 96bdff68de86f32be0d518aec5a5144923e3b431 fix: 微信护盾条不可见修复 v1.5（#shield-bar 常驻 + ui.js 显隐门控移除 + null 守卫）
 21cbb2e3dfc5e10cc848af28767157a833034403 feat: 被动 icon AI 像素化升级 v1.4（13 张 passive_*.png + gen_passive_pixels.py + 渲染切 img + AI_OWNED 扩容）
