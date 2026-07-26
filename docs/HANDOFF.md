@@ -324,7 +324,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-PLACEHOLDER v1.12 icon纠错(还原暗夜铠甲armor原版 + 重做钢铁意志guard亮银盾) + loot beacon通关/返回主界面隐藏 + 护盾自然回盾(SHIELD_REGEN_BASE=2)
+75312ca3dd0cb802703fc6d91941ed2c704f0666 v1.12 icon纠错(还原暗夜铠甲armor原版 + 重做钢铁意志guard亮银盾) + loot beacon通关/返回主界面隐藏 + 护盾自然回盾(SHIELD_REGEN_BASE=2)
 
 ca3281d22e64949058c316af750a6e04be2e7fd2 v1.11 暗夜铠甲icon误改(亮底银盾，原误标钢铁意志，v1.12已更正) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)
 
