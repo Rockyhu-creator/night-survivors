@@ -320,7 +320,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-<PLACEHOLDER> fix: 升级卡被动icon与武器统一 + 移动端文字竖向修复 v1.6（upgrade.js 单img渲染 + .touch-device .upgrade-card 改纵向 + 清.uc-badge + #update-prompt 移动端防御）
+6643b93089668486922732bed2ea907b0e1a4fd7 fix: 升级卡被动icon与武器统一 + 移动端文字竖向修复 v1.6（upgrade.js 单img渲染 + .touch-device .upgrade-card 改纵向 + 清.uc-badge + #update-prompt 移动端防御）
 96bdff68de86f32be0d518aec5a5144923e3b431 fix: 微信护盾条不可见修复 v1.5（#shield-bar 常驻 + ui.js 显隐门控移除 + null 守卫）
 21cbb2e3dfc5e10cc848af28767157a833034403 feat: 被动 icon AI 像素化升级 v1.4（13 张 passive_*.png + gen_passive_pixels.py + 渲染切 img + AI_OWNED 扩容）
 b2785fb docs: 回填 v0.39 commit 哈希 a8828af
