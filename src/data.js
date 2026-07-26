@@ -199,6 +199,19 @@ export const WEAPONS = {
       { damage: 42, cooldown: 1.4, count: 8, pierce: 3, speed: 460 },
     ],
   },
+  // 第 10 神器「亡魂收割者」基础武器：对齐 axe（自旋+高穿透+可回旋返回），半径更大、清场更强。
+  // 基础形态只做「大范围回旋镰斩」，无 DOT/回血；撕裂 DOT 与收割回能由 reaper 觉醒追加（见 weapons.js/entities.js）。
+  scythe: {
+    id: 'scythe', name: '亡魂镰刀', icon: 'scythe', maxLevel: 5,
+    desc: '掷出回旋镰刀,大范围横扫并折返,清场更强',
+    levels: [
+      { damage: 16, cooldown: 1.6, count: 1, pierce: 99, speed: 240, range: 210 },
+      { damage: 21, cooldown: 1.5, count: 1, pierce: 99, speed: 255, range: 235 },
+      { damage: 27, cooldown: 1.4, count: 2, pierce: 99, speed: 270, range: 260 },
+      { damage: 34, cooldown: 1.3, count: 2, pierce: 99, speed: 285, range: 290 },
+      { damage: 44, cooldown: 1.1, count: 3, pierce: 99, speed: 305, range: 320 },
+    ],
+  },
 };
 
 if (typeof window !== 'undefined') window.__weapons = WEAPONS;
@@ -398,6 +411,10 @@ export const ARTIFACTS = {
   sepulcher: { id: 'sepulcher', name: '寂灭结界', icon: 'art_sepulcher', baseWeapon: 'aura', rarity: 'normal', desc: '光环暴涨并迸射骨刺,绞杀周遭' },
   eternalwhip: { id: 'eternalwhip', name: '永劫之鞭', icon: 'art_eternalwhip', baseWeapon: 'whip', rarity: 'normal', desc: '三向齐扫,横扫千军' },
   matrix: { id: 'matrix', name: '圣光矩阵', icon: 'art_matrix', baseWeapon: 'cross', rarity: 'normal', desc: '常驻八向圣印,穿透涤荡' },
+  // 第 10 神器「亡魂收割者」：由 scythe 武器 + greed(财富之魂) 被动进化。
+  // 觉醒后 scythe 攻击追加撕裂 DOT(rend) 与收割回能；基础 scythe 不受影响（门控见 weapons.js/entities.js）。
+  // rarity 取 normal：作为全新武器 scythe 的标准进化，图鉴显示配方「亡魂镰刀(满级) + 财富之魂」便于玩家探索。
+  reaper: { id: 'reaper', name: '亡魂收割者', icon: 'art_reaper', baseWeapon: 'scythe', rarity: 'normal', desc: '镰刀命中撕裂伤口持续掉血,收割之敌归还生命' },
 };
 
 // ---------- 合成配方 ----------
@@ -412,6 +429,8 @@ export const RECIPES = [
   { weapon: 'aura', passive: 'heart', artifact: 'sepulcher' },
   { weapon: 'whip', passive: 'boots', artifact: 'eternalwhip' },
   { weapon: 'cross', passive: 'tome', artifact: 'matrix' },
+  // 第 10 神器「亡魂收割者」：镰刀武器 + 贪婪之魂(财富之魂) 进化
+  { weapon: 'scythe', passive: 'greed', artifact: 'reaper' },
 ];
 
 const COLLECTION_KEY = 'night_survivors_collection';

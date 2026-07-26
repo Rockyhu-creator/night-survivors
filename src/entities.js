@@ -6,6 +6,9 @@ const MAX_ENEMY_PROJECTILES = 400;
 // 回收环半径（世界单位，设备无关）：敌人游离超过此距离则传送回玩家前方，避免白走。
 // 固定值取代原 CONFIG.LOGICAL_WIDTH*1.6，使手机竖屏与桌面横屏回收行为一致。
 const RECYCLE_RADIUS = 900;
+// 亡魂收割者（reaper）·收割回能初值 [PLACEHOLDER 待真机校准]：
+// 被 scythe/rend 击杀且持有 reaper 神器时，给玩家回收的 HP 量。
+const REND_HARVEST_HP = 3;
 
 export class Player {
   constructor() { this.reset(); }
@@ -231,6 +234,8 @@ export class EnemyManager {
       hitCooldown: 0,
       wobble: Math.random() * Math.PI * 2,
       dotAccumulator: 0,
+      // 亡魂收割者·撕裂 DOT：scythe 命中(reaper 激活)时由 weapons.js 写入 { dps, time }；null=无
+      rend: null,
     };
     return e;
   }
@@ -258,6 +263,7 @@ export class EnemyManager {
       hitCooldown: 0,
       wobble: Math.random() * Math.PI * 2,
       dotAccumulator: 0,
+      rend: null,
       isBoss: true,
       bossDef: def,
       // 技能运行时状态（门槛+冷却双条件）：每技能独立 {triggered, lastCast}
@@ -460,6 +466,19 @@ export class EnemyManager {
       e.hitCooldown = Math.max(0, e.hitCooldown - dt);
       e.wobble += dt * 6;
 
+      // 亡魂收割者·撕裂 DOT：scythe 命中(reaper 激活)写入 e.rend，每帧按 dps*dt 结算伤害并递减 time
+      if (e.rend && e.rend.time > 0) {
+        const d = e.rend.dps * dt * (e.dmgTakenMul || 1);
+        e.hp -= d;
+        e.rend.time -= dt;
+        e.rend._acc = (e.rend._acc || 0) + d;
+        if (e.rend._acc >= 1) {
+          this.game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(e.rend._acc), '#7CFC00');
+          e.rend._acc = 0;
+        }
+        if ((e.flashCd || 0) <= 0) { e.flash = 0.08; e.flashCd = 0.2; }
+      }
+
       // 敌人间软推开
       const neighbors = this.neighborsOf(grid, e.x, e.y);
       for (const o of neighbors) {
@@ -510,6 +529,14 @@ export class EnemyManager {
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       const e = this.enemies[i];
       if (e.hp <= 0) {
+        // 亡魂收割者·收割回能：被 scythe/rend 击杀且持有 reaper 神器时，回收少量生命。
+        // e.rend.time>0 覆盖了两种致死来源：scythe 直击（命中的同帧已写入 rend）与 rend DOT 持续掉血致死。
+        if (this.game.weapons.hasArtifact('reaper') && e.rend && e.rend.time > 0) {
+          const player = this.game.player;
+          const healed = Math.min(player.maxHp, player.hp + REND_HARVEST_HP) - player.hp;
+          player.hp = Math.min(player.maxHp, player.hp + REND_HARVEST_HP);
+          if (healed > 0) this.game.fx.spawnDamageNumber(player.x, player.y - 18, `+${Math.round(healed)}`, '#7dff9a');
+        }
         // 爆破词缀：死亡时对附近玩家造成范围伤害
         if (e.affix === 'volatile') {
           const bd = Math.hypot(player.x - e.x, player.y - e.y);

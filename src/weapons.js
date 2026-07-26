@@ -9,6 +9,12 @@ const TARGET_RADIUS = 540;
 // body=鞭身主色(熔金琥珀) / edge=深渊青铜描边(核心辨识) / tip=白热尖端 / trail·spark 备未来用。
 const ETERNALWHIP_TINT = { body:'#ffb847', edge:'#4a2f12', tip:'#fff1c9', trail:'#d4af37', spark:'#f1c40f' };
 
+// 亡魂收割者（reaper）撕裂 DOT 初值 [PLACEHOLDER 待真机校准]：
+// REND_DPS 为基础每秒伤害（实际施加时再乘 player.damageMul，随 build 成长）；
+// REND_DURATION 为单次撕裂持续秒数（命中会刷新）。
+const REND_DPS = 12;
+const REND_DURATION = 3;
+
 export class WeaponSystem {
   constructor(game) {
     this.game = game;
@@ -227,6 +233,30 @@ export class WeaponSystem {
           });
         }
       }
+    } else if (weapon.id === 'reaper') {
+      // 亡魂收割者（觉醒）：继承镰刀大范围回旋横扫，并追加撕裂 DOT 与收割回能。
+      // 因进化会从 player.weapons 移除基础 scythe 武器，此处由神器自行发射 scythe 投射物；
+      // rend/harvest 的实际结算在命中处(updateProjectiles)与敌人死亡处(entities.js)，由 hasArtifact('reaper') 门控。
+      st.reaperTimer = (st.reaperTimer || 0) - dt;
+      if (st.reaperTimer <= 0 && enemies.length > 0) {
+        st.reaperTimer = 1.0; // [PLACEHOLDER] 觉醒镰斩节奏
+        const n = 3;          // [PLACEHOLDER] 觉醒镰刀数量（对齐满级 scythe）
+        for (let i = 0; i < n; i += 1) {
+          const target = this.pickTarget(i) || enemies[i % enemies.length];
+          const ang = target
+            ? Math.atan2(target.y - player.y, target.x - player.x)
+            : (player.facing >= 0 ? 0 : Math.PI);
+          const a = ang + (i - (n - 1) / 2) * 0.5;
+          this.projectiles.push({
+            kind: 'scythe', x: player.x, y: player.y,
+            vx: Math.cos(a) * 305, vy: Math.sin(a) * 305,
+            speed: 305, angle: a,
+            damage: 44 * player.damageMul, // [PLACEHOLDER] 觉醒镰刀伤害（对齐满级 scythe）
+            pierce: 99, life: 3, spin: 0, traveled: 0, range: 320,
+            returning: false, hitSet: new Set(),
+          });
+        }
+      }
     }
   }
 
@@ -320,6 +350,25 @@ export class WeaponSystem {
           vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
           damage: s.damage * player.damageMul,
           pierce: s.pierce, life: 1.6, spin: 0, hitSet: new Set(),
+        });
+      }
+    } else if (weapon.id === 'scythe') {
+      // 亡魂镰刀：大范围回旋镰斩（对齐 axe 自旋+高穿透+可回旋返回，半径更大、清场更强）
+      // 基础形态只做 cleave；撕裂 DOT 与收割回能由 reaper 觉醒层追加（见 updateProjectiles 命中处）
+      const baseAngle = Math.atan2(
+        this.game.enemies.enemies[0].y - player.y,
+        this.game.enemies.enemies[0].x - player.x,
+      );
+      for (let i = 0; i < s.count; i += 1) {
+        const angle = baseAngle + (i - (s.count - 1) / 2) * 0.5;
+        this.projectiles.push({
+          kind: 'scythe',
+          x: player.x, y: player.y,
+          vx: Math.cos(angle) * s.speed, vy: Math.sin(angle) * s.speed,
+          speed: s.speed, angle,
+          damage: s.damage * player.damageMul,
+          pierce: 99, life: 3, spin: 0, traveled: 0, range: s.range,
+          returning: false, hitSet: new Set(),
         });
       }
     }
@@ -427,7 +476,7 @@ export class WeaponSystem {
       p.life -= dt;
       p.spin += dt * 14;
 
-      if (p.kind === 'axe') {
+      if (p.kind === 'axe' || p.kind === 'scythe') {
         if (!p.returning) {
           p.x += p.vx * dt;
           p.y += p.vy * dt;
@@ -447,21 +496,29 @@ export class WeaponSystem {
         p.y += p.vy * dt;
       }
 
-      const targets = game.enemies.enemiesNear(p.x, p.y, 60);
+      // 镰刀清场更强：查询与命中半径都略大于其他投射物
+      const queryR = p.kind === 'scythe' ? 84 : 60;
+      const targets = game.enemies.enemiesNear(p.x, p.y, queryR);
       for (const e of targets) {
         if (e.hp <= 0 || p.hitSet.has(e)) continue;
-        if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + 12) {
+        const pad = p.kind === 'scythe' ? 22 : 12;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + pad) {
           p.hitSet.add(e);
           const kd = Math.hypot(p.vx, p.vy) || 1;
           game.enemies.damageEnemy(e, p.damage, p.vx / kd, p.vy / kd);
           game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(p.damage));
-          game.fx.spawnSparks(e.x, e.y, p.kind === 'blade' ? '#e74c3c' : '#9fc5ff', 4);
+          game.fx.spawnSparks(e.x, e.y, p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff'), 4);
           if (p.lifeSteal) {
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + 1);
           }
           // 血裔·吸血(嗜血者)：每次命中按 lifesteal 回血（不含 pool/artifact，避免过载）
           if (game.player.lifesteal > 0) {
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + game.player.lifesteal);
+          }
+          // 亡魂收割者：scythe 命中且持有 reaper 神器 → 施加撕裂 DOT（rend）。
+          // 基础 scythe 武器没有 reaper → 不触发，行为零变化。
+          if (p.kind === 'scythe' && this.game.weapons.hasArtifact('reaper')) {
+            e.rend = { dps: REND_DPS * game.player.damageMul, time: REND_DURATION };
           }
           p.pierce -= 1;
           if (p.pierce <= 0) { p.life = 0; break; }
@@ -745,6 +802,21 @@ export class WeaponSystem {
         ctx.lineTo(0, size / 3);
         ctx.closePath();
         ctx.fill();
+      } else if (p.kind === 'scythe') {
+        // 亡魂镰刀：骨白镰刀贴图自旋绘制（复用 axe 的 drawImage+rotate 写法，尺寸按 scythe 贴图）
+        const img = sprite('scythe');
+        const size = 40;
+        ctx.rotate(p.spin);
+        if (img) {
+          // 幽魂绿辉光，呼应「撕裂/收割」主题
+          ctx.shadowColor = '#7CFC00';
+          ctx.shadowBlur = 8;
+          ctx.drawImage(img, -size / 2, -size / 2, size, size);
+          ctx.shadowBlur = 0;
+        } else {
+          ctx.fillStyle = '#cfd8dc';
+          ctx.fillRect(-size / 2, -3, size, 6);
+        }
       } else {
         const img = sprite(p.kind === 'blade' ? 'blade' : 'axe');
         const size = p.kind === 'blade' ? 26 : 34;

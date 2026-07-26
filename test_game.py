@@ -415,7 +415,7 @@ with sync_playwright() as p:
     page.evaluate("() => { window.__game.pickups.gems.length = 0; }")
 
     # --- 新配方进化：武器满级+被动 → 神器（武器丰富化，2026-07-23）---
-    for wid, pid, aid in [('aura','heart','sepulcher'), ('whip','boots','eternalwhip'), ('cross','tome','matrix')]:
+    for wid, pid, aid in [('aura','heart','sepulcher'), ('whip','boots','eternalwhip'), ('cross','tome','matrix'), ('scythe','greed','reaper')]:
         page.evaluate("""(args) => {
           const g = window.__game;
           const wid = args[0], pid = args[1], aid = args[2];
@@ -525,11 +525,11 @@ with sync_playwright() as p:
       return { total: document.querySelectorAll('#codex-weapons .codex-card').length, byTitle,
                tags: document.querySelectorAll('#codex-weapons .cat-tag').length };
     }""")
-    expect('武器图鉴 卡片总数 25 (7武器+9被动+9神器)', codex['total'] == 25)
-    expect('武器图鉴 武器7张', codex['byTitle'].get('武器') == 7)
+    expect('武器图鉴 卡片总数 27 (8武器+9被动+10神器)', codex['total'] == 27)
+    expect('武器图鉴 武器8张', codex['byTitle'].get('武器') == 8)
     expect('武器图鉴 被动9张', codex['byTitle'].get('被动') == 9)
-    expect('武器图鉴 神器9张', codex['byTitle'].get('神器') == 9)
-    expect('武器图鉴 分类配色标签 25 个', codex['tags'] == 25)
+    expect('武器图鉴 神器10张', codex['byTitle'].get('神器') == 10)
+    expect('武器图鉴 分类配色标签 27 个', codex['tags'] == 27)
     expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('#codex-weapons .codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
     # 怪物图鉴
     page.click('#btn-codex-weapons-topback')
