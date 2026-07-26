@@ -991,6 +991,54 @@ def gen_weapon_cross():  # 黎明圣印：放射光芒 + 金环 + 十字
     save(img, "weapon_cross.png", 2)
 
 
+def gen_weapon_scythe():  # 亡魂收割者武器：回旋镰刀（骨白镰刃 + 幽魂绿辉光）
+    """一把近满环的回旋镰刀：骨白刃体 + 幽魂绿切割辉光，暗色短柄向下，开口朝左下接柄。
+    风格对齐 gen_axe/gen_blade 等武器精灵（80×80，透明底）。"""
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 17
+    bone = (232, 224, 192, 255)        # #e8e0c0 骨白
+    bone_hi = (255, 250, 232, 255)
+    green = (127, 255, 159, 255)       # #7fff9f 幽魂绿
+    green_hi = (190, 255, 200, 255)
+    dark = (42, 58, 46, 255)           # #2a3a2e 暗部（柄）
+    # 柄（暗色，从镰刃根部向下延伸）
+    for y in range(16, 38):
+        for x in range(19, 22):
+            px(d, x, y, dark)
+    px(d, 19, 17, bone_hi)             # 柄左高光
+    px(d, 19, 16, bone_hi)
+    # 回旋镰刃：底部开口的环弧（外缘绿、内缘骨白、两端收尖）
+    r_out, r_in = 14, 5
+    a0, a1 = -152, 58                  # 角度范围（度）：上左 → 顶部 → 右下，开口朝左下接柄
+    def _ang(x, y):
+        a = math.degrees(math.atan2(y - cy, x - cx))
+        return a if a > -180 else a + 360
+    for y in range(2, 38):
+        for x in range(2, 38):
+            dd = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if not (r_in - 0.5 <= dd <= r_out + 0.5):
+                continue
+            a = _ang(x, y)
+            if not (a0 <= a <= a1):
+                continue
+            if dd >= r_out - 1.2:
+                px(d, x, y, green)     # 外缘切割刃 = 幽魂绿
+            elif dd <= r_in + 1.2:
+                px(d, x, y, bone_hi)   # 内缘提亮
+            else:
+                px(d, x, y, bone)      # 刃体 = 骨白
+    # 两端刃尖幽魂绿高光
+    for a in (a0, a1):
+        ar = math.radians(a)
+        for rr in (r_out, r_out - 1):
+            px(d, round(cx + math.cos(ar) * rr), round(cy + math.sin(ar) * rr), green_hi)
+    # 柄端握把（暗色小环）
+    for (x, y) in ((20, 37), (19, 37), (21, 37), (20, 36)):
+        px(d, x, y, dark)
+    save(img, "weapon_scythe.png", 2)
+
+
 # ---------- 武器丰富化：3 个新进化神器图标（2026-07-23） ----------
 def gen_art_sepulcher():  # 寂灭结界：紫光包裹棺木 + 十字铭文
     S = 40
@@ -1051,6 +1099,60 @@ def gen_art_matrix():  # 圣光矩阵：八芒星 + 放射
             if c1 < 0.9 or c2 < 0.55:
                 px(d, x, y, gold if (c1 < 0.5 or c2 < 0.3) else gold_hi)
     save(img, "art_matrix.png", 2)
+
+
+def gen_art_reaper():  # 亡魂收割者神器：镰刀 + 灵魂/绿焰（骨白 + 幽魂绿）
+    """中央镰刀（骨白刃 + 暗柄）立于幽魂绿灵魂光晕与升腾绿焰之上，呼应收割亡魂主题。
+    风格对齐 gen_art_storm/gen_art_devour 等神器图（80×80，透明底）。"""
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    bone = (232, 224, 192, 255)        # #e8e0c0 骨白
+    bone_hi = (255, 250, 232, 255)
+    green = (127, 255, 159, 255)       # #7fff9f 幽魂绿
+    green_hi = (190, 255, 200, 255)
+    dark = (42, 58, 46, 255)           # #2a3a2e 暗部（柄）
+    # 灵魂绿焰光晕（背后柔光）
+    for y in range(3, 38):
+        for x in range(3, 38):
+            dd = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if dd < 18:
+                a = int(55 * (1 - dd / 18))
+                if a > 0:
+                    px(d, x, y, (green[0], green[1], green[2], a))
+    # 升腾灵魂绿焰（底部中央火舌）
+    flame = {31: (20,), 30: (19, 20, 21), 29: (19, 20, 21), 28: (18, 19, 20, 21, 22),
+             27: (18, 19, 20, 21, 22), 26: (19, 20, 21), 25: (19, 20, 21), 24: (20,)}
+    for y, xs in flame.items():
+        for x in xs:
+            px(d, x, y, green)
+    for (x, y) in ((20, 25), (20, 26), (20, 27), (19, 28), (21, 28)):
+        px(d, x, y, green_hi)
+    # 镰刀（中央：骨白刃 + 暗柄）
+    for y in range(13, 30):
+        for x in range(19, 22):
+            px(d, x, y, dark)          # 柄
+    px(d, 19, 14, bone_hi)
+    # 镰刃（顶部小月牙：骨白刃体 + 绿缘）
+    bx, by, r_out, r_in = 20, 12, 8, 3
+    def _ang(x, y):
+        a = math.degrees(math.atan2(y - by, x - bx))
+        return a if a > -180 else a + 360
+    for y in range(3, 24):
+        for x in range(8, 32):
+            dd = ((x - bx) ** 2 + (y - by) ** 2) ** 0.5
+            if not (r_in - 0.5 <= dd <= r_out + 0.5):
+                continue
+            a = _ang(x, y)
+            if not (-150 <= a <= 60):
+                continue
+            if dd >= r_out - 1.2:
+                px(d, x, y, green)
+            elif dd <= r_in + 1.2:
+                px(d, x, y, bone_hi)
+            else:
+                px(d, x, y, bone)
+    save(img, "art_reaper.png", 2)
 
 
 # ---------- 角色全身立绘（UX 改造，2026-07-23）：40×60 全身像，不含武器 ----------
@@ -1584,9 +1686,11 @@ gen_art_tempest()
 gen_weapon_aura()
 gen_weapon_whip()
 gen_weapon_cross()
+gen_weapon_scythe()
 gen_art_sepulcher()
 gen_art_eternalwhip()
 gen_art_matrix()
+gen_art_reaper()
 gen_portrait_wanderer()
 gen_portrait_saint()
 gen_portrait_berserker()
