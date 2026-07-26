@@ -7,7 +7,7 @@ const TARGET_RADIUS = 540;
 
 // 永劫之鞭（eternalwhip）「熔金黑鞭」专属配色：仅渲染层 tint 使用，无需新 PNG。
 // body=鞭身主色(熔金琥珀) / edge=深渊青铜描边(核心辨识) / tip=白热尖端 / trail·spark 备未来用。
-const ETERNALWHIP_TINT = { body:'#ffb847', edge:'#4a2f12', tip:'#fff1c9', trail:'#d4af37', spark:'#f1c40f' };
+const ETERNALWHIP_TINT = { body:'#ffb847', edge:'#4a2f12', tip:'#fff1c9', trail:'#d4af37', spark:'#f1c40f', sparkHot:'#fff1c9', dmg:'#e0a93b' };
 
 // 亡魂收割者（reaper）撕裂 DOT 初值 [PLACEHOLDER 待真机校准]：
 // REND_DPS 为基础每秒伤害（实际施加时再乘 player.damageMul，随 build 成长）；
@@ -396,7 +396,11 @@ export class WeaponSystem {
         if (perp < halfW + e.radius) {
           hitSet.add(e);
           game.enemies.damageEnemy(e, s.damage * player.damageMul, dx, dy);
-          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), '#c060a0');
+          if (tint) {
+            game.fx.spawnSparks(e.x, e.y, tint.spark, 6);
+            game.fx.spawnSparks(e.x, e.y, tint.sparkHot, 3);
+          }
+          game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(s.damage * player.damageMul), tint ? tint.dmg : '#c060a0');
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
         }
       }
@@ -686,6 +690,18 @@ export class WeaponSystem {
       const bow = Math.sin(t * Math.PI) * sl.width * 0.55 * (sl.bow || 1);
       ctx.lineCap = 'round';
       const N = 16;
+      // 亡劫之鞭·残影光晕（additive）：仅 eternalwhip（sl.tint 存在）绘制
+      if (sl.tint) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = fade * 0.30;
+        ctx.strokeStyle = sl.tint.trail;
+        ctx.lineWidth = sl.width * 1.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(tipX * 0.5, bow, tipX, 0);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      }
       for (let i = 0; i < N; i += 1) {
         const u0 = i / N, u1 = (i + 1) / N;
         const p0 = qbez(0, 0, tipX * 0.5, bow, tipX, 0, u0);
