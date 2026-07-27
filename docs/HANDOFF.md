@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v1.12 icon纠错 + loot beacon隐藏 + 护盾自然回盾后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v2.0 武器 8→16 / 神器 10→18 + RL2 性能硬上限 + 觉醒门控后）
 
 ---
 
@@ -27,13 +27,15 @@
 
 **S 档最终范围（已交付）**：① 9 属性机制（critChance/critMul/shield+maxShield/shieldRegen/armor/dodgeChance 六字段；承伤顺序：闪避→防御 `max(1,(raw-armor)×damageTakenMul)`→护盾→扣血）② 6 新被动（致命专注/毁灭之刃/幽能屏障/灵能回响/暗夜铠甲/魅影身法，均 ML5）③ 同类被动合并 + 分类权重 ④ 属性面板 UI（`#stats-panel`：暂停内嵌 + 结算屏，Tab/C 切换）⑤ 护盾灰色细条。**未做（留 M 档）**：局内任务、新武器/神器、新怪词缀。
 
-**被动总数**：13（boots/heart/tome/magnet/greed/guard/regen + critrate/critdmg/shield/shieldregen/armor/dodge）。图鉴卡片总数 31（8 武器 + 13 被动 + 10 神器）。
+**被动总数**：13（boots/heart/tome/magnet/greed/guard/regen + critrate/critdmg/shield/shieldregen/armor/dodge）。图鉴卡片总数 47（16 武器 + 13 被动 + 18 神器）。
 
 **其他注意**：`gen_assets.py` 旧 `gen_passive_rage/swift` 生成器产物（`passive_rage.png`/`passive_swift.png`）已于 v1.4 删除（孤儿、无引用）；13 张 AI 被动 `passive_*.png`（boots/heart/tome/magnet/greed/guard/regen/critrate/critdmg/shield/shieldregen/armor/dodge）现已纳入 AI_OWNED 保护集，重跑 `gen_assets.py` 不会覆盖。
 
 **v1.11 小补丁（暗夜铠甲 icon 重制【误标为钢铁意志】+ 图鉴拆四分类）**：① `passive_armor.png` 由暗钢盔甲重写为亮底银盾 + 十字（亮度 48→197/255）——【此处为误改：把「暗夜铠甲」armor 当成了「钢铁意志」】，`gen_passive_pixels.py` 新增 `auto_brighten()`（Brightness/Contrast 兜底），armor 绕过 `key_bg`（亮底图 key_bg 会吃主体亮部）直接裁剪 bbox + LANCZOS 缩网格 + NEAREST 放大，质心偏移 (0.5,0.5) 居中清晰；② 游戏图鉴由「神器/怪物/武器」3 类扩为「被动/神器/怪物/武器」4 类独立屏——`index.html` 新增 `#codex-passives` 屏、`ui.js` hub 菜单 cats 扩为 4 个 + `renderCodexPassives()` 仅渲染被动、`main.js` 加 `btn-codex-passives-back`/`btn-codex-passives-topback` 事件绑定、`style.css` 屏幕规则/`#codex-hub`/`.gothic-btn`/touch 防御均加 `#codex-passives`（红色线：未动 15 张 AI_OWNED、未跑 gen_assets.sh）。
 
 **v1.12 修复（icon 纠错 + loot beacon 隐藏 + 护盾自然回盾）**：① icon 纠错——`passive_armor.png` 还原为 v1.9 之前暗夜铠甲原版（git checkout v1.8 提交），`passive_guard.png`(真正的钢铁意志) 经 ImageGen 重做亮银骑士盾+十字（亮度 177、居中清晰）；② `src/ui.js` loot beacon 在 `showTitle()` 补 `hideLootBeacon()` 且 `updateLootBeacon()` 非 playing 态强制隐藏，通关/返回主界面不再残留宝箱圆圈；③ `src/entities.js`+`src/data.js` 新增 `SHIELD_REGEN_BASE=2` 基础回盾速率，护盾不受击 3s 后自然回盾（带「灵能回响」被动后共 3.5/s）。红线：未动 15 张 AI_OWNED 其他图、未跑 gen_assets.sh。
+
+**v2.0 大版本跃迁（武器 8→16 / 神器 10→18）**：① 新增 8 件武器（starfall/judgment/phantom/aegis/warden/maul/sanguine/resolve），开火逻辑落地 `src/weapons.js` 的 `fire*` + `update*` 桶；② 新增 8 件神器（fatalis/retribution/mirage/bastion/sentinel/cataclysm/bloodpact/absolution，rarity:'normal'），经 RECIPES 与被动 critrate/critdmg/dodge/shield/shieldregen/armor/regen/guard 1:1 配对，由「满级对应武器 + 该被动」合成进化；③ 神器觉醒效果门控 `_awakened(weapon)`（仅当玩家持有配对被动时启用觉醒效果）；④ D4 新武器发现加成（`ownedWeaponKinds<4` 时 v2.0 新武器 `weapon-new` 权重 ×1.5，`NEW_WEAPON_BOOST=1.5`，后期按 `(1-0.85*late)` 衰减，src/upgrade.js）；⑤ RL2 性能硬上限 `enforceCaps()`（src/weapons.js `update(dt)` 末尾按桶 oldest-first 裁剪，`PROJECTILE_CAP=600/POOL_CAP=60/BOLT_CAP=80/VIAL_CAP=40/SLASH_CAP=40` + 环绕类 `MAX_SENTINELS=6/MAX_ORBS=8/MAX_SHOCKWAVES=12/MAX_RUNES=24` + `thunderRunes=24/bursts=12/mirageResidues=32`）；⑥ `src/entities.js` 新增 `stunTimer`（敌方眩晕跳过移动）与 `absolutionDR`（承伤链减伤，赦罪觉醒用）。可访问性：红/绿配对神器 裁决(retribution)/哨卫(sentinel) 仅靠色相易混淆，已通过亮度(luminance)差异区分。红线：未动 15 张 AI_OWNED、未跑 gen_assets.sh、未跑 `npm run build` 清 dist（用 `npx vite build --outDir .ns-build-2x` 验证）。
 
 ---
 
@@ -273,8 +275,8 @@ git push origin main
 ## 8. 升级系统（src/upgrade.js）
 
 ### 升级选项池
-- 武器（8 件，初始解锁）
-- 神器（10 件，两两合成进化解锁）
+- 武器（16 件，初始解锁；v2.0 新增 8 件：starfall/judgment/phantom/aegis/warden/maul/sanguine/resolve）
+- 神器（18 件：原 10 件两两合成 + v2.0 新增 8 件「满级对应武器 + 配对被动」合成进化，rarity:'normal'）
 - 被动（13 个，按 category 分类权重；同类合并后删 `swift`/`rage`）
   - 无限成长（maxLevel 99）：`boots` 疾行之靴 +6% 移速（utility，吸并 swift）/`tome` 秘法魔典 +8% 全伤（offense，吸并 rage）/`greed` 财富之魂 +8% 经验（utility）/`guard` 钢铁意志 -2% 受伤（survival）
   - 有限（maxLevel 5）：`heart` 巨人之心 +20 HP（survival）/`magnet` 引力宝珠 +25% 拾取（utility）/`regen` 血色再生 +0.8 HP/s（survival）/`critrate` 致命专注 +5% 暴击率（offense）/`critdmg` 毁灭之刃 +15% 暴击伤害（offense）/`shield` 幽能屏障 +20 护盾（survival）/`shieldregen` 灵能回响 +1.5 护盾/s（survival）/`armor` 暗夜铠甲 +2 防御（survival）/`dodge` 魅影身法 +4% 闪避（survival）
@@ -301,6 +303,8 @@ git push origin main
 
 > **第 10 神器：亡魂收割者 Reaper's Scythe（v0.37）**：新增 scythe 武器（亡魂镰刀，回旋镰刀投射物=大范围回旋镰斩）+ reaper 神器（由 scythe 武器 + 贪婪之魂 被动进化，配方见 `RECIPES`）。觉醒后 scythe 攻击追加：① 撕裂 DOT（`entities.js` 敌人身上的 `rend` 字段，每帧按 `dps*dt` 结算）② 收割回能（被 scythe/rend 击杀且持有 reaper 时归还少量 HP）。两项觉醒效果均门控 `hasArtifact('reaper')`，基础 scythe 不受影响。骨白 #e8e0c0 + 幽魂绿 #7fff9f 专属配色（`weapon_scythe.png` / `art_reaper.png`）。数值（镰刀数量 / 伤害 / rend dps / 回血量）标 `[PLACEHOLDER]` 待真机校准。
 
+> **v2.0 新增 8 武器 + 8 神器（被动配对合成，src/data.js RECIPES + src/weapons.js）**：8 件新武器（starfall 星陨=追踪陨落 / judgment 审判=贯穿雷枪 / phantom 幻影=分身残影 / aegis 壁垒=哨卫环绕 / warden 守望=法球环绕 / maul 重锤=震荡波 / sanguine 血怒=吸血近战 / resolve 决意=符文爆发）各自 1:1 配对一件新神器（fatalis 终焉 / retribution 裁决 / mirage 幻界 / bastion 堡垒 / sentinel 哨卫 / cataclysm 灭世 / bloodpact 血契 / absolution 赦罪），合成路径为「满级该武器 + 配对被动」（`RECIPES` 表）。新神器觉醒效果经 `_awakened(weapon)` 门控——仅当玩家持有配对被动才启用（如 retribution↔shield、sentinel↔shieldregen），基础神器零变化。性能：`enforceCaps()` 在 `weapons.js update(dt)` 末尾 oldest-first 裁剪所有桶（`PROJECTILE_CAP=600/POOL_CAP=60/BOLT_CAP=80/VIAL_CAP=40/SLASH_CAP=40` + `MAX_SENTINELS=6/MAX_ORBS=8/MAX_SHOCKWAVES=12/MAX_RUNES=24` + `thunderRunes=24/bursts=12/mirageResidues=32`），压测验证后期不掉帧。可访问性：retribution(红)/sentinel(绿) 配色仅靠色相易混淆，已用亮度差区分。
+
 ---
 
 ## 10. 测试
@@ -324,6 +328,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+cc6986d0e1dc2a832a8cb2ebb92452dfd36e2b20 v2.0 武器8→16/神器10→18(8新武器+8新神器被动配对合成+觉醒门控) + RL2性能硬上限enforceCaps + D4新武器发现加成 + 敌方眩晕/减伤
+
 75312ca3dd0cb802703fc6d91941ed2c704f0666 v1.12 icon纠错(还原暗夜铠甲armor原版 + 重做钢铁意志guard亮银盾) + loot beacon通关/返回主界面隐藏 + 护盾自然回盾(SHIELD_REGEN_BASE=2)
 
 ca3281d22e64949058c316af750a6e04be2e7fd2 v1.11 暗夜铠甲icon误改(亮底银盾，原误标钢铁意志，v1.12已更正) + 图鉴拆四分类(被动/神器/怪物/武器独立屏，index.html/ui.js/main.js/style.css + gen_passive_pixels.py auto_brighten)

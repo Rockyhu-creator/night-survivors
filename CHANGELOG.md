@@ -5,6 +5,30 @@
 
 ---
 
+## v2.0（2026-07-26 · `cc6986d0e1dc2a832a8cb2ebb92452dfd36e2b20`）
+
+> 大版本跃迁：武器 8→16、神器 10→18。新增 8 件武器，各自 1:1 配对一件新神器（经 RECIPES 由「满级武器 + 对应被动」合成），神器觉醒效果门控于对应被动是否已持有。配套 D4 新武器发现加成、RL2 性能硬上限（enforceCaps）防掉帧、敌方眩晕与减伤机制。
+
+### 新增
+- **8 件新武器（src/data.js + src/weapons.js）**：星陨（starfall，追踪陨落）、审判（judgment，贯穿雷枪）、幻影（phantom，分身残影）、壁垒（aegis，哨卫环绕）、守望（warden，法球环绕）、重锤（maul，震荡波）、血怒（sanguine，吸血近战）、决意（resolve，符文爆发）。每件武器含 `mech` + `visual` 字段，开火逻辑落地 `fireHoming/fireThrust/fireSplitting/fireSentinel/fireOrb/fireShockwave/fireLifesteal/fireRune` 及对应 `update*` 桶更新。
+- **8 件新神器（rarity:'normal'）**：终焉（fatalis）、裁决（retribution）、幻界（mirage）、堡垒（bastion）、哨卫（sentinel）、灭世（cataclysm）、血契（bloodpact）、赦罪（absolution）。经 RECIPES 与 8 个被动 critrate/critdmg/dodge/shield/shieldregen/armor/regen/guard 1:1 配对，由「满级对应武器 + 该被动」合成进化。
+- **神器觉醒门控（`_awakened(weapon)`）**：新神器的 `tick*` 觉醒效果仅在玩家持有配对被动时启用（如裁决需 `shield`、哨卫需 `shieldregen`），基础神器不受影响，零误导。
+- **敌方眩晕机制（src/entities.js）**：新增 `stunTimer`，敌人被控制时跳过移动逻辑（配合新武器控制效果）。
+
+### 调整
+- **D4 新武器发现加成（src/upgrade.js）**：`ownedWeaponKinds < 4` 时，8 件 v2.0 新武器在升级池中的 `weapon-new` 权重 ×1.5（`NEW_WEAPON_BOOST=1.5`），鼓励早期探索新武器；后期（`t>540`）新武器权重按 `(1-0.85*late)` 自然衰减，避免滚雪球。
+- **减伤机制（src/entities.js）**：`absolutionDR` 字段接入 `takeDamage` 承伤链（`× (this.absolutionDR || 1)`），赦罪神器觉醒提供伤害减免。
+- **图鉴（src/ui.js）**：武器图鉴 8→16 张、神器图鉴 10→18 张（四分类屏架构不变），新条目正常显示解锁态与配色标签。
+
+### 优化
+- **RL2 性能硬上限（`enforceCaps()`，src/weapons.js）**：`update(dt)` 末尾统一按桶 oldest-first 裁剪，杜绝后期掉帧——`PROJECTILE_CAP=600 / POOL_CAP=60 / BOLT_CAP=80 / VIAL_CAP=40 / SLASH_CAP=40`，环绕类 `MAX_SENTINELS=6 / MAX_ORBS=8 / MAX_SHOCKWAVES=12 / MAX_RUNES=24`，残影/爆发 `thunderRunes=24 / bursts=12 / mirageResidues=32`。压测（真实 8 武器+8 神器+~300 敌 8s）峰值远未触顶；溢出注入 2×cap+5 后 300ms 内所有桶精确裁剪至硬上限。
+- **可访问性（src/assets.js）**：红/绿配对神器 裁决(retribution)/哨卫(sentinel) 仅靠色相易混淆，已通过亮度（luminance）差异区分，色弱玩家可辨。
+
+### 验证
+- `node --check` 全过；`npx vite build --outDir .ns-build-2x` 17 模块零错误；smoke（16/16 资产键、16 武器、18 神器、零 fatal）、stress（caps 全生效）、e2e（test_game.py 全 PASS、零控制台报错）三层独立验证通过。红线未碰（未动 15 张 AI_OWNED、未跑 gen_assets.sh、未跑 `npm run build` 清 dist）。
+
+---
+
 ## v1.12（2026-07-26 · `75312ca3dd0cb802703fc6d91941ed2c704f0666`）
 
 > 三处修复：① 钢铁意志 icon 重做（此前误改了暗夜铠甲，本次还原暗夜铠甲 + 重做钢铁意志）② 通关/返回主界面后宝箱指引圆圈不再残留 ③ 护盾不受击 3 秒后自然回盾。
