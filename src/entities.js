@@ -96,7 +96,7 @@ export class Player {
       return false;
     }
     // ② 防御：固定减伤后乘百分比乘区，保底 DAMAGE_MIN
-    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1);
+    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1) * (this.absolutionDR || 1);
     // ③ 护盾吸收：先扣盾，扣完再扣血
     if (this.shield > 0) {
       const absorbed = Math.min(this.shield, dmg);
@@ -474,8 +474,14 @@ export class EnemyManager {
           e.dashState = 'charging';
           e.dashTimer = e.type.dashCharge;
         }
-        e.x += (dx / dist) * e.speed * dt + e.kx * dt;
-        e.y += (dy / dist) * e.speed * dt + e.ky * dt;
+        if (e.stunTimer > 0) {
+          e.stunTimer -= dt;
+          e.x += e.kx * dt;
+          e.y += e.ky * dt;
+        } else {
+          e.x += (dx / dist) * e.speed * dt + e.kx * dt;
+          e.y += (dy / dist) * e.speed * dt + e.ky * dt;
+        }
       }
       if (e.isBoss) {
         const cdMul = this.game.difficulty.bossSkillCdMul || 1;

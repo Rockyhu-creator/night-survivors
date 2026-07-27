@@ -10,6 +10,18 @@ export const CONFIG = {
   // S3 槽位上限（基础上限，祭坛可 +1）
   MAX_WEAPONS: 6,
   MAX_PASSIVES: 6,
+  // ===== v2.0 性能桶硬上限（RL2：所有生成桶 oldest-first 回收，禁无界增长）=====
+  PROJECTILE_CAP: 600,   // 投射物（homing/split/frag/sanguine/sentinel_shot/orb_shot 等）
+  POOL_CAP: 60,          // 圣水领域
+  BOLT_CAP: 80,          // 闪电
+  SLASH_CAP: 40,         // 长鞭横扫
+  VIAL_CAP: 40,          // 圣水飞瓶
+  MAX_SENTINELS: 6,      // 哨卫（aegis/bastion，≤ RL5 建议）
+  MAX_ORBS: 8,           // 环绕法球（warden/sentinel，≤ RL5 建议）
+  MAX_SHOCKWAVES: 12,    // 扩张波（maul/cataclysm，常态 1）
+  MAX_RUNES: 24,         // 符文陷阱（resolve/absolution，对齐 thunderRunes=24）
+  SPLIT_CAP_PER_HIT: 6,  // 分裂弹单次命中迸射碎片封顶（防 pierce 高时爆桶）
+  ORBIT_OMEGA: 1.2,      // 法球公转角速度（rad/s）[需真机校准]
 };
 
 // ---------- 灵魂货币（长期循环 / 元进度）----------
@@ -219,6 +231,95 @@ export const WEAPONS = {
       { damage: 27, cooldown: 1.4, count: 2, pierce: 99, speed: 270, range: 260 },
       { damage: 34, cooldown: 1.3, count: 2, pierce: 99, speed: 285, range: 290 },
       { damage: 44, cooldown: 1.1, count: 3, pierce: 99, speed: 305, range: 320 },
+    ],
+  },
+  // ===== v2.0 新武器（8 把，配对 8 个无搭配被动；mech 落点见 GDD §2，visual 锚定 §2 配色）=====
+  starfall: {
+    id: 'starfall', name: '星陨弩', icon: 'weapon_starfall', maxLevel: 5,
+    desc: '射出追踪星铁,自动咬住最近的敌人', mech: 'homing', visual: 'starfall',
+    levels: [
+      { damage: 12, cooldown: 1.4, count: 1, speed: 320, pierce: 1, life: 1.8, homing: 200 },
+      { damage: 15, cooldown: 1.2, count: 1, speed: 340, pierce: 1, life: 1.9, homing: 210 },
+      { damage: 19, cooldown: 1.1, count: 2, speed: 350, pierce: 2, life: 2.0, homing: 220 },
+      { damage: 24, cooldown: 1.0, count: 2, speed: 370, pierce: 2, life: 2.0, homing: 230 },
+      { damage: 30, cooldown: 0.9, count: 3, speed: 390, pierce: 2, life: 2.2, homing: 240 },
+    ],
+  },
+  judgment: {
+    id: 'judgment', name: '断罪之锋', icon: 'weapon_judgment', maxLevel: 5,
+    desc: '向前方重刺,单体超高伤暴击撕裂', mech: 'thrust', visual: 'judgment',
+    levels: [
+      { damage: 28, cooldown: 1.8, length: 120, width: 40 },
+      { damage: 36, cooldown: 1.6, length: 135, width: 44 },
+      { damage: 45, cooldown: 1.5, length: 150, width: 48 },
+      { damage: 56, cooldown: 1.4, length: 165, width: 52 },
+      { damage: 70, cooldown: 1.3, length: 180, width: 56 },
+    ],
+  },
+  phantom: {
+    id: 'phantom', name: '幻影裂片', icon: 'weapon_phantom', maxLevel: 5,
+    desc: '掷出裂片,命中后炸成多枚幻影碎片', mech: 'splitting', visual: 'phantom',
+    levels: [
+      { damage: 10, cooldown: 1.4, count: 1, speed: 360, pierce: 1, splits: 2, splitMul: 0.50, splitSpeed: 280 },
+      { damage: 13, cooldown: 1.3, count: 1, speed: 370, pierce: 1, splits: 3, splitMul: 0.50, splitSpeed: 290 },
+      { damage: 16, cooldown: 1.2, count: 2, speed: 380, pierce: 1, splits: 3, splitMul: 0.55, splitSpeed: 300 },
+      { damage: 20, cooldown: 1.1, count: 2, speed: 390, pierce: 2, splits: 4, splitMul: 0.55, splitSpeed: 310 },
+      { damage: 25, cooldown: 1.0, count: 2, speed: 400, pierce: 2, splits: 4, splitMul: 0.60, splitSpeed: 320 },
+    ],
+  },
+  aegis: {
+    id: 'aegis', name: '守护结晶', icon: 'weapon_aegis', maxLevel: 5,
+    desc: '在脚下布设守护哨卫,自动扫射来犯', mech: 'sentinel', visual: 'aegis',
+    levels: [
+      { damage: 10, cooldown: 4.0, range: 160, shotCD: 0.70, projSpeed: 300, duration: 8,  maxSentinels: 2 },
+      { damage: 13, cooldown: 3.8, range: 180, shotCD: 0.65, projSpeed: 310, duration: 9,  maxSentinels: 2 },
+      { damage: 17, cooldown: 3.6, range: 200, shotCD: 0.60, projSpeed: 320, duration: 10, maxSentinels: 3 },
+      { damage: 21, cooldown: 3.4, range: 220, shotCD: 0.55, projSpeed: 330, duration: 11, maxSentinels: 3 },
+      { damage: 26, cooldown: 3.2, range: 240, shotCD: 0.50, projSpeed: 340, duration: 12, maxSentinels: 3 },
+    ],
+  },
+  warden: {
+    id: 'warden', name: '回响哨卫', icon: 'weapon_warden', maxLevel: 5,
+    desc: '召唤环绕法球,公转间自动开火', mech: 'orb', visual: 'warden',
+    levels: [
+      { damage: 8,  cooldown: 4.0, count: 1, orbitRadius: 90,  shotCD: 1.20, projSpeed: 320, pierce: 1 },
+      { damage: 11, cooldown: 3.8, count: 2, orbitRadius: 100, shotCD: 1.10, projSpeed: 330, pierce: 1 },
+      { damage: 14, cooldown: 3.6, count: 2, orbitRadius: 110, shotCD: 1.00, projSpeed: 340, pierce: 1 },
+      { damage: 18, cooldown: 3.4, count: 3, orbitRadius: 120, shotCD: 0.95, projSpeed: 350, pierce: 1 },
+      { damage: 22, cooldown: 3.2, count: 3, orbitRadius: 130, shotCD: 0.90, projSpeed: 360, pierce: 2 },
+    ],
+  },
+  maul: {
+    id: 'maul', name: '碎甲重锤', icon: 'weapon_maul', maxLevel: 5,
+    desc: '周期性轰出扩张冲击波,碾碎周遭', mech: 'shockwave', visual: 'maul',
+    levels: [
+      { damage: 16, cooldown: 3.0, radius: 150, width: 36, expand: 0.50, knock: 40 },
+      { damage: 21, cooldown: 2.8, radius: 170, width: 38, expand: 0.50, knock: 45 },
+      { damage: 27, cooldown: 2.6, radius: 190, width: 40, expand: 0.55, knock: 50 },
+      { damage: 34, cooldown: 2.4, radius: 210, width: 42, expand: 0.60, knock: 55 },
+      { damage: 42, cooldown: 2.2, radius: 230, width: 44, expand: 0.60, knock: 60 },
+    ],
+  },
+  sanguine: {
+    id: 'sanguine', name: '噬血荆棘', icon: 'weapon_sanguine', maxLevel: 5,
+    desc: '射出吸血荆棘,命中回血续航', mech: 'lifesteal', visual: 'sanguine',
+    levels: [
+      { damage: 12, cooldown: 1.4, count: 1, speed: 330, pierce: 2, heal: 1 },
+      { damage: 15, cooldown: 1.3, count: 1, speed: 345, pierce: 2, heal: 1 },
+      { damage: 19, cooldown: 1.2, count: 2, speed: 360, pierce: 3, heal: 1.5 },
+      { damage: 24, cooldown: 1.1, count: 2, speed: 375, pierce: 3, heal: 1.5 },
+      { damage: 30, cooldown: 1.0, count: 2, speed: 390, pierce: 3, heal: 2 },
+    ],
+  },
+  resolve: {
+    id: 'resolve', name: '镇魂钟鸣', icon: 'weapon_resolve', maxLevel: 5,
+    desc: '埋设镇魂符文,敌人踏入即引爆', mech: 'rune', visual: 'resolve',
+    levels: [
+      { damage: 18, cooldown: 3.0, count: 1, triggerRange: 28, burstRadius: 70,  deployRange: 140, duration: 8,  maxRunes: 8 },
+      { damage: 23, cooldown: 2.8, count: 1, triggerRange: 30, burstRadius: 80,  deployRange: 150, duration: 9,  maxRunes: 8 },
+      { damage: 29, cooldown: 2.6, count: 2, triggerRange: 32, burstRadius: 90,  deployRange: 160, duration: 10, maxRunes: 10 },
+      { damage: 36, cooldown: 2.4, count: 2, triggerRange: 34, burstRadius: 100, deployRange: 170, duration: 11, maxRunes: 10 },
+      { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 110, deployRange: 180, duration: 12, maxRunes: 12 },
     ],
   },
 };
@@ -460,6 +561,15 @@ export const ARTIFACTS = {
   // 觉醒后 scythe 攻击追加撕裂 DOT(rend) 与收割回能；基础 scythe 不受影响（门控见 weapons.js/entities.js）。
   // rarity 取 normal：作为全新武器 scythe 的标准进化，图鉴显示配方「亡魂镰刀(满级) + 财富之魂」便于玩家探索。
   reaper: { id: 'reaper', name: '亡魂收割者', icon: 'art_reaper', baseWeapon: 'scythe', rarity: 'normal', desc: '镰刀命中撕裂伤口持续掉血,收割之敌归还生命' },
+  // ===== v2.0 新神器（8 个，统一 rarity:'normal'，配方见 RECIPES；觉醒门控配对被动）=====
+  fatalis:    { id: 'fatalis',    name: '命运星轨',   icon: 'art_fatalis',    baseWeapon: 'starfall',  rarity: 'normal', desc: '星铁永追不舍,暴击迸射追命碎片' },
+  retribution: { id: 'retribution', name: '断罪终焉',   icon: 'art_retribution', baseWeapon: 'judgment', rarity: 'normal', desc: '断罪十字爆裂,残血者立遭处决' },
+  mirage:     { id: 'mirage',     name: '幻影千袭',   icon: 'art_mirage',     baseWeapon: 'phantom',   rarity: 'normal', desc: '幻影千袭,碎片残留魅影持续灼烧' },
+  bastion:    { id: 'bastion',    name: '永恒壁垒',   icon: 'art_bastion',    baseWeapon: 'aegis',     rarity: 'normal', desc: '壁垒不破,护盾下哨卫伤害化为屏障' },
+  sentinel:   { id: 'sentinel',   name: '回响守望',   icon: 'art_sentinel',   baseWeapon: 'warden',    rarity: 'normal', desc: '回响永续,法球脉动向你输送护盾' },
+  cataclysm:  { id: 'cataclysm',  name: '碎甲天罚',   icon: 'art_cataclysm',  baseWeapon: 'maul',      rarity: 'normal', desc: '天罚随甲生威,冲击波击退硬直' },
+  bloodpact:  { id: 'bloodpact',  name: '血契荆棘',   icon: 'art_bloodpact',  baseWeapon: 'sanguine',  rarity: 'normal', desc: '血契成,吸血化热,溢血成盾' },
+  absolution: { id: 'absolution',  name: '镇魂赦令',   icon: 'art_absolution', baseWeapon: 'resolve',   rarity: 'normal', desc: '镇魂赦令,立于符文中伤减更甚' },
 };
 
 // ---------- 合成配方 ----------
@@ -476,6 +586,15 @@ export const RECIPES = [
   { weapon: 'cross', passive: 'tome', artifact: 'matrix' },
   // 第 10 神器「亡魂收割者」：镰刀武器 + 贪婪之魂(财富之魂) 进化
   { weapon: 'scythe', passive: 'greed', artifact: 'reaper' },
+  // ===== v2.0 神器扩充：8 套新配方，passive 取自 8 个此前无搭配被动（1:1 配对，不与已占用被动 boots/magnet/heart/tome/greed 冲突）=====
+  { weapon: 'starfall',  passive: 'critrate',   artifact: 'fatalis' },
+  { weapon: 'judgment',  passive: 'critdmg',    artifact: 'retribution' },
+  { weapon: 'phantom',   passive: 'dodge',      artifact: 'mirage' },
+  { weapon: 'aegis',     passive: 'shield',     artifact: 'bastion' },
+  { weapon: 'warden',    passive: 'shieldregen', artifact: 'sentinel' },
+  { weapon: 'maul',      passive: 'armor',      artifact: 'cataclysm' },
+  { weapon: 'sanguine',  passive: 'regen',      artifact: 'bloodpact' },
+  { weapon: 'resolve',   passive: 'guard',      artifact: 'absolution' },
 ];
 
 const COLLECTION_KEY = 'night_survivors_collection';
@@ -549,3 +668,4 @@ export const BOSSES = [
 ];
 
 if (typeof window !== 'undefined') window.__bosses = BOSSES;
+if (typeof window !== 'undefined') window.__artifacts = ARTIFACTS;

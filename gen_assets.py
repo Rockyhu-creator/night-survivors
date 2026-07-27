@@ -1160,6 +1160,427 @@ def gen_art_reaper():  # 亡魂收割者神器：镰刀 + 灵魂/绿焰（骨白
     save(img, "art_reaper.png", 2)
 
 
+# ---------- 新武器/神器扩充（v2.0 神器扩充执行阶段，2026-07-27）：16 个程序化精灵 ----------
+# 仿 gen_weapon_scythe / gen_art_storm 模板：内部 40 网格绘制，save(name, 2) 缩到 80×80；
+# 统一 1px 暗描边由 save()->outline() 处理；3 档色调体积感；透明底 RGBA；PNG 只载静态精灵。
+# 新程序化文件不进 AI_OWNED（save() 见 AI_OWNED 会跳过落盘）。
+def _herald_shield(d, cx, cy, border, border_hi, field):
+    """heraldic 加热盾轮廓（顶部宽、底部尖），边框 + 暗底场，供神器图标复用。"""
+    topY = cy - 13
+    for y in range(topY, cy + 16):
+        if y <= cy - 1:
+            half = 13
+        else:
+            half = 13 - (y - (cy - 1))
+        if half < 0:
+            continue
+        for x in range(cx - half, cx + half + 1):
+            is_border = (abs(x - cx) >= half - 1) or (y <= topY + 1)
+            if is_border:
+                px(d, x, y, border_hi if y <= topY + 2 else border)
+            else:
+                px(d, x, y, field)
+
+
+def gen_weapon_starfall():  # 星陨弩：星铁弩（琥珀金 #ffcf4d，追踪弩）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    gold_d, gold_m, gold_l = (176, 132, 28, 255), (255, 207, 77, 255), (255, 230, 156, 255)
+    steel_d, steel_m, steel_l = (84, 92, 108, 255), (150, 160, 182, 255), (224, 234, 248, 255)
+    # 弩臂（右端张开的弓）
+    for y in range(6, 35):
+        dd = abs(y - cy)
+        if dd <= 13:
+            x_arm = 29 - int((13 - dd) * 0.12)
+            px(d, x_arm, y, gold_l if dd > 8 else gold_m)
+            px(d, x_arm + 1, y, gold_d)
+    # 弦
+    px(d, 30, 7, (210, 220, 240, 200)); px(d, 30, 33, (210, 220, 240, 200))
+    px(d, 31, 8, (210, 220, 240, 160)); px(d, 31, 32, (210, 220, 240, 160))
+    # 弩身（水平枪身）
+    for x in range(7, 30):
+        for y in range(18, 23):
+            t = (y - 18) / 5
+            px(d, x, y, gold_l if t < 0.3 else (gold_m if t < 0.7 else gold_d))
+    px(d, 7, 18, gold_l); px(d, 8, 18, gold_l)
+    # 握把
+    for y in range(22, 31):
+        for x in range(12, 16):
+            px(d, x, y, steel_d)
+    px(d, 12, 22, steel_m)
+    # 弩箭（沿中线向右）
+    for x in range(13, 35):
+        px(d, x, cy, gold_l if x >= 33 else steel_m)
+        px(d, x, cy - 1, steel_l if x < 33 else gold_m)
+    for (x, y) in ((33, 18), (34, 19), (35, 20), (34, 21), (33, 22)):
+        px(d, x, y, gold_l)
+    # 星点（追迹星铁）
+    px(d, 10, 11, gold_l); px(d, 11, 11, gold_l); px(d, 16, 10, gold_m)
+    save(img, "weapon_starfall.png", 2)
+
+
+def gen_weapon_judgment():  # 断罪之锋：处刑长戟（绯红白 #ff5a5a）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    red_d, red_m, red_l = (150, 30, 40, 255), (255, 90, 90, 255), (255, 244, 230, 255)
+    steel_d, steel_m, steel_l = (90, 70, 80, 255), (160, 140, 150, 255), (235, 225, 230, 255)
+    # 长杆（竖直）
+    for y in range(8, 37):
+        for x in range(cx - 2, cx + 3):
+            px(d, x, y, steel_m if x == cx else steel_d)
+    px(d, cx - 2, 8, steel_l)
+    # 顶部尖刺（处刑矛尖）
+    for i in range(9):
+        y = 8 - i
+        w = 2 - (i // 4)
+        for x in range(cx - w, cx + w + 1):
+            px(d, x, y, steel_l if i < 2 else steel_m)
+    # 横刃（处刑戟刃，向右）
+    for i in range(12):
+        x = cx + 2 + i
+        y0 = 12 + i // 2
+        y1 = 22 - i // 2
+        for y in range(y0, y1 + 1):
+            px(d, x, y, red_l if i >= 9 else red_m)
+        px(d, x, y0, red_l); px(d, x, y1, red_d)
+    for i in range(4):
+        px(d, cx + 3 + i, 12 + i // 2, red_l); px(d, cx + 3 + i, 22 - i // 2, red_l)
+    # 杆上红饰
+    px(d, cx - 2, 26, red_m); px(d, cx + 2, 26, red_m)
+    px(d, cx - 2, 27, red_d); px(d, cx + 2, 27, red_d)
+    save(img, "weapon_judgment.png", 2)
+
+
+def gen_weapon_phantom():  # 幻影裂片：碎刃（紫罗兰 #9b6cff + 青 #5ad1e6）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    vio_d, vio_m, vio_l = (90, 50, 180, 255), (155, 108, 255, 255), (205, 175, 255, 255)
+    cyan, cyan_l = (90, 209, 230, 255), (165, 230, 245, 255)
+    shards = [((10, 30), (16, 22), (14, 28)), ((18, 26), (24, 18), (22, 25)),
+              ((16, 20), (22, 12), (19, 18)), ((24, 18), (30, 10), (27, 17)),
+              ((22, 14), (28, 8), (25, 13))]
+    for tri in shards:
+        d.polygon([tri[0], tri[1], tri[2]], fill=vio_m)
+        d.line([tri[0], tri[1]], fill=cyan_l, width=1)
+        d.line([tri[1], tri[2]], fill=vio_l, width=1)
+    # 中心晶核
+    for y in range(16, 26):
+        for x in range(15, 26):
+            if abs((x - 20) + (y - 21)) < 3 and abs((x - 20) - (y - 21)) < 3:
+                px(d, x, y, cyan)
+    px(d, 20, 20, cyan_l); px(d, 20, 21, cyan_l)
+    save(img, "weapon_phantom.png", 2)
+
+
+def gen_weapon_aegis():  # 守护结晶：悬浮结晶塔（钢青 #7fd4ff）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    cya_d, cya_m, cya_l = (40, 120, 170, 255), (127, 212, 255, 255), (200, 240, 255, 255)
+    for y in range(8, 34):
+        if y <= 18:
+            half = int((y - 8) * 0.9) + 2
+        else:
+            half = int(18 - (y - 18) * 0.7)
+        if half < 0:
+            half = 0
+        for x in range(cx - half, cx + half + 1):
+            f = (x - cx) * 1.2 + (y - 21)
+            col = cya_l if f < -6 else (cya_d if f > 6 else cya_m)
+            px(d, x, y, col)
+    for y in range(8, 14):
+        px(d, cx, y, cya_l)
+    for side in (-1, 1):
+        for i in range(8):
+            x = cx + side * (7 + i)
+            y = 14 + i
+            px(d, x, y, cya_m); px(d, x, y + 1, cya_d)
+        px(d, cx + side * 7, 14, cya_l)
+    px(d, cx, 33, cya_l); px(d, cx - 1, 34, cya_m); px(d, cx + 1, 34, cya_m)
+    save(img, "weapon_aegis.png", 2)
+
+
+def gen_weapon_warden():  # 回响哨卫：公转法球（翡翠 #6cffb0）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    em_d, em_m, em_l = (30, 170, 110, 255), (108, 255, 176, 255), (200, 255, 222, 255)
+    for a in range(0, 360, 4):
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 15), round(cy + math.sin(rad) * 11), em_m)
+    for k in range(4):
+        a = math.radians(k * 90 + 45)
+        x = round(cx + math.cos(a) * 15)
+        y = round(cy + math.sin(a) * 11)
+        fill_ellipse_shaded(d, x, y, 2, 2, (em_d, em_m, em_l))
+    fill_ellipse_shaded(d, cx, cy, 7, 7, (em_d, em_m, em_l))
+    px(d, cx - 2, cy - 2, em_l); px(d, cx - 1, cy - 3, em_l)
+    for a in range(0, 360, 6):
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 4), round(cy + math.sin(rad) * 4), em_d)
+    save(img, "weapon_warden.png", 2)
+
+
+def gen_weapon_maul():  # 碎甲重锤：巨锤（铁橙 #ff9a3c）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    org_d, org_m, org_l = (150, 70, 16, 255), (255, 154, 60, 255), (255, 205, 140, 255)
+    steel_d, steel_m, steel_l = (84, 88, 100, 255), (150, 156, 172, 255), (224, 230, 244, 255)
+    # 长柄（竖直）
+    for y in range(10, 37):
+        for x in range(cx - 2, cx + 3):
+            px(d, x, y, steel_m if x == cx else steel_d)
+    px(d, cx - 2, 10, steel_l)
+    # 锤头（顶部巨大方块）
+    for y in range(8, 20):
+        for x in range(cx - 9, cx + 10):
+            is_edge = (x in (cx - 9, cx + 9)) or (y == 8)
+            if is_edge:
+                col = org_l if y < 12 else org_d
+            else:
+                col = org_m
+            px(d, x, y, col)
+    for x in range(cx - 7, cx + 8):
+        px(d, x, 13, org_d)
+    px(d, cx - 4, 14, org_l); px(d, cx + 4, 14, org_l)
+    for x in range(cx - 9, cx + 10):
+        px(d, x, 8, org_l)
+    # 柄底护环
+    for x in range(cx - 4, cx + 5):
+        px(d, x, 33, steel_l)
+    save(img, "weapon_maul.png", 2)
+
+
+def gen_weapon_sanguine():  # 噬血荆棘：血棘（深红 #ff3b5c）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    red_d, red_m, red_l = (140, 20, 45, 255), (255, 59, 92, 255), (255, 150, 170, 255)
+    pts = []
+    for i in range(24):
+        t = i / 23
+        x = 8 + t * 24
+        y = 8 + math.sin(t * math.pi * 2) * 10 + t * 16
+        pts.append((x, y))
+    for (x, y) in pts:
+        xi, yi = round(x), round(y)
+        px(d, xi, yi, red_l); px(d, xi + 1, yi, red_m); px(d, xi, yi + 1, red_d)
+    for i in range(1, 23, 2):
+        x, y = round(pts[i][0]), round(pts[i][1])
+        side = 1 if i % 4 == 1 else -1
+        for k in range(4):
+            px(d, x + side * k, y - (k // 2), red_l)
+            px(d, x - side * k, y + (k // 2), red_d)
+    px(d, round(pts[-1][0]), round(pts[-1][1]), red_l)
+    px(d, 30, 12, red_l); px(d, 31, 12, red_m); px(d, 30, 11, red_l)
+    save(img, "weapon_sanguine.png", 2)
+
+
+def gen_weapon_resolve():  # 镇魂钟鸣：符文钟（苍金 #e8d8a0）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    gold_d, gold_m, gold_l = (150, 136, 80, 255), (232, 216, 160, 255), (248, 240, 210, 255)
+    fill_ellipse_shaded(d, cx, 14, 7, 7, (gold_d, gold_m, gold_l))
+    for y in range(14, 31):
+        half = int(7 + (y - 14) * 0.5)
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            col = gold_l if t < 0.25 else (gold_m if t < 0.7 else gold_d)
+            px(d, x, y, col)
+    for x in range(cx - 14, cx + 15):
+        px(d, x, 31, gold_d); px(d, x, 30, gold_m)
+    for a in range(0, 360, 6):
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 3), round(7 + math.sin(rad) * 2), gold_l)
+    px(d, cx, 18, gold_d); px(d, cx - 2, 20, gold_d); px(d, cx + 2, 20, gold_d)
+    px(d, cx, 22, gold_d); px(d, cx - 1, 24, gold_d); px(d, cx + 1, 24, gold_d); px(d, cx, 26, gold_d)
+    px(d, cx, 32, gold_l); px(d, cx, 33, gold_m)
+    save(img, "weapon_resolve.png", 2)
+
+
+def gen_art_fatalis():  # 命运星轨：星徽 + 十字星芒（琥珀金 #ffcf4d）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    gold_d, gold_m, gold_l = (176, 132, 28, 255), (255, 207, 77, 255), (255, 230, 156, 255)
+    field = (40, 30, 14, 255)
+    _herald_shield(d, cx, cy, gold_m, gold_l, field)
+    for k in range(4):
+        a = math.radians(k * 90)
+        for r in range(2, 11):
+            x = round(cx + math.cos(a) * r)
+            y = round(cy + math.sin(a) * r)
+            px(d, x, y, gold_l if r >= 8 else gold_m)
+    for y in range(cy - 3, cy + 4):
+        for x in range(cx - 3, cx + 4):
+            if abs(x - cx) + abs(y - cy) <= 3:
+                px(d, x, y, gold_l)
+    px(d, cx, cy, (255, 245, 200, 255))
+    px(d, cx - 7, cy - 6, gold_m); px(d, cx + 7, cy + 6, gold_m)
+    save(img, "art_fatalis.png", 2)
+
+
+def gen_art_retribution():  # 断罪终焉：矛锋 + 十字（绯红白 #ff5a5a）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    red_d, red_m, red_l = (150, 30, 40, 255), (255, 90, 90, 255), (255, 244, 230, 255)
+    field = (44, 14, 18, 255)
+    _herald_shield(d, cx, cy, red_m, red_l, field)
+    for i in range(12):
+        w = 4 - i // 3
+        for x in range(cx - w, cx + w + 1):
+            px(d, x, cy - 8 + i, red_l if i < 3 else red_m)
+    for i in range(4):
+        px(d, cx - (2 - i), cy + 4 + i, red_l)
+    for x in range(cx - 8, cx + 9):
+        px(d, x, cy - 1, red_l)
+    for y in range(cy - 8, cy + 9):
+        px(d, cx, y, red_l if abs(y - cy) <= 1 else red_m)
+    px(d, cx, cy - 8, red_l); px(d, cx - 8, cy - 1, red_l); px(d, cx + 8, cy - 1, red_l)
+    save(img, "art_retribution.png", 2)
+
+
+def gen_art_mirage():  # 幻影千袭：碎晶簇（紫罗兰 #9b6cff + 青 #5ad1e6）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    vio_d, vio_m, vio_l = (90, 50, 180, 255), (155, 108, 255, 255), (205, 175, 255, 255)
+    cyan, cyan_l = (90, 209, 230, 255), (165, 230, 245, 255)
+    field = (28, 18, 48, 255)
+    _herald_shield(d, cx, cy, vio_m, vio_l, field)
+    for y in range(cy - 8, cy + 9):
+        half = 8 - abs(y - cy)
+        for x in range(cx - half, cx + half + 1):
+            f = (x - cx) + (y - cy)
+            col = cyan if f < -4 else (vio_d if f > 4 else vio_m)
+            px(d, x, y, col)
+    for a in range(0, 360, 60):
+        rad = math.radians(a)
+        for r in range(2, 9):
+            px(d, round(cx + math.cos(rad) * r), round(cy + math.sin(rad) * r), cyan_l)
+    px(d, cx, cy, cyan_l)
+    save(img, "art_mirage.png", 2)
+
+
+def gen_art_bastion():  # 永恒壁垒：晶盾（钢青 #7fd4ff）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    cya_d, cya_m, cya_l = (40, 120, 170, 255), (127, 212, 255, 255), (200, 240, 255, 255)
+    field = (16, 36, 50, 255)
+    _herald_shield(d, cx, cy, cya_m, cya_l, field)
+    for y in range(cy - 7, cy + 9):
+        if y <= cy:
+            half = 7
+        else:
+            half = 7 - (y - cy)
+        if half < 0:
+            continue
+        for x in range(cx - half, cx + half + 1):
+            is_b = (abs(x - cx) >= half - 1)
+            px(d, x, y, cya_l if is_b else cya_m)
+    for y in range(cy - 3, cy + 4):
+        for x in range(cx - 3, cx + 4):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= 6:
+                px(d, x, y, cya_l)
+    px(d, cx, cy, (235, 250, 255, 255))
+    save(img, "art_bastion.png", 2)
+
+
+def gen_art_sentinel():  # 回响守望：法球 + 符环（翡翠 #6cffb0）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    em_d, em_m, em_l = (30, 170, 110, 255), (108, 255, 176, 255), (200, 255, 222, 255)
+    field = (14, 40, 28, 255)
+    _herald_shield(d, cx, cy, em_m, em_l, field)
+    for a in range(0, 360, 6):
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 8), round(cy + math.sin(rad) * 6), em_m)
+    fill_ellipse_shaded(d, cx, cy, 5, 5, (em_d, em_m, em_l))
+    px(d, cx - 1, cy - 1, em_l); px(d, cx, cy - 2, em_l)
+    for k in range(3):
+        a = math.radians(k * 120)
+        x = round(cx + math.cos(a) * 8)
+        y = round(cy + math.sin(a) * 6)
+        px(d, x, y, em_l)
+    save(img, "art_sentinel.png", 2)
+
+
+def gen_art_cataclysm():  # 碎甲天罚：巨锤 + 冲击星（铁橙 #ff9a3c）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    org_d, org_m, org_l = (150, 70, 16, 255), (255, 154, 60, 255), (255, 205, 140, 255)
+    field = (44, 24, 8, 255)
+    _herald_shield(d, cx, cy, org_m, org_l, field)
+    for k in range(8):
+        a = math.radians(k * 45)
+        for r in range(2, 10):
+            x = round(cx + math.cos(a) * r)
+            y = round(cy + math.sin(a) * r)
+            px(d, x, y, org_l if r >= 7 else org_m)
+    for y in range(cy - 5, cy + 6):
+        for x in range(cx - 6, cx + 7):
+            is_edge = (x in (cx - 6, cx + 6)) or (y in (cy - 5, cy + 5))
+            px(d, x, y, org_l if is_edge else org_d)
+    px(d, cx, cy, org_l)
+    save(img, "art_cataclysm.png", 2)
+
+
+def gen_art_bloodpact():  # 血契荆棘：血心 + 棘（深红 #ff3b5c）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    red_d, red_m, red_l = (140, 20, 45, 255), (255, 59, 92, 255), (255, 150, 170, 255)
+    field = (40, 10, 18, 255)
+    _herald_shield(d, cx, cy, red_m, red_l, field)
+    for y in range(cy - 7, cy + 8):
+        for x in range(cx - 8, cx + 9):
+            dx = (x - cx) / 8.0
+            dy = (y - cy) / 8.0
+            if dx * dx + dy * dy < 0.85:
+                px(d, x, y, red_l if (x + y) % 3 == 0 else red_m)
+    px(d, cx - 4, cy - 3, red_l); px(d, cx - 3, cy - 4, red_l)
+    for k in range(5):
+        a = math.radians(k * 72)
+        x = round(cx + math.cos(a) * 9)
+        y = round(cy + math.sin(a) * 9)
+        px(d, x, y, red_l)
+        px(d, round(x + math.cos(a)), round(y + math.sin(a)), red_m)
+    px(d, cx, cy + 1, red_l)
+    save(img, "art_bloodpact.png", 2)
+
+
+def gen_art_absolution():  # 镇魂赦令：钟徽 + 符文（苍金 #e8d8a0）
+    S = 40
+    img, d = new_canvas(S)
+    cx, cy = 20, 20
+    gold_d, gold_m, gold_l = (150, 136, 80, 255), (232, 216, 160, 255), (248, 240, 210, 255)
+    field = (34, 30, 16, 255)
+    _herald_shield(d, cx, cy, gold_m, gold_l, field)
+    fill_ellipse_shaded(d, cx, cy - 4, 5, 5, (gold_d, gold_m, gold_l))
+    for y in range(cy - 4, cy + 7):
+        half = int(5 + (y - (cy - 4)) * 0.4)
+        for x in range(cx - half, cx + half + 1):
+            t = (x - (cx - half)) / (half * 2 + 1)
+            px(d, x, y, gold_l if t < 0.25 else (gold_m if t < 0.7 else gold_d))
+    for x in range(cx - 8, cx + 9):
+        px(d, x, cy + 7, gold_d)
+    for a in range(0, 360, 8):
+        rad = math.radians(a)
+        px(d, round(cx + math.cos(rad) * 2), round((cy - 9) + math.sin(rad) * 1.5), gold_l)
+    px(d, cx, cy + 10, gold_l); px(d, cx - 2, cy + 11, gold_m); px(d, cx + 2, cy + 11, gold_m)
+    px(d, cx - 3, cy + 12, gold_d); px(d, cx, cy + 12, gold_l); px(d, cx + 3, cy + 12, gold_d)
+    save(img, "art_absolution.png", 2)
+
+
 # ---------- 角色全身立绘（UX 改造，2026-07-23）：40×60 全身像，不含武器 ----------
 def gen_portrait(name, cloth, skin, accent, feature):
     W, H = 40, 60
@@ -1696,6 +2117,23 @@ gen_art_sepulcher()
 gen_art_eternalwhip()
 gen_art_matrix()
 gen_art_reaper()
+# ---------- v2.0 神器扩充：16 个新程序化精灵（与 gen_weapon_scythe / gen_art_reaper 并列） ----------
+gen_weapon_starfall()
+gen_weapon_judgment()
+gen_weapon_phantom()
+gen_weapon_aegis()
+gen_weapon_warden()
+gen_weapon_maul()
+gen_weapon_sanguine()
+gen_weapon_resolve()
+gen_art_fatalis()
+gen_art_retribution()
+gen_art_mirage()
+gen_art_bastion()
+gen_art_sentinel()
+gen_art_cataclysm()
+gen_art_bloodpact()
+gen_art_absolution()
 gen_portrait_wanderer()
 gen_portrait_saint()
 gen_portrait_berserker()

@@ -31,7 +31,11 @@ export function performEvolution(player, weaponSystem, recipe) {
 export function buildCollectionData(unlocked) {
   const has = (id) => unlocked.includes(id);
   const weapons = Object.values(WEAPONS).map((d) => ({ id: d.id, name: d.name, icon: d.icon, kind: 'weapon', unlocked: has(d.id), desc: d.desc }));
-  const passives = Object.values(PASSIVES).map((d) => ({ id: d.id, name: d.name, icon: d.icon, kind: 'passive', unlocked: has(d.id), desc: d.desc }));
+  const passives = Object.values(PASSIVES).map((d) => {
+    const recipes = RECIPES.filter((r) => r.passive === d.id)
+      .map((r) => ({ weapon: WEAPONS[r.weapon].name, artifact: ARTIFACTS[r.artifact].name }));
+    return { id: d.id, name: d.name, icon: d.icon, kind: 'passive', unlocked: has(d.id), desc: d.desc, recipes };
+  });
   const artifacts = Object.values(ARTIFACTS).map((d) => {
     const recipe = RECIPES.find((r) => r.artifact === d.id);
     const hint = d.rarity === 'hidden' && !has(d.id)

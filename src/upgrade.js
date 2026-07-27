@@ -7,6 +7,15 @@ import { findEvolvableRecipe } from './evolution.js';
 // 故此处默认开启，不新建复杂设置面板；后续版本接入统一设置时改为读取 localStorage（TODO）。
 const SHOW_RECIPE_HINTS = true;
 
+// v2.0 · D4（用户已拍板）：已拥有基础武器种类少 → 仅对 8 把 v2.0 新武器提高权重，
+// 保 build 收敛与心流；原 8 把武器与被动权重完全不变。
+const BOOST_THRESHOLD = 4;     // 已拥有基础武器 < 4 种时触发加成 [校准]
+const NEW_WEAPON_BOOST = 1.5; // v2.0 新武器权重乘数 [校准]
+const V2_WEAPON_IDS = new Set([
+  'starfall', 'judgment', 'phantom', 'aegis',
+  'warden', 'maul', 'sanguine', 'resolve',
+]);
+
 // 方案 A：选中此被动后，下一次开箱「真会」进化吗？
 // 「选后即持有」语义：把该被动临时并入模拟持有集合，再复用引擎 findEvolvableRecipe，
 // 不手动复制 passives.has（避免与真实进化逻辑漂移），并按 §1.4 全局顺序返回真实会触发的配方，杜绝误导。
@@ -90,6 +99,10 @@ export class UpgradeSystem {
       weaponUp: 5,
       weaponNew: 2 * (1 - 0.85 * late),
     };
+    // D4（v2.0）：已拥有基础武器种类少 → 提高新武器权重，保 build 收敛与心流
+    // 复用模块级 BOOST_THRESHOLD / NEW_WEAPON_BOOST（upgrade.js 顶部，lines 12-14）。
+    const ownedWeaponKinds = player.weapons.filter((w) => !w.artifact).length; // 仅计基础武器，不含神器
+    const newWeaponMul = ownedWeaponKinds < BOOST_THRESHOLD ? NEW_WEAPON_BOOST : 1;
     // D3 分类权重：统计玩家已投资各分类的被动等级总和。
     // 候选被动最终权重 = 1 + Δ·catCount[category]（Δ=0.6[校准]），走某流派时更易滚到同系被动、成型更顺。
     const DELTA = 0.6;
@@ -108,7 +121,7 @@ export class UpgradeSystem {
         }
       } else if (weaponCount < player.maxWeapons) {
         // S3：满武器槽不再提供新武器卡（保留已有武器升级），逼出 build 取舍
-        pool.push({ kind: 'weapon-new', id: def.id, def, weight: W.weaponNew, isWeapon: true });
+        pool.push({ kind: 'weapon-new', id: def.id, def, weight: W.weaponNew * newWeaponMul, isWeapon: true });
       }
     }
     for (const def of Object.values(PASSIVES)) {

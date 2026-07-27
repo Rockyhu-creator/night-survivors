@@ -626,6 +626,19 @@ export class UIManager {
       desc.className = 'cc-hint';
       desc.textContent = item.desc && item.unlocked ? item.desc : '';
       card.append(tag, name, desc);
+      // v2.0（GDD §5.2）：被动卡标注「可合成」配方行（数据来自 buildCollectionData 的 recipes 字段）
+      if (item.recipes && item.recipes.length) {
+        const rec = document.createElement('p');
+        rec.className = 'cc-hint codex-recipe';
+        rec.textContent = '可合成 ✨神器 = 满级🗡武器 + 本被动';
+        card.appendChild(rec);
+        for (const r of item.recipes) {
+          const pair = document.createElement('p');
+          pair.className = 'cc-hint codex-recipe-pair';
+          pair.textContent = `✨${r.artifact} = 满级🗡${r.weapon} + 本被动`;
+          card.appendChild(pair);
+        }
+      }
       grid.appendChild(card);
     }
     sec.appendChild(grid);

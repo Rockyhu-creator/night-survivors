@@ -40,8 +40,28 @@ function getGlowSprite(key, size, color) {
   grad.addColorStop(0, color);
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = grad; g.beginPath(); g.arc(r, r, r, 0, Math.PI * 2); g.fill();
-  _glowCache.set(ck, c); return c;
-}
+    _glowCache.set(ck, c); return c;
+  }
+
+  // ===== v2.0 性能护栏（RL2）：生成桶硬上限 + oldest-first 回收 =====
+  // 与 CONFIG 同源（CONFIG 已含 PROJECTILE_CAP/POOL_CAP/BOLT_CAP/SLASH_CAP/VIAL_CAP 等）；
+  // 模块级常量便于武器内聚引用，避免热路径跨模块查找。
+  const PROJECTILE_CAP = 600, POOL_CAP = 60, BOLT_CAP = 80, SLASH_CAP = 40, VIAL_CAP = 40;
+  const MAX_SENTINELS  = CONFIG.MAX_SENTINELS;   // 6
+  const MAX_ORBS       = CONFIG.MAX_ORBS;        // 8
+  const MAX_SHOCKWAVES = CONFIG.MAX_SHOCKWAVES;  // 12
+  const MAX_RUNES      = CONFIG.MAX_RUNES;       // 24
+  const SPLIT_CAP_PER_HIT = CONFIG.SPLIT_CAP_PER_HIT; // 6
+  const ORBIT_OMEGA    = CONFIG.ORBIT_OMEGA;     // 1.2 rad/s
+  const MIRAGE_RESIDUE_CAP = 30;  // 幻影残留 AoE 实体上限
+  const BURST_CAP      = 12;      // 瞬时爆裂环上限
+  const STUN_DURATION  = 0.3;     // cataclysm 觉醒硬直时长
+
+  // oldest-first 回收：桶满则丢弃最旧（shift）再 push，禁无界增长
+  function capPush(arr, item, cap) {
+    if (arr.length >= cap) arr.shift();
+    arr.push(item);
+  }
 
 // 圣光矩阵八向星纹 sigil：8 条 spoke 预渲染一次（金 #f5d76e），玩家脚下每帧 additive 旋转绘制。
 let _matrixSigilSprite = null;
@@ -75,6 +95,57 @@ function getMatrixSigilSprite() {
 const REND_DPS = 16;
 const REND_DURATION = 3;
 
+// ===== v2.0 神器扩充：配色锚点 + 机制/觉醒查表（RL1/RL4：辉光全走缓存 sprite）=====
+// VISUAL_PRESETS 以「武器 visual 键」为索引，提供投射物渲染用的主色与缓存辉光参数；
+// 神器觉醒投射物用自身 glowKey 覆盖（fatalis/mirage/...），主色更亮一档。
+const VISUAL_PRESETS = {
+  starfall:  { color: '#caa23a', glowKey: 'starfall',  glowColor: 'rgba(255,207,77,0.9)',  glowSize: 44, spriteKey: 'weapon_starfall' },
+  judgment:  { color: '#ff5a5a', glowKey: 'judgment',  glowColor: 'rgba(255,90,90,0.9)',   glowSize: 56, spriteKey: 'weapon_judgment' },
+  phantom:   { color: '#9b6cff', glowKey: 'phantom',   glowColor: 'rgba(155,108,255,0.9)', glowSize: 40, spriteKey: 'weapon_phantom' },
+  aegis:     { color: '#7fd4ff', glowKey: 'aegis',     glowColor: 'rgba(127,212,255,0.9)', glowSize: 48, spriteKey: 'weapon_aegis' },
+  warden:    { color: '#6cffb0', glowKey: 'warden',    glowColor: 'rgba(108,255,176,0.9)', glowSize: 48, spriteKey: 'weapon_warden' },
+  maul:      { color: '#ff9a3c', glowKey: 'maul',      glowColor: 'rgba(255,154,60,0.9)',  glowSize: 52, spriteKey: 'weapon_maul' },
+  sanguine:  { color: '#ff3b5c', glowKey: 'sanguine',  glowColor: 'rgba(255,59,92,0.9)',   glowSize: 44, spriteKey: 'weapon_sanguine' },
+  resolve:   { color: '#e8d8a0', glowKey: 'resolve',   glowColor: 'rgba(232,216,160,0.9)', glowSize: 52, spriteKey: 'weapon_resolve' },
+};
+// 神器觉醒主色（比武器更亮一档，渲染区分于基础形态）
+const ARTIFACT_TINT = {
+  fatalis: '#ffcf4d', retribution: '#ff7a7a', mirage: '#b98cff', bastion: '#a9e6ff',
+  sentinel: '#9affce', cataclysm: '#ffb46c', bloodpact: '#ff6f88', absolution: '#f3e8c0',
+};
+// 取辉光/主色参数：artGlowKey 优先（神器用自身 glow 缓存键，避免与基础形态同 key 串色）
+function applyVisual(p, visual, artGlowKey) {
+  const v = VISUAL_PRESETS[visual];
+  p.color = v.color;
+  p.glowKey = artGlowKey || v.glowKey;
+  p.glowColor = v.glowColor;
+  p.glowSize = v.glowSize;
+  p.spriteKey = v.spriteKey;
+}
+
+// 新武器机制查表：新武器走此表，既有 8 武器保持原 fire() if/else 路径不变（防回归）
+const MECH_FIRE = {
+  homing(ws, weapon, s) { ws.fireHoming(weapon, s, false); },
+  thrust(ws, weapon, s) { ws.fireThrust(weapon, s, false); },
+  splitting(ws, weapon, s) { ws.fireSplitting(weapon, s, false); },
+  sentinel(ws, weapon, s) { ws.fireSentinel(weapon, s); },
+  orb(ws, weapon, s) { ws.fireOrb(weapon, s); },
+  shockwave(ws, weapon, s) { ws.fireShockwave(weapon, s, false); },
+  lifesteal(ws, weapon, s) { ws.fireLifesteal(weapon, s, false); },
+  rune(ws, weapon, s) { ws.fireRune(weapon, s); },
+};
+// 新神器觉醒查表：进化后由 updateArtifact 调度，基础形态硬编码于各 tick*（门控配对被动觉醒）
+const ARTIFACT_BEHAVIORS = {
+  fatalis(ws, weapon, dt) { ws.tickFatalis(weapon, dt); },
+  retribution(ws, weapon, dt) { ws.tickRetribution(weapon, dt); },
+  mirage(ws, weapon, dt) { ws.tickMirage(weapon, dt); },
+  bastion(ws, weapon, dt) { ws.tickBastion(weapon, dt); },
+  sentinel(ws, weapon, dt) { ws.tickSentinel(weapon, dt); },
+  cataclysm(ws, weapon, dt) { ws.tickCataclysm(weapon, dt); },
+  bloodpact(ws, weapon, dt) { ws.tickBloodpact(weapon, dt); },
+  absolution(ws, weapon, dt) { ws.tickAbsolution(weapon, dt); },
+};
+
 export class WeaponSystem {
   constructor(game) {
     this.game = game;
@@ -84,6 +155,13 @@ export class WeaponSystem {
     this.slashes = [];
     this.vials = [];
     this.thunderRunes = [];
+    // v2.0 新实体桶（RL2：各自硬上限 + oldest-first 回收；reset 一并清空）
+    this.sentinels = [];        // 守护结晶/永恒壁垒 哨卫
+    this.orbs = [];             // 回响哨卫/回响守望 环绕法球
+    this.shockwaves = [];       // 碎甲重锤/碎甲天罚 扩张波
+    this.runes = [];            // 镇魂钟鸣/镇魂赦令 符文陷阱
+    this.mirageResidues = [];   // 幻影千袭 残留魅影（持续 AoE）
+    this.bursts = [];           // 瞬时爆裂环（断罪十字爆裂等，上限 12）
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -95,6 +173,12 @@ export class WeaponSystem {
     this.slashes.length = 0;
     this.vials.length = 0;
     this.thunderRunes.length = 0;
+    this.sentinels.length = 0;
+    this.orbs.length = 0;
+    this.shockwaves.length = 0;
+    this.runes.length = 0;
+    this.mirageResidues.length = 0;
+    this.bursts.length = 0;
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
     this.devourPool = null;
   }
@@ -155,6 +239,32 @@ export class WeaponSystem {
     this.updateVials(dt);
     this.updateSlashes(dt);
     this.updateThunderRunes(dt);
+    // v2.0 新实体系统（桶空则 no-op；RL2 上限回收）
+    this.updateSentinels(dt);
+    this.updateOrbs(dt);
+    this.updateShockwaves(dt);
+    this.updateRunes(dt);
+    this.updateMirageResidues(dt);
+    this.updateBursts(dt);
+    this.enforceCaps();
+  }
+
+  // v2.0 RL2 性能护栏：每帧末统一裁剪所有生成桶到硬上限（oldest-first 回收最旧），
+  // 杜绝无界增长导致掉帧。上限取自本文件顶部常量（PROJECTILE_CAP 等）与 CONFIG（MAX_*）。
+  enforceCaps() {
+    const trim = (arr, cap) => { if (arr.length > cap) arr.splice(0, arr.length - cap); };
+    trim(this.projectiles, PROJECTILE_CAP);
+    trim(this.pools, POOL_CAP);
+    trim(this.bolts, BOLT_CAP);
+    trim(this.vials, VIAL_CAP);
+    trim(this.slashes, SLASH_CAP);
+    trim(this.thunderRunes, 24);      // 现有硬上限（新符文≤24），保留
+    trim(this.sentinels, MAX_SENTINELS);
+    trim(this.orbs, MAX_ORBS);
+    trim(this.shockwaves, MAX_SHOCKWAVES);
+    trim(this.runes, MAX_RUNES);
+    trim(this.bursts, 12);            // 瞬时爆裂环，注释约定上限 12
+    trim(this.mirageResidues, 32);    // 幻影残留 AoE 安全网
   }
 
   updateSlashes(dt) {
@@ -332,6 +442,9 @@ export class WeaponSystem {
           });
         }
       }
+    } else if (ARTIFACT_BEHAVIORS[weapon.id]) {
+      // v2.0 新神器（fatalis/retribution/.../absolution）：基础形态 + 觉醒门控配对被动
+      ARTIFACT_BEHAVIORS[weapon.id](this, weapon, dt);
     }
   }
 
@@ -445,12 +558,17 @@ export class WeaponSystem {
           returning: false, hitSet: new Set(),
         });
       }
+    } else {
+      // v2.0 新武器：查表 MECH_FIRE[mech] 分发（既有 8 武器无 mech 字段，走上方原路径，零回归风险）
+      const def = WEAPONS[weapon.id];
+      const mech = def && def.mech;
+      if (mech && MECH_FIRE[mech]) MECH_FIRE[mech](this, weapon, s);
     }
   }
 
   // 长鞭：沿方向线段 hitbox 采样，命中矩形内敌人（点到线段距离判定）
   // hitSet：单次挥击内对每敌只结算一次伤害（大型敌人会跨多个采样点，去重避免被秒）
-  applyWhip(player, ang, s, hitSet, tint = null) {
+  applyWhip(player, ang, s, hitSet, tint = null, onHit = null) {
     const game = this.game;
     const len = s.length;
     const halfW = (s.width || 44) / 2;
@@ -469,12 +587,14 @@ export class WeaponSystem {
         const perp = Math.abs(px * dy - py * dx);
         if (perp < halfW + e.radius) {
           hitSet.add(e);
-          this.hitEnemy(e, s.damage * player.damageMul, dx, dy, tint ? tint.dmg : '#c060a0');
+          const res = this.hitEnemy(e, s.damage * player.damageMul, dx, dy, tint ? tint.dmg : '#c060a0');
           if (tint) {
             game.fx.spawnSparks(e.x, e.y, tint.spark, 6);
             game.fx.spawnSparks(e.x, e.y, tint.sparkHot, 3);
           }
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
+          // v2.0：断罪终焉觉醒钩子（仅暴击命中点触发十字爆裂+处决）
+          if (onHit) onHit(e, e.x, e.y, res.isCrit);
         }
       }
     }
@@ -583,10 +703,28 @@ export class WeaponSystem {
 
   updateProjectiles(dt) {
     const game = this.game;
+    const player = game.player;
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
       const p = this.projectiles[i];
       p.life -= dt;
       p.spin += dt * 14;
+
+      // v2.0 追踪（homing）：朝最近敌人转向，限制在 homing(deg/s) 内
+      if (p.homing) {
+        const tgt = game.enemies.nearestTo(p.x, p.y, 600);
+        if (tgt) {
+          const desired = Math.atan2(tgt.y - p.y, tgt.x - p.x);
+          const cur = Math.atan2(p.vy, p.vx);
+          let diff = desired - cur;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          const maxTurn = (p.homing * Math.PI / 180) * dt;
+          const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
+          const na = cur + turn;
+          p.vx = Math.cos(na) * p.speed;
+          p.vy = Math.sin(na) * p.speed;
+        }
+      }
 
       if (p.kind === 'axe' || p.kind === 'scythe') {
         if (!p.returning) {
@@ -595,7 +733,6 @@ export class WeaponSystem {
           p.traveled += p.speed * dt;
           if (p.traveled >= p.range) p.returning = true;
         } else {
-          const player = game.player;
           const dx = player.x - p.x;
           const dy = player.y - p.y;
           const d = Math.hypot(dx, dy) || 1;
@@ -608,7 +745,6 @@ export class WeaponSystem {
         p.y += p.vy * dt;
       }
 
-      // 镰刀清场更强：查询与命中半径都略大于其他投射物
       const queryR = p.kind === 'scythe' ? 84 : 60;
       const targets = game.enemies.enemiesNear(p.x, p.y, queryR);
       for (const e of targets) {
@@ -617,20 +753,40 @@ export class WeaponSystem {
         if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + pad) {
           p.hitSet.add(e);
           const kd = Math.hypot(p.vx, p.vy) || 1;
-          const projColor = p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff');
-          this.hitEnemy(e, p.damage, p.vx / kd, p.vy / kd, projColor);
+          const projColor = p.tint || (p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff'));
+          const res = this.hitEnemy(e, p.damage, p.vx / kd, p.vy / kd, projColor);
           game.fx.spawnSparks(e.x, e.y, projColor, 4);
-          if (p.lifeSteal) {
-            game.player.hp = Math.min(game.player.maxHp, game.player.hp + 1);
+          // v2.0 吸血（sanguine/bloodpact）：命中回血
+          if (p.heal) {
+            const before = player.hp;
+            player.hp = Math.min(player.maxHp, player.hp + p.heal);
+            const healed = player.hp - before;
+            if (p.awaken === 'bloodpact' && player.passives.has('regen') && healed <= 0) {
+              // 满血溢出 → 临时护盾
+              player.shield = Math.min(player.maxShield, player.shield + p.heal);
+            }
           }
-          // 血裔·吸血(嗜血者)：每次命中按 lifesteal 回血（不含 pool/artifact，避免过载）
           if (game.player.lifesteal > 0) {
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + game.player.lifesteal);
           }
-          // 亡魂收割者：scythe 命中且持有 reaper 神器 → 施加撕裂 DOT（rend）。
-          // 基础 scythe 武器没有 reaper → 不触发，行为零变化。
           if (p.kind === 'scythe' && this.game.weapons.hasArtifact('reaper')) {
             e.rend = { dps: REND_DPS * game.player.damageMul, time: REND_DURATION };
+          }
+          // v2.0 觉醒 per-hit 钩子（fatalis/mirage/bastion）
+          this._applyAwakenHit(p, e, res);
+          // v2.0 分裂（phantom/mirage）：命中迸射碎片
+          if (p.splits > 0 && !p._split) {
+            p._split = true;
+            for (let k = 0; k < p.splits; k += 1) {
+              const a = Math.random() * Math.PI * 2;
+              this.projectiles.push({
+                kind: 'blade', x: e.x, y: e.y,
+                vx: Math.cos(a) * p.splitSpeed, vy: Math.sin(a) * p.splitSpeed,
+                speed: p.splitSpeed, damage: p.damage * p.splitMul, pierce: 1, life: 1.0, spin: 0,
+                hitSet: new Set(), tint: p.tint, glowKey: p.glowKey, glowColor: p.glowColor, glowSize: p.glowSize,
+                awaken: p.awaken,
+              });
+            }
           }
           p.pierce -= 1;
           if (p.pierce <= 0) { p.life = 0; break; }
@@ -638,6 +794,28 @@ export class WeaponSystem {
       }
 
       if (p.life <= 0) this.projectiles.splice(i, 1);
+    }
+  }
+
+  // v2.0 觉醒 per-hit 效果（门控配对被动）
+  _applyAwakenHit(p, e, res) {
+    const game = this.game, player = game.player;
+    if (p.awaken === 'fatalis' && res.isCrit) {
+      // 暴击星铁迸射 2 枚迷你追踪碎片
+      for (let k = 0; k < 2; k += 1) {
+        const a = Math.random() * Math.PI * 2;
+        this.projectiles.push({
+          kind: 'blade', x: e.x, y: e.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300,
+          speed: 300, damage: 14 * player.damageMul, pierce: 1, life: 1.2, spin: 0,
+          hitSet: new Set(), tint: '#ffcf4d', glowKey: 'starfall', glowColor: 'rgba(255,207,77,0.9)', glowSize: 44, awaken: null,
+        });
+      }
+    } else if (p.awaken === 'mirage' && player.passives.has('dodge')) {
+      // 魅影残留 AoE
+      this.mirageResidues.push({ x: e.x, y: e.y, radius: 40, damage: 10 * player.damageMul, tick: 0.2, tickTimer: 0, duration: 0.6, life: 0.6, hitSet: new Set() });
+    } else if (p.awaken === 'bastion' && player.passives.has('shield') && player.shield > 0) {
+      // 护盾下哨卫伤害 20% 转护盾
+      player.shield = Math.min(player.maxShield, player.shield + res.damage * 0.2);
     }
   }
 
@@ -723,6 +901,353 @@ export class WeaponSystem {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  // ===== v2.0 新武器 / 新神器 运行时实现 =====
+  // 配对被动（觉醒门控）：拥有该被动时神器觉醒机制生效
+  _baseVisual(id) {
+    return ({ fatalis: 'starfall', retribution: 'judgment', mirage: 'phantom', bastion: 'aegis', sentinel: 'warden', cataclysm: 'maul', bloodpact: 'sanguine', absolution: 'resolve' })[id] || null;
+  }
+  _awakened(weapon) {
+    const pair = this._baseVisual(weapon.id) ? ({ fatalis: 'critrate', retribution: 'critdmg', mirage: 'dodge', bastion: 'shield', sentinel: 'shieldregen', cataclysm: 'armor', bloodpact: 'regen', absolution: 'guard' })[weapon.id] : null;
+    return pair ? this.game.player.passives.has(pair) : false;
+  }
+  _preset(weapon) {
+    const vid = weapon.visual || this._baseVisual(weapon.id) || weapon.id;
+    return VISUAL_PRESETS[vid] || VISUAL_PRESETS.starfall;
+  }
+
+  // ---------- 新武器 fire 方法（MECH_FIRE 分发；神器 tick 复用） ----------
+  fireHoming(weapon, s, awakened) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    if (enemies.length === 0) return;
+    const pr = this._preset(weapon);
+    const n = s.count || 1;
+    for (let i = 0; i < n; i += 1) {
+      const target = this.pickTarget(i) || enemies[i % enemies.length];
+      const ang = target ? Math.atan2(target.y - player.y, target.x - player.x) : Math.random() * Math.PI * 2;
+      this.projectiles.push({
+        kind: 'blade', x: player.x, y: player.y,
+        vx: Math.cos(ang) * s.speed * 0.6, vy: Math.sin(ang) * s.speed * 0.6,
+        speed: s.speed, homing: s.homing || 200,
+        damage: s.damage * player.damageMul, pierce: s.pierce || 1, life: s.life || 2, spin: 0,
+        hitSet: new Set(), tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        awaken: awakened ? weapon.id : null,
+      });
+    }
+  }
+
+  fireThrust(weapon, s, awakened) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    if (enemies.length === 0) return;
+    const pr = this._preset(weapon);
+    const target = this.pickTarget(0) || enemies[0];
+    const ang = target ? Math.atan2(target.y - player.y, target.x - player.x) : (player.facing >= 0 ? 0 : Math.PI);
+    const tint = { dmg: pr.color, trail: pr.color, spark: pr.color, sparkHot: '#ffffff' };
+    const onHit = (awakened && this._awakened(weapon)) ? (e, x, y, isCrit) => this._retributionAwaken(e, x, y, isCrit) : null;
+    this.applyWhip(player, ang, { damage: s.damage, length: s.length, width: s.width, tint }, new Set(), null, onHit);
+  }
+
+  fireSplitting(weapon, s, awakened) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    if (enemies.length === 0) return;
+    const pr = this._preset(weapon);
+    const n = s.count || 1;
+    for (let i = 0; i < n; i += 1) {
+      const target = this.pickTarget(i) || enemies[i % enemies.length];
+      const ang = target ? Math.atan2(target.y - player.y, target.x - player.x) : Math.random() * Math.PI * 2;
+      this.projectiles.push({
+        kind: 'blade', x: player.x, y: player.y, vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
+        speed: s.speed, damage: s.damage * player.damageMul, pierce: s.pierce || 1, life: 1.6, spin: 0, hitSet: new Set(),
+        tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        splits: s.splits || 0, splitMul: s.splitMul || 0.6, splitSpeed: s.splitSpeed || 300,
+        awaken: awakened ? weapon.id : null,
+      });
+    }
+  }
+
+  fireSentinel(weapon, s) {
+    const player = this.game.player;
+    const maxN = s.maxSentinels || 2;
+    if (this.sentinels.length >= maxN) return;
+    const pr = this._preset(weapon);
+    const idx = this.sentinels.length;
+    const offAng = (idx / maxN) * Math.PI * 2;
+    const offR = 64;
+    this.sentinels.push({
+      offAng, offR, x: player.x + Math.cos(offAng) * offR, y: player.y + Math.sin(offAng) * offR,
+      range: s.range || 160, shotCD: s.shotCD || 0.6, shotTimer: 0,
+      damage: s.damage * player.damageMul, projSpeed: s.projSpeed || 300, pierce: 1,
+      life: s.duration || 8, maxLife: s.duration || 8, color: pr.color,
+      glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id,
+    });
+  }
+
+  fireOrb(weapon, s) {
+    const player = this.game.player;
+    const maxN = s.count || 1;
+    const pr = this._preset(weapon);
+    while (this.orbs.length < maxN) {
+      this.orbs.push({
+        angle: (this.orbs.length / maxN) * Math.PI * 2, orbitRadius: s.orbitRadius || 100,
+        shotCD: s.shotCD || 1, shotTimer: 0, damage: s.damage * player.damageMul,
+        projSpeed: s.projSpeed || 320, pierce: s.pierce || 1, color: pr.color,
+        glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id,
+      });
+    }
+  }
+
+  fireShockwave(weapon, s, awakened) {
+    const player = this.game.player;
+    const pr = this._preset(weapon);
+    this.shockwaves.push({
+      x: player.x, y: player.y, radius: s.radius || 180, width: s.width || 40, expand: s.expand || 0.6,
+      currentR: 0, damage: s.damage * player.damageMul, knock: s.knock || 40,
+      life: 2.0, maxLife: 2.0, hitSet: new Set(), color: pr.color, awaken: awakened ? weapon.id : null,
+    });
+  }
+
+  fireLifesteal(weapon, s, awakened) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    if (enemies.length === 0) return;
+    const pr = this._preset(weapon);
+    const n = s.count || 1;
+    for (let i = 0; i < n; i += 1) {
+      const target = this.pickTarget(i) || enemies[i % enemies.length];
+      const ang = target ? Math.atan2(target.y - player.y, target.x - player.x) : Math.random() * Math.PI * 2;
+      this.projectiles.push({
+        kind: 'blade', x: player.x, y: player.y, vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
+        speed: s.speed, damage: s.damage * player.damageMul, pierce: s.pierce || 2, life: 1.6, spin: 0, hitSet: new Set(),
+        tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        heal: s.heal || 0, awaken: awakened ? weapon.id : null,
+      });
+    }
+  }
+
+  fireRune(weapon, s) {
+    const player = this.game.player;
+    const maxN = s.maxRunes || 8;
+    if (this.runes.length >= maxN) return;
+    const pr = this._preset(weapon);
+    const idx = this.runes.length;
+    const ang = (idx / maxN) * Math.PI * 2;
+    const r = s.deployRange || 150;
+    this.runes.push({
+      x: player.x + Math.cos(ang) * r, y: player.y + Math.sin(ang) * r,
+      triggerRange: s.triggerRange || 30, burstRadius: s.burstRadius || 80,
+      damage: s.damage * player.damageMul, duration: s.duration || 8, life: s.duration || 8,
+      triggered: false, color: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+      awaken: weapon.id,
+    });
+  }
+
+  // ---------- 新实体桶 update ----------
+  updateSentinels(dt) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    for (let i = this.sentinels.length - 1; i >= 0; i -= 1) {
+      const sn = this.sentinels[i];
+      sn.life -= dt;
+      sn.x += (player.x + Math.cos(sn.offAng) * sn.offR - sn.x) * Math.min(1, dt * 4);
+      sn.y += (player.y + Math.sin(sn.offAng) * sn.offR - sn.y) * Math.min(1, dt * 4);
+      sn.shotTimer -= dt;
+      if (sn.shotTimer <= 0 && enemies.length > 0) {
+        const target = game.enemies.nearestTo(sn.x, sn.y, sn.range);
+        if (target) {
+          sn.shotTimer = sn.shotCD;
+          const dx = target.x - sn.x, dy = target.y - sn.y, d = Math.hypot(dx, dy) || 1;
+          this.projectiles.push({
+            kind: 'blade', x: sn.x, y: sn.y, vx: (dx / d) * sn.projSpeed, vy: (dy / d) * sn.projSpeed,
+            speed: sn.projSpeed, damage: sn.damage, pierce: sn.pierce, life: 1.5, spin: 0, hitSet: new Set(),
+            tint: sn.color, glowKey: sn.glowKey, glowColor: sn.glowColor, glowSize: sn.glowSize, awaken: sn.awaken,
+          });
+        }
+      }
+      if (sn.life <= 0) this.sentinels.splice(i, 1);
+    }
+  }
+
+  updateOrbs(dt) {
+    const game = this.game, player = game.player, enemies = game.enemies.enemies;
+    for (const o of this.orbs) {
+      o.angle += ORBIT_OMEGA * dt;
+      o.x = player.x + Math.cos(o.angle) * o.orbitRadius;
+      o.y = player.y + Math.sin(o.angle) * o.orbitRadius;
+      o.shotTimer -= dt;
+      if (o.shotTimer <= 0 && enemies.length > 0) {
+        const target = game.enemies.nearestTo(o.x, o.y, 420);
+        if (target) {
+          o.shotTimer = o.shotCD;
+          const dx = target.x - o.x, dy = target.y - o.y, d = Math.hypot(dx, dy) || 1;
+          this.projectiles.push({
+            kind: 'blade', x: o.x, y: o.y, vx: (dx / d) * o.projSpeed, vy: (dy / d) * o.projSpeed,
+            speed: o.projSpeed, damage: o.damage, pierce: o.pierce, life: 1.5, spin: 0, hitSet: new Set(),
+            tint: o.color, glowKey: o.glowKey, glowColor: o.glowColor, glowSize: o.glowSize, awaken: o.awaken,
+          });
+        }
+      }
+    }
+  }
+
+  updateShockwaves(dt) {
+    const game = this.game, player = game.player;
+    for (let i = this.shockwaves.length - 1; i >= 0; i -= 1) {
+      const sw = this.shockwaves[i];
+      sw.currentR += sw.radius * sw.expand * dt;
+      sw.life -= dt;
+      const targets = game.enemies.enemiesNear(sw.x, sw.y, sw.currentR + 30);
+      for (const e of targets) {
+        if (e.hp <= 0 || sw.hitSet.has(e)) continue;
+        const d = Math.hypot(e.x - sw.x, e.y - sw.y);
+        if (d <= sw.currentR && d >= sw.currentR - sw.width - e.radius) {
+          sw.hitSet.add(e);
+          let dmg = sw.damage;
+          if (sw.awaken === 'cataclysm') dmg += player.armor;
+          const kd = Math.hypot(e.x - sw.x, e.y - sw.y) || 1;
+          this.hitEnemy(e, dmg, (e.x - sw.x) / kd, (e.y - sw.y) / kd, '#ff9a3c');
+          if (sw.awaken === 'cataclysm' && e.knockResist < 1) { e.stunTimer = STUN_DURATION; }
+        }
+      }
+      if (sw.life <= 0 || sw.currentR > sw.radius + sw.width) this.shockwaves.splice(i, 1);
+    }
+  }
+
+  updateRunes(dt) {
+    const game = this.game;
+    for (let i = this.runes.length - 1; i >= 0; i -= 1) {
+      const rn = this.runes[i];
+      rn.life -= dt;
+      if (!rn.triggered) {
+        for (const e of game.enemies.enemiesNear(rn.x, rn.y, rn.triggerRange + 30)) {
+          if (e.hp > 0 && Math.hypot(e.x - rn.x, e.y - rn.y) < rn.triggerRange) {
+            rn.triggered = true;
+            this.spawnBurst(rn.x, rn.y, rn.burstRadius, rn.damage, rn.color);
+            break;
+          }
+        }
+      }
+      if (rn.life <= 0) this.runes.splice(i, 1);
+    }
+  }
+
+  updateMirageResidues(dt) {
+    const game = this.game;
+    for (let i = this.mirageResidues.length - 1; i >= 0; i -= 1) {
+      const m = this.mirageResidues[i];
+      m.life -= dt;
+      m.tickTimer -= dt;
+      if (m.tickTimer <= 0) {
+        m.tickTimer += m.tick;
+        for (const e of game.enemies.enemiesNear(m.x, m.y, m.radius + 30)) {
+          if (e.hp > 0 && Math.hypot(e.x - m.x, e.y - m.y) < m.radius) this.hitEnemy(e, m.damage, 0, 0, '#9b6cff');
+        }
+      }
+      if (m.life <= 0) this.mirageResidues.splice(i, 1);
+    }
+  }
+
+  updateBursts(dt) {
+    for (let i = this.bursts.length - 1; i >= 0; i -= 1) {
+      this.bursts[i].life -= dt;
+      if (this.bursts[i].life <= 0) this.bursts.splice(i, 1);
+    }
+  }
+
+  spawnBurst(x, y, radius, damage, color) {
+    const game = this.game;
+    for (const e of game.enemies.enemiesNear(x, y, radius + 30)) {
+      if (e.hp > 0 && Math.hypot(e.x - x, e.y - y) < radius) this.hitEnemy(e, damage, 0, 0, color);
+    }
+    this.bursts.push({ x, y, radius, life: 0.3, maxLife: 0.3, color });
+  }
+
+  _retributionAwaken(e, x, y, isCrit) {
+    if (!isCrit) return;
+    const player = this.game.player;
+    this.spawnBurst(x, y, 60, 40 * player.damageMul, '#ff5a5a');
+    if (e.hp > 0 && e.hp < e.maxHp * 0.3) {
+      if (e.isBoss || e.isElite) this.hitEnemy(e, e.maxHp * 0.15, 0, 0, '#ff5a5a');
+      else e.hp = 0;
+    }
+  }
+
+  // ---------- 新神器 tick（基础形态 + 觉醒门控） ----------
+  tickFatalis(weapon, dt) {
+    const player = this.game.player;
+    if (this.game.enemies.enemies.length === 0) return;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 0.9 * (player.cooldownMul || 1);
+      this.fireHoming({ visual: 'starfall', id: weapon.id }, { damage: 30, count: 4, cooldown: 0.9, speed: 390, pierce: 2, life: 2.2, homing: 240 }, this._awakened(weapon));
+    }
+  }
+  tickRetribution(weapon, dt) {
+    const player = this.game.player;
+    if (this.game.enemies.enemies.length === 0) return;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 1.2 * (player.cooldownMul || 1);
+      this.fireThrust({ visual: 'judgment', id: weapon.id }, { damage: 100, cooldown: 1.2, length: 180, width: 56 }, this._awakened(weapon));
+    }
+  }
+  tickMirage(weapon, dt) {
+    const player = this.game.player;
+    if (this.game.enemies.enemies.length === 0) return;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 1.0 * (player.cooldownMul || 1);
+      this.fireSplitting({ visual: 'phantom', id: weapon.id }, { damage: 34, count: 2, cooldown: 1.0, speed: 400, pierce: 2, splits: 4, splitMul: 0.6, splitSpeed: 320 }, this._awakened(weapon));
+    }
+  }
+  tickBastion(weapon, dt) {
+    const player = this.game.player;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 4.0 * (player.cooldownMul || 1);
+      this.fireSentinel({ visual: 'aegis', id: weapon.id }, { damage: 34, cooldown: 4.0, range: 240, shotCD: 0.5, projSpeed: 340, duration: 12, maxSentinels: 3 });
+    }
+  }
+  tickSentinel(weapon, dt) {
+    const player = this.game.player;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 3.2 * (player.cooldownMul || 1);
+      this.fireOrb({ visual: 'warden', id: weapon.id }, { damage: 30, cooldown: 3.2, count: 3, orbitRadius: 130, shotCD: 0.9, projSpeed: 360, pierce: 2 });
+    }
+    if (this._awakened(weapon)) {
+      weapon._pulse = (weapon._pulse || 0) - dt;
+      if (weapon._pulse <= 0) { weapon._pulse = 2.0; player.shield = Math.min(player.maxShield, player.shield + 2); }
+    }
+  }
+  tickCataclysm(weapon, dt) {
+    const player = this.game.player;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 2.2 * (player.cooldownMul || 1);
+      this.fireShockwave({ visual: 'maul', id: weapon.id }, { damage: 58, cooldown: 2.2, radius: 230, width: 44, expand: 0.6, knock: 60 }, this._awakened(weapon));
+    }
+  }
+  tickBloodpact(weapon, dt) {
+    const player = this.game.player;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 1.0 * (player.cooldownMul || 1);
+      this.fireLifesteal({ visual: 'sanguine', id: weapon.id }, { damage: 42, count: 2, cooldown: 1.0, speed: 390, pierce: 3, heal: 3 }, this._awakened(weapon));
+    }
+  }
+  tickAbsolution(weapon, dt) {
+    const player = this.game.player;
+    weapon.timer -= dt;
+    if (weapon.timer <= 0) {
+      weapon.timer += 2.2 * (player.cooldownMul || 1);
+      this.fireRune({ visual: 'resolve', id: weapon.id }, { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 110, deployRange: 180, duration: 12, maxRunes: 12 });
+    }
+    if (this._awakened(weapon)) {
+      let inRune = false;
+      for (const rn of this.runes) {
+        if (rn.awaken === weapon.id && Math.hypot(player.x - rn.x, player.y - rn.y) < rn.burstRadius) { inRune = true; break; }
+      }
+      player.absolutionDR = inRune ? 0.8 : 1;
+    }
   }
 
   render(ctx, cam) {
@@ -1050,6 +1575,69 @@ export class WeaponSystem {
         ctx.globalCompositeOperation = 'source-over';
       }
       ctx.restore();
+    }
+
+    // ===== v2.0 新实体渲染（哨卫/法球/冲击波/符文/魅影/爆裂）=====
+    // 哨卫（aegis/bastion）
+    for (const sn of this.sentinels) {
+      const sx = sn.x - cam.ox, sy = sn.y - cam.oy;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4;
+      ctx.drawImage(getGlowSprite(sn.glowKey, sn.glowSize, sn.glowColor), sx - sn.glowSize / 2, sy - sn.glowSize / 2, sn.glowSize, sn.glowSize);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      const img = sprite('weapon_aegis');
+      if (img) ctx.drawImage(img, sx - 16, sy - 16, 32, 32);
+      else { ctx.fillStyle = sn.color; ctx.beginPath(); ctx.arc(sx, sy, 12, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
+    // 法球（warden/sentinel）
+    for (const o of this.orbs) {
+      const sx = o.x - cam.ox, sy = o.y - cam.oy;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45;
+      ctx.drawImage(getGlowSprite(o.glowKey, o.glowSize, o.glowColor), sx - o.glowSize / 2, sy - o.glowSize / 2, o.glowSize, o.glowSize);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      const img = sprite('weapon_warden');
+      if (img) ctx.drawImage(img, sx - 12, sy - 12, 24, 24);
+      else { ctx.fillStyle = o.color; ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
+    // 冲击波（maul/cataclysm）
+    for (const sw of this.shockwaves) {
+      const sx = sw.x - cam.ox, sy = sw.y - cam.oy, a = Math.max(0, sw.life / sw.maxLife);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 * a;
+      ctx.strokeStyle = sw.color; ctx.lineWidth = Math.max(2, sw.width * 0.4);
+      ctx.beginPath(); ctx.arc(sx, sy, sw.currentR, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+    }
+    // 符文（resolve/absolution）
+    for (const rn of this.runes) {
+      const sx = rn.x - cam.ox, sy = rn.y - cam.oy, a = Math.max(0, rn.life / rn.maxLife);
+      ctx.save();
+      ctx.translate(sx, sy); ctx.rotate(this.game.time * 0.8);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * a;
+      ctx.drawImage(getGlowSprite(rn.glowKey, rn.burstRadius * 2, rn.glowColor), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
+      ctx.globalAlpha = 0.6 * a; ctx.strokeStyle = rn.color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, rn.triggerRange, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+    }
+    // 魅影残留（mirage）
+    for (const m of this.mirageResidues) {
+      const sx = m.x - cam.ox, sy = m.y - cam.oy, a = Math.max(0, m.life / m.duration);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 * a;
+      ctx.fillStyle = '#9b6cff';
+      ctx.beginPath(); ctx.arc(sx, sy, m.radius * (0.85 + Math.sin(this.game.time * 6) * 0.06), 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+    }
+    // 爆裂环（retribution 等）
+    for (const b of this.bursts) {
+      const sx = b.x - cam.ox, sy = b.y - cam.oy, a = Math.max(0, b.life / b.maxLife);
+      const r = b.radius * (1 - a * 0.4);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.7 * a;
+      ctx.strokeStyle = b.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
     }
   }
 }

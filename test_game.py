@@ -80,6 +80,8 @@ with sync_playwright() as p:
     # --- 资产键存在性：立绘 + 祭坛图标（UX 改造）---
     expect('6 角色全身立绘键存在', page.evaluate("""() => ['portrait_wanderer','portrait_saint','portrait_berserker','portrait_thunder','portrait_bloodthirsty','portrait_apostle'].every(k => !!(window.__assets && window.__assets[k]))"""))
     expect('7 祭坛专属图标键存在', page.evaluate("""() => ['altar_hp','altar_spd','altar_dmg','altar_gain','altar_dual','altar_slot_weapon','altar_slot_passive'].every(k => !!(window.__assets && window.__assets[k]))"""))
+    # --- v2.0 神器扩充：16 张新精灵键存在（武器8 + 神器8）---
+    expect('v2.0 16 新精灵键存在(武器8+神器8)', page.evaluate("""() => ['weapon_starfall','weapon_judgment','weapon_phantom','weapon_aegis','weapon_warden','weapon_maul','weapon_sanguine','weapon_resolve','art_fatalis','art_retribution','art_mirage','art_bastion','art_sentinel','art_cataclysm','art_bloodpact','art_absolution'].every(k => !!(window.__assets && window.__assets[k]))"""))
     # --- 实体美术 A1/A2/A4：新精灵键存在 + 数据接线 ---
     expect('A1 3 Boss 专属精灵键存在', page.evaluate("""() => ['boss_baron','boss_queen','boss_overlord'].every(k => !!(window.__assets && window.__assets[k]))"""))
     expect('A2 宝箱专属精灵键存在', page.evaluate("() => !!(window.__assets && window.__assets['chest'])"))
@@ -259,17 +261,25 @@ with sync_playwright() as p:
     }""")
     weighted = page.evaluate("""() => {
       const g = window.__game;
-      let weaponHits = 0, bladeHits = 0;
+      let weaponHits = 0, bladeHits = 0, newHits = 0;
       const N = 300;
       for (let i = 0; i < N; i++) {
         const opts = g.upgrade.rollOptions();
         if (opts.some(o => o.isWeapon)) weaponHits++;
         if (opts.some(o => o.id === 'blade')) bladeHits++;
+        if (opts.some(o => o.kind === 'weapon-new')) newHits++;
       }
-      return { weaponHits, bladeHits, N };
+      const pool = g.upgrade.buildPool();
+      const bladeW = pool.find(o => o.id === 'blade').weight;
+      const newW = pool.find(o => o.kind === 'weapon-new').weight;
+      return { weaponHits, bladeHits, newHits, N, bladeW, newW };
     }""")
     expect('每层至少1个武器向(配额)', weighted['weaponHits'] == weighted['N'])
-    expect('加权倾向已有武器(blade命中率>35%)', weighted['bladeHits'] > weighted['N'] * 0.35)
+    # v2.0(16武器 + D4)：已拥有单把武器权重(5)仍高于任意单把新武器(3)，
+    # 加权倾向已有武器不反转；同时 D4 让新武器整体被频繁提供（加速 build 收敛），且已拥有武器仍会出现。
+    expect('已拥有武器单权重>单新武器(D4不反转)', weighted['bladeW'] > weighted['newW'])
+    expect('新武器被频繁提供(D4生效)', weighted['newHits'] > 0)
+    expect('已拥有武器仍会出现', weighted['bladeHits'] > 0)
 
     # --- S3 槽位上限：满 6 武器后新武器卡消失，但已有武器升级卡仍在 ---
     page.evaluate("""() => {
@@ -316,7 +326,8 @@ with sync_playwright() as p:
       const wnL = late.find(o => o.kind === 'weapon-new').weight;
       return { wnE, wnL };
     }""")
-    expect('前期新武器权重=2(未动)', lateW['wnE'] == 2)
+    # v2.0 D4：拥有武器少(仅 blade)时新武器权重 ×1.5 = 2*1.5 = 3；后期(t=900)再叠 late 压低 → <1
+    expect('前期新武器权重=3(D4加成)', lateW['wnE'] == 3)
     expect('后期新武器权重下降(<1)', lateW['wnL'] < 1)
     # --- 分类权重(D5/§5.3)：已投资某分类→同系被动权重上升；公式 w = 1 + Δ·catCount[category] ---
     catW = page.evaluate("""() => {
@@ -522,33 +533,41 @@ with sync_playwright() as p:
     dismiss_upgrades(page, halt=True)
     page.click('#btn-codex')
     page.wait_for_timeout(500)
-    # 游戏图鉴 一级菜单：3 张分类卡片
+    # 游戏图鉴 一级菜单：4 张分类卡片（武器/被动/神器/怪物）
     expect('游戏图鉴一级菜单可见', page.evaluate("() => !document.getElementById('codex-hub').classList.contains('hidden')"))
-    expect('图鉴一级菜单 3 张分类卡', page.evaluate("() => document.querySelectorAll('#codex-hub-grid .codex-hub-card').length == 3"))
-    # 三卡 icon 已加载（验证资源缺失导致的空白卡片已修复：iconURL 返回非空 data URL 且实际绘制）
-    expect('图鉴三卡 icon 已加载(非空白)', page.evaluate("""() => {
-        const imgs = [...document.querySelectorAll('#codex-hub-grid .codex-hub-card img')];
-        return imgs.length === 3 && imgs.every(i => (i.getAttribute('src')||'').startsWith('data:image') && i.naturalWidth > 0);
+    expect('图鉴一级菜单 4 张分类卡', page.evaluate("() => document.querySelectorAll('#codex-hub-grid .codex-hub-card').length == 4"))
+    # 武器卡 icon 已加载（验证资源缺失导致的空白卡片已修复：iconURL 返回非空 data URL 且实际绘制）
+    expect('图鉴武器卡 icon 已加载(非空白)', page.evaluate("""() => {
+        const imgs = [...document.querySelectorAll('#codex-hub-grid .codex-hub-card[data-target="weapons"] img')];
+        return imgs.length === 1 && (imgs[0].getAttribute('src')||'').startsWith('data:image') && imgs[0].naturalWidth > 0;
     }"""))
-    # 点「武器图鉴」→ 武器/被动/神器 共 25 张 + 分类配色标签
+    # 点「武器图鉴」→ 16 把武器 + 16 个配色标签
     page.click('#codex-hub-grid .codex-hub-card[data-target="weapons"]')
     page.wait_for_timeout(300)
-    codex = page.evaluate("""() => {
-      const secs = [...document.querySelectorAll('#codex-weapons .codex-section')];
-      const byTitle = {};
-      for (const s of secs) byTitle[s.querySelector('h3').textContent] = s.querySelectorAll('.codex-card').length;
-      return { total: document.querySelectorAll('#codex-weapons .codex-card').length, byTitle,
-               tags: document.querySelectorAll('#codex-weapons .cat-tag').length };
-    }""")
-    expect('武器图鉴 卡片总数 31 (8武器+13被动+10神器)', codex['total'] == 31)
-    expect('武器图鉴 武器8张', codex['byTitle'].get('武器') == 8)
-    expect('武器图鉴 被动13张', codex['byTitle'].get('被动') == 13)
-    expect('武器图鉴 神器10张', codex['byTitle'].get('神器') == 10)
-    expect('武器图鉴 分类配色标签 31 个', codex['tags'] == 31)
-    expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('#codex-weapons .codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
-    # 怪物图鉴
+    wcodex = page.evaluate("""() => ({
+      total: document.querySelectorAll('#codex-weapons .codex-card').length,
+      tags: document.querySelectorAll('#codex-weapons .cat-tag').length,
+    })""")
+    expect('武器图鉴 16 张武器卡', wcodex['total'] == 16)
+    expect('武器图鉴 16 个配色标签', wcodex['tags'] == 16)
     page.click('#btn-codex-weapons-topback')
     page.wait_for_timeout(200)
+    # 点「神器图鉴」→ 18 个神器（含圣洁吞噬已解锁）
+    page.click('#codex-hub-grid .codex-hub-card[data-target="artifacts"]')
+    page.wait_for_timeout(300)
+    expect('图鉴 圣洁吞噬 已解锁', page.evaluate("""() => [...document.querySelectorAll('#codex-artifacts .codex-card')].some(c => !c.classList.contains('locked') && c.textContent.includes('圣洁吞噬'))"""))
+    acodex = page.evaluate("() => document.querySelectorAll('#codex-artifacts .codex-card').length")
+    expect('神器图鉴 18 张', acodex == 18)
+    page.click('#btn-codex-artifacts-topback')
+    page.wait_for_timeout(200)
+    # 点「被动图鉴」→ 13 张被动
+    page.click('#codex-hub-grid .codex-hub-card[data-target="passives"]')
+    page.wait_for_timeout(300)
+    pcodex = page.evaluate("() => document.querySelectorAll('#codex-passives .codex-card').length")
+    expect('被动图鉴 13 张', pcodex == 13)
+    page.click('#btn-codex-passives-topback')
+    page.wait_for_timeout(200)
+    # 怪物图鉴（已回到一级菜单）
     page.click('#codex-hub-grid .codex-hub-card[data-target="monsters"]')
     page.wait_for_timeout(300)
     expect('怪物图鉴 含 Boss 分组与卡片', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('血色男爵')"))
