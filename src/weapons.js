@@ -43,6 +43,108 @@ function getGlowSprite(key, size, color) {
     _glowCache.set(ck, c); return c;
   }
 
+  // v2.2 子弹/形态差异化：每种武器+神器独立剪影，离屏缓存一次渲染（性能安全：无逐帧 path 重描、无 shadowBlur、无分配）。
+  // 每个 shapeKey 对应一个「在 size×size 画布中心用 col 画剪影」的函数；getShapeSprite 仅首次渲染并缓存，每帧只 drawImage+旋转。
+  const SHAPE_DRAWERS = {
+    // 星陨：八方星芒
+    star(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      for (let i = 0; i < 8; i += 1) {
+        const a = (i / 8) * Math.PI * 2, r1 = s * 0.46, r2 = s * 0.15;
+        g.beginPath();
+        g.moveTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1);
+        g.lineTo(c + Math.cos(a + 0.20) * r2, c + Math.sin(a + 0.20) * r2);
+        g.lineTo(c + Math.cos(a + Math.PI / 4) * r2, c + Math.sin(a + Math.PI / 4) * r2);
+        g.lineTo(c + Math.cos(a + Math.PI / 4 - 0.20) * r2, c + Math.sin(a + Math.PI / 4 - 0.20) * r2);
+        g.closePath(); g.fill();
+      }
+      g.beginPath(); g.arc(c, c, s * 0.12, 0, Math.PI * 2); g.fill();
+    },
+    // 终焉(觉醒)：带尾迹彗星
+    comet(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c, s * 0.06); g.lineTo(c + s * 0.12, s * 0.58); g.lineTo(c - s * 0.12, s * 0.58); g.closePath(); g.fill();
+      g.beginPath(); g.arc(c, s * 0.42, s * 0.24, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.arc(c, s * 0.40, s * 0.09, 0, Math.PI * 2); g.fill();
+    },
+    // 幻影：不对称碎晶
+    shard(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c, s * 0.06); g.lineTo(s * 0.82, s * 0.5); g.lineTo(c, s * 0.72); g.lineTo(s * 0.30, s * 0.62); g.lineTo(s * 0.18, s * 0.30); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.moveTo(c, s * 0.12); g.lineTo(s * 0.55, s * 0.5); g.lineTo(c, s * 0.6); g.closePath(); g.fill();
+    },
+    // 幻界(觉醒)：双重残影
+    ghost(g, s, col) {
+      const c = s / 2;
+      g.globalAlpha = 0.55; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c - s * 0.04, s * 0.10); g.lineTo(s * 0.66, s * 0.5); g.lineTo(c - s * 0.04, s * 0.66); g.lineTo(s * 0.20, s * 0.55); g.closePath(); g.fill();
+      g.globalAlpha = 0.9; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c + s * 0.10, s * 0.12); g.lineTo(s * 0.86, s * 0.52); g.lineTo(c + s * 0.10, s * 0.70); g.lineTo(s * 0.30, s * 0.58); g.closePath(); g.fill();
+      g.globalAlpha = 1;
+    },
+    // 血怒：獠牙滴血
+    fang(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c, s * 0.08); g.lineTo(s * 0.78, s * 0.5); g.lineTo(c, s * 0.42); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(c, s * 0.42); g.lineTo(s * 0.34, s * 0.5); g.lineTo(c, s * 0.95); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.4)'; g.beginPath(); g.moveTo(c, s * 0.12); g.lineTo(s * 0.55, s * 0.5); g.lineTo(c, s * 0.42); g.closePath(); g.fill();
+    },
+    // 血契(觉醒)：血心
+    bloodheart(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      g.beginPath(); g.moveTo(c, s * 0.82);
+      g.bezierCurveTo(s * 0.05, s * 0.40, s * 0.30, s * 0.10, c, s * 0.38);
+      g.bezierCurveTo(s * 0.70, s * 0.10, s * 0.95, s * 0.40, c, s * 0.82);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.arc(s * 0.40, s * 0.34, s * 0.07, 0, Math.PI * 2); g.fill();
+    },
+    // 壁垒哨卫弹：晶棱弩矢
+    bolt(g, s, col) {
+      const c = s / 2; g.fillStyle = col;
+      g.beginPath(); g.moveTo(s * 0.88, c); g.lineTo(c, s * 0.18); g.lineTo(s * 0.34, c); g.lineTo(c, s * 0.82); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.6)'; g.beginPath(); g.moveTo(s * 0.88, c); g.lineTo(c, s * 0.18); g.lineTo(c * 0.72, c); g.closePath(); g.fill();
+    },
+    // 永恒壁垒(觉醒)：六边结界矢
+    ward(g, s, col) {
+      const c = s / 2, R = s * 0.42; g.fillStyle = col; g.beginPath();
+      for (let i = 0; i < 6; i += 1) { const a = (i / 6) * Math.PI * 2 - Math.PI / 2; const x = c + Math.cos(a) * R, y = c + Math.sin(a) * R; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(c, c, s * 0.12, 0, Math.PI * 2); g.fill();
+    },
+    // 守望法球弹：环纹能量球
+    orbiter(g, s, col) {
+      const c = s / 2; g.fillStyle = col; g.beginPath(); g.arc(c, c, s * 0.28, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = s * 0.06; g.beginPath(); g.arc(c, c, s * 0.40, 0, Math.PI * 2); g.stroke();
+    },
+    // 回响守望(觉醒)：眼形矢
+    eyebolt(g, s, col) {
+      const c = s / 2; g.fillStyle = col; g.beginPath(); g.ellipse(c, c, s * 0.44, s * 0.26, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#0a0a0a'; g.beginPath(); g.arc(c, c, s * 0.15, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.arc(c - s * 0.05, c - s * 0.04, s * 0.05, 0, Math.PI * 2); g.fill();
+    },
+  };
+  const _shapeCache = new Map();
+  function getShapeSprite(shapeKey, size, color) {
+    if (!SHAPE_DRAWERS[shapeKey]) return null;
+    const ck = shapeKey + '_' + size + '_' + color;
+    if (_shapeCache.has(ck)) return _shapeCache.get(ck);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    SHAPE_DRAWERS[shapeKey](c.getContext('2d'), size, color);
+    _shapeCache.set(ck, c);
+    return c;
+  }
+  // 投射物形状映射：基础武器 → 基础剪影；觉醒(神器) → 更精致的神器剪影
+  function projShape(visual, awakenId) {
+    switch (visual) {
+      case 'starfall': return awakenId === 'fatalis' ? 'comet' : 'star';
+      case 'phantom': return awakenId === 'mirage' ? 'ghost' : 'shard';
+      case 'sanguine': return awakenId === 'bloodpact' ? 'bloodheart' : 'fang';
+      case 'aegis': return awakenId === 'bastion' ? 'ward' : 'bolt';
+      case 'warden': return awakenId === 'sentinel' ? 'eyebolt' : 'orbiter';
+      default: return null;
+    }
+  }
+
   // ===== v2.0 性能护栏（RL2）：生成桶硬上限 + oldest-first 回收 =====
   // 与 CONFIG 同源（CONFIG 已含 PROJECTILE_CAP/POOL_CAP/BOLT_CAP/SLASH_CAP/VIAL_CAP 等）；
   // 模块级常量便于武器内聚引用，避免热路径跨模块查找。
@@ -784,7 +886,7 @@ export class WeaponSystem {
                 vx: Math.cos(a) * p.splitSpeed, vy: Math.sin(a) * p.splitSpeed,
                 speed: p.splitSpeed, damage: p.damage * p.splitMul, pierce: 1, life: 1.0, spin: 0,
                 hitSet: new Set(), tint: p.tint, glowKey: p.glowKey, glowColor: p.glowColor, glowSize: p.glowSize,
-                awaken: p.awaken,
+                shape: p.shape, awaken: p.awaken,
               });
             }
           }
@@ -932,6 +1034,7 @@ export class WeaponSystem {
         speed: s.speed, homing: s.homing || 200,
         damage: s.damage * player.damageMul, pierce: s.pierce || 1, life: s.life || 2, spin: 0,
         hitSet: new Set(), tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        shape: projShape(weapon.visual, awakened ? weapon.id : null),
         awaken: awakened ? weapon.id : null,
       });
     }
@@ -960,6 +1063,7 @@ export class WeaponSystem {
         kind: 'blade', x: player.x, y: player.y, vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
         speed: s.speed, damage: s.damage * player.damageMul, pierce: s.pierce || 1, life: 1.6, spin: 0, hitSet: new Set(),
         tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        shape: projShape(weapon.visual, awakened ? weapon.id : null),
         splits: s.splits || 0, splitMul: s.splitMul || 0.6, splitSpeed: s.splitSpeed || 300,
         awaken: awakened ? weapon.id : null,
       });
@@ -979,7 +1083,7 @@ export class WeaponSystem {
       range: s.range || 160, shotCD: s.shotCD || 0.6, shotTimer: 0,
       damage: s.damage * player.damageMul, projSpeed: s.projSpeed || 300, pierce: 1,
       life: s.duration || 8, maxLife: s.duration || 8, color: pr.color,
-      glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id,
+      glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id, visual: weapon.visual,
     });
   }
 
@@ -992,7 +1096,7 @@ export class WeaponSystem {
         angle: (this.orbs.length / maxN) * Math.PI * 2, orbitRadius: s.orbitRadius || 100,
         shotCD: s.shotCD || 1, shotTimer: 0, damage: s.damage * player.damageMul,
         projSpeed: s.projSpeed || 320, pierce: s.pierce || 1, color: pr.color,
-        glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id,
+        glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize, awaken: weapon.id, visual: weapon.visual,
       });
     }
   }
@@ -1019,6 +1123,7 @@ export class WeaponSystem {
         kind: 'blade', x: player.x, y: player.y, vx: Math.cos(ang) * s.speed, vy: Math.sin(ang) * s.speed,
         speed: s.speed, damage: s.damage * player.damageMul, pierce: s.pierce || 2, life: 1.6, spin: 0, hitSet: new Set(),
         tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+        shape: projShape(weapon.visual, awakened ? weapon.id : null),
         heal: s.heal || 0, awaken: awakened ? weapon.id : null,
       });
     }
@@ -1058,7 +1163,8 @@ export class WeaponSystem {
           this.projectiles.push({
             kind: 'blade', x: sn.x, y: sn.y, vx: (dx / d) * sn.projSpeed, vy: (dy / d) * sn.projSpeed,
             speed: sn.projSpeed, damage: sn.damage, pierce: sn.pierce, life: 1.5, spin: 0, hitSet: new Set(),
-            tint: sn.color, glowKey: sn.glowKey, glowColor: sn.glowColor, glowSize: sn.glowSize, awaken: sn.awaken,
+            tint: sn.color, glowKey: sn.glowKey, glowColor: sn.glowColor, glowSize: sn.glowSize,
+            shape: projShape(sn.visual, sn.awaken), awaken: sn.awaken,
           });
         }
       }
@@ -1081,7 +1187,8 @@ export class WeaponSystem {
           this.projectiles.push({
             kind: 'blade', x: o.x, y: o.y, vx: (dx / d) * o.projSpeed, vy: (dy / d) * o.projSpeed,
             speed: o.projSpeed, damage: o.damage, pierce: o.pierce, life: 1.5, spin: 0, hitSet: new Set(),
-            tint: o.color, glowKey: o.glowKey, glowColor: o.glowColor, glowSize: o.glowSize, awaken: o.awaken,
+            tint: o.color, glowKey: o.glowKey, glowColor: o.glowColor, glowSize: o.glowSize,
+            shape: projShape(o.visual, o.awaken), awaken: o.awaken,
           });
         }
       }
@@ -1482,21 +1589,32 @@ export class WeaponSystem {
         ctx.shadowBlur = 10;
         if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size);
         else { ctx.fillStyle = '#ffd76a'; ctx.fillRect(-size / 2, -3, size, 6); }
-      } else if (p.kind === 'blade' && p.tint) {
-        // 神器专属飞弹：菱形碎片 + additive 缓存辉光，彻底移除逐帧 shadowBlur
+      } else if (p.kind === 'blade' && (p.shape || p.tint)) {
+        // v2.2 差异化子弹：有 shape 用缓存剪影 sprite（每武器/神器独立形态），否则回落菱形（遗留武器保持原观感）
         ctx.rotate(Math.atan2(p.vy, p.vx));
         const size = 26;
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5;
-        ctx.drawImage(getGlowSprite('crimson', 44, 'rgba(255,59,107,0.9)'), -22, -22, 44, 44);
-        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = p.tint;
-        ctx.beginPath();
-        ctx.moveTo(size / 2, 0);
-        ctx.lineTo(0, -size / 3);
-        ctx.lineTo(-size / 2, 0);
-        ctx.lineTo(0, size / 3);
-        ctx.closePath();
-        ctx.fill();
+        if (p.glowKey) {
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5;
+          ctx.drawImage(getGlowSprite(p.glowKey, p.glowSize || 44, p.glowColor || 'rgba(255,255,255,0.9)'), -(p.glowSize || 44) / 2, -(p.glowSize || 44) / 2, p.glowSize || 44, p.glowSize || 44);
+          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        } else {
+          // 遗留武器（tempest/crimson/sepulcher）无 glowKey，保持原硬编码 crimson 辉光观感
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5;
+          ctx.drawImage(getGlowSprite('crimson', 44, 'rgba(255,59,107,0.9)'), -22, -22, 44, 44);
+          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        }
+        const shp = p.shape ? getShapeSprite(p.shape, size, p.tint) : null;
+        if (shp) ctx.drawImage(shp, -size / 2, -size / 2, size, size);
+        else {
+          ctx.fillStyle = p.tint;
+          ctx.beginPath();
+          ctx.moveTo(size / 2, 0);
+          ctx.lineTo(0, -size / 3);
+          ctx.lineTo(-size / 2, 0);
+          ctx.lineTo(0, size / 3);
+          ctx.closePath();
+          ctx.fill();
+        }
       } else if (p.kind === 'scythe') {
         // 亡魂镰刀：骨白镰刀贴图自旋绘制（复用 axe 的 drawImage+rotate 写法，尺寸按 scythe 贴图）
         const img = sprite('scythe');
@@ -1588,6 +1706,15 @@ export class WeaponSystem {
       const img = sprite('weapon_aegis');
       if (img) ctx.drawImage(img, sx - 16, sy - 16, 32, 32);
       else { ctx.fillStyle = sn.color; ctx.beginPath(); ctx.arc(sx, sy, 12, 0, Math.PI * 2); ctx.fill(); }
+      // 永恒壁垒(觉醒)：六边结界纹叠加，区别于基础哨卫
+      if (sn.awaken === 'bastion') {
+        ctx.globalAlpha = 0.85; ctx.strokeStyle = '#a9e6ff'; ctx.lineWidth = 2;
+        const R = 19;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i += 1) { const ang = (i / 6) * Math.PI * 2 - Math.PI / 2; const x = sx + Math.cos(ang) * R, y = sy + Math.sin(ang) * R; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+        ctx.closePath(); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       ctx.restore();
     }
     // 法球（warden/sentinel）
@@ -1600,6 +1727,11 @@ export class WeaponSystem {
       const img = sprite('weapon_warden');
       if (img) ctx.drawImage(img, sx - 12, sy - 12, 24, 24);
       else { ctx.fillStyle = o.color; ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.fill(); }
+      // 回响守望(觉醒)：眼形瞳孔叠加，区别于基础法球
+      if (o.awaken === 'sentinel') {
+        ctx.fillStyle = '#9affce'; ctx.beginPath(); ctx.ellipse(sx, sy, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#06210f'; ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
     }
     // 冲击波（maul/cataclysm）
@@ -1607,8 +1739,21 @@ export class WeaponSystem {
       const sx = sw.x - cam.ox, sy = sw.y - cam.oy, a = Math.max(0, sw.life / sw.maxLife);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 * a;
-      ctx.strokeStyle = sw.color; ctx.lineWidth = Math.max(2, sw.width * 0.4);
-      ctx.beginPath(); ctx.arc(sx, sy, sw.currentR, 0, Math.PI * 2); ctx.stroke();
+      if (sw.awaken === 'cataclysm') {
+        // 碎甲天罚(觉醒)：红色锯齿分段环，区别于 maul 橙色平滑环
+        ctx.strokeStyle = '#ff5a3c'; ctx.lineWidth = Math.max(3, sw.width * 0.5);
+        const seg = 30; ctx.beginPath();
+        for (let i = 0; i <= seg; i += 1) {
+          const ang = (i / seg) * Math.PI * 2;
+          const rr = sw.currentR + (i % 2 ? 7 : -7);
+          const x = sx + Math.cos(ang) * rr, y = sy + Math.sin(ang) * rr;
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = sw.color; ctx.lineWidth = Math.max(2, sw.width * 0.4);
+        ctx.beginPath(); ctx.arc(sx, sy, sw.currentR, 0, Math.PI * 2); ctx.stroke();
+      }
       ctx.globalCompositeOperation = 'source-over'; ctx.restore();
     }
     // 符文（resolve/absolution）
@@ -1616,11 +1761,27 @@ export class WeaponSystem {
       const sx = rn.x - cam.ox, sy = rn.y - cam.oy, a = Math.max(0, rn.life / rn.maxLife);
       ctx.save();
       ctx.translate(sx, sy); ctx.rotate(this.game.time * 0.8);
-      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * a;
-      ctx.drawImage(getGlowSprite(rn.glowKey, rn.burstRadius * 2, rn.glowColor), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
-      ctx.globalAlpha = 0.6 * a; ctx.strokeStyle = rn.color; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, rn.triggerRange, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+      if (rn.awaken === 'absolution') {
+        // 镇魂钟鸣(觉醒)：红色圆环内嵌血色红钟（替换原光晕圈）
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4 * a;
+        ctx.drawImage(getGlowSprite('absolution', rn.burstRadius * 2, 'rgba(255,59,92,0.9)'), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.9 * a;
+        const bs = rn.burstRadius * 0.92;
+        ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, rn.burstRadius * 0.78, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#b01230';
+        ctx.beginPath(); ctx.arc(0, -bs * 0.08, bs * 0.28, Math.PI, 0); ctx.lineTo(bs * 0.34, bs * 0.42); ctx.lineTo(-bs * 0.34, bs * 0.42); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ff3b5c';
+        ctx.beginPath(); ctx.moveTo(-bs * 0.30, bs * 0.08); ctx.lineTo(bs * 0.30, bs * 0.08); ctx.lineTo(bs * 0.22, bs * 0.46); ctx.lineTo(-bs * 0.22, bs * 0.46); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffd0d8'; ctx.beginPath(); ctx.arc(0, bs * 0.54, bs * 0.06, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * a;
+        ctx.drawImage(getGlowSprite(rn.glowKey, rn.burstRadius * 2, rn.glowColor), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
+        ctx.globalAlpha = 0.6 * a; ctx.strokeStyle = rn.color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, rn.triggerRange, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
     }
     // 魅影残留（mirage）
     for (const m of this.mirageResidues) {
