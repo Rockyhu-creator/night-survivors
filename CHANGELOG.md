@@ -5,6 +5,23 @@
 
 ---
 
+## v2.2（2026-07-27 · `fb0a75888537bb926d0d3feaf6f320f06b223219`）
+
+> 渲染差异化热修：v2.0 新增的 8 件武器中 5 把走「菱形弹丸 + 换色」分支、辨识度低；8 件新神器觉醒后弹幕形态与基础武器完全一致、缺乏神器特征；镇魂钟鸣(absolution) 沿用 resolve 的「光晕圆圈」、无专属视觉。本次为 5 把新武器弹丸 + 8 件神器觉醒弹幕/形态 + 钟鸣重绘差异化剪影，全走离屏缓存 sprite 保障性能。
+
+### 调整
+- **5 把新武器弹丸差异化（src/weapons.js `SHAPE_DRAWERS` + `getShapeSprite` + `projShape`）**：新增 10 个离屏形状工厂（star/comet/shard/ghost/fang/bloodheart/bolt/ward/orbiter/eyebolt）与 `getShapeSprite(shapeKey,size,color)` 缓存；`projShape(visual, awakenId)` 按武器 visual 映射专属剪影——星陨 starfall=八方星芒(star)、幻影 phantom=不对称碎晶(shard)、血怒 sanguine=獠牙滴血(fang)、壁垒 aegis=晶棱弩矢(bolt)、守望 warden=环纹能量球(orbiter)。5 个 `fire*` 发射(追踪/分裂/吸血/哨卫/法球) 全部挂 `shape` 字段，渲染分支 `kind:'blade' && (shape||tint)` 改为 shape-aware 绘制（非 shape 时回落原菱形 fallback，保留遗留武器 crimson 等观感）。分裂碎片继承母弹 `shape`（幻影分身残影可见）。
+- **8 件神器觉醒弹幕/形态差异化（awaken 驱动渲染）**：神器觉醒 id 此前仅用于伤害，本次同步驱动渲染差异——① 终焉 fatalis：星陨觉醒弹丸=带尾迹彗星(comet) ② 幻界 mirage：幻影觉醒弹丸=双重残影(ghost) ③ 血契 bloodpact：血怒觉醒弹丸=血心(bloodheart) ④ 堡垒 bastion：壁垒哨卫实体叠绘六边结界纹(青 #a9e6ff，R=19) ⑤ 哨卫 sentinel：守望法球实体叠绘眼形瞳孔(绿 #9affce 椭圆+黑瞳) ⑥ 灭世 cataclysm：重锤冲击波觉醒=红色(#ff5a3c) 锯齿分段环(30 段 ±7 锯齿，区别于 maul 橙色平滑环) ⑦ 血契 bloodpact：血怒吸血弹幕觉醒=血心 ⑧ 赦罪 absolution：决意符文觉醒=红圈血钟（见下）。
+- **镇魂钟鸣 absolution 重绘（src/weapons.js 符文渲染分支）**：弃用原「光晕圆圈」效果，改为**红色圆环(#ff3b5c，stroke 3) 内嵌血色红钟**——穹顶 arc + 钟身 path + 钟舌圆点；base resolve 走原 generic ring 不变。钟鸣从此有专属神器视觉，与基础符文爆发明确区分。
+
+### 优化
+- **弹丸形状全缓存（仿 `getGlowSprite` 范式）**：`getShapeSprite` 首次离屏渲染后 Map 缓存，每帧仅 `drawImage` + `ctx.rotate(atan2(vy,vx))` 旋转，无逐帧 `shadowBlur`、无热路径 path 重描、无逐帧分配，彻底规避 Canvas2D 头号性能杀手；神器形态差异用轻量叠加绘制，均在 `enforceCaps()` 桶内（红/蓝配色：基础武器=原色，神器觉醒=更亮一档 ARTIFACT_TINT）。RL2 性能红线未破。
+
+### 验证
+- `node --check src/weapons.js` 通过；`npx vite build --outDir .ns-build-22` 17 模块零错误(198ms)；e2e(test_game.py) 全 PASS、控制台零报错；渲染探针(`http://localhost:5173/?debug` → `window.__game.weapons` 装全 8 武器+8 神器、各触发基础+觉醒形态) 零报错截图确认差异可见（星/彗星/碎晶/残影/獠牙/血心/弩矢/结界纹/眼形/锯齿红环/红圈血钟）。红线未碰（未动 15 张 AI_OWNED、未跑 gen_assets.sh、未跑 `npm run build` 清 dist、仅改 src/weapons.js）。
+
+---
+
 ## v2.1（2026-07-27 · `4f3f6a5437f6d90983243de96cb59e71b0cc64c0`）
 
 > 纯美术热修：v2.0 新增的 8 件神器图标此前共用同一「纹章盾」底形（仅换色与内嵌元素），辨识度不足。本次按各神器名称/特性重绘为差异化剪影，配色与暗描边风格不变。

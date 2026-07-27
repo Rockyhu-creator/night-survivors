@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-26（v2.0 武器 8→16 / 神器 10→18 + RL2 性能硬上限 + 觉醒门控后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-27（v2.2 武器弹丸 + 8 神器觉醒弹幕/形态差异化 + 镇魂钟鸣红圈血钟 + getShapeSprite 离屏缓存保性能后）
 
 ---
 
@@ -303,7 +303,7 @@ git push origin main
 
 > **第 10 神器：亡魂收割者 Reaper's Scythe（v0.37）**：新增 scythe 武器（亡魂镰刀，回旋镰刀投射物=大范围回旋镰斩）+ reaper 神器（由 scythe 武器 + 贪婪之魂 被动进化，配方见 `RECIPES`）。觉醒后 scythe 攻击追加：① 撕裂 DOT（`entities.js` 敌人身上的 `rend` 字段，每帧按 `dps*dt` 结算）② 收割回能（被 scythe/rend 击杀且持有 reaper 时归还少量 HP）。两项觉醒效果均门控 `hasArtifact('reaper')`，基础 scythe 不受影响。骨白 #e8e0c0 + 幽魂绿 #7fff9f 专属配色（`weapon_scythe.png` / `art_reaper.png`）。数值（镰刀数量 / 伤害 / rend dps / 回血量）标 `[PLACEHOLDER]` 待真机校准。
 
-> **v2.0 新增 8 武器 + 8 神器（被动配对合成，src/data.js RECIPES + src/weapons.js）**：8 件新武器（starfall 星陨=追踪陨落 / judgment 审判=贯穿雷枪 / phantom 幻影=分身残影 / aegis 壁垒=哨卫环绕 / warden 守望=法球环绕 / maul 重锤=震荡波 / sanguine 血怒=吸血近战 / resolve 决意=符文爆发）各自 1:1 配对一件新神器（fatalis 终焉 / retribution 裁决 / mirage 幻界 / bastion 堡垒 / sentinel 哨卫 / cataclysm 灭世 / bloodpact 血契 / absolution 赦罪），合成路径为「满级该武器 + 配对被动」（`RECIPES` 表）。新神器觉醒效果经 `_awakened(weapon)` 门控——仅当玩家持有配对被动才启用（如 retribution↔shield、sentinel↔shieldregen），基础神器零变化。性能：`enforceCaps()` 在 `weapons.js update(dt)` 末尾 oldest-first 裁剪所有桶（`PROJECTILE_CAP=600/POOL_CAP=60/BOLT_CAP=80/VIAL_CAP=40/SLASH_CAP=40` + `MAX_SENTINELS=6/MAX_ORBS=8/MAX_SHOCKWAVES=12/MAX_RUNES=24` + `thunderRunes=24/bursts=12/mirageResidues=32`），压测验证后期不掉帧。可访问性：retribution(红)/sentinel(绿) 配色仅靠色相易混淆，已用亮度差区分。**v2.1 起 8 件神器图标不再共用「纹章盾」底形，改为各自专属剪影——fatalis(八方罗盘星)/retribution(直立审判剑)/mirage(不对称碎晶簇)/bastion(城塞垛口)/sentinel(全视之眼)/cataclysm(战锤)/bloodpact(缠棘血心)/absolution(钟)，配色与暗描边风格不变**。
+> **v2.0 新增 8 武器 + 8 神器（被动配对合成，src/data.js RECIPES + src/weapons.js）**：8 件新武器（starfall 星陨=追踪陨落 / judgment 审判=贯穿雷枪 / phantom 幻影=分身残影 / aegis 壁垒=哨卫环绕 / warden 守望=法球环绕 / maul 重锤=震荡波 / sanguine 血怒=吸血近战 / resolve 决意=符文爆发）各自 1:1 配对一件新神器（fatalis 终焉 / retribution 裁决 / mirage 幻界 / bastion 堡垒 / sentinel 哨卫 / cataclysm 灭世 / bloodpact 血契 / absolution 赦罪），合成路径为「满级该武器 + 配对被动」（`RECIPES` 表）。新神器觉醒效果经 `_awakened(weapon)` 门控——仅当玩家持有配对被动才启用（如 retribution↔shield、sentinel↔shieldregen），基础神器零变化。性能：`enforceCaps()` 在 `weapons.js update(dt)` 末尾 oldest-first 裁剪所有桶（`PROJECTILE_CAP=600/POOL_CAP=60/BOLT_CAP=80/VIAL_CAP=40/SLASH_CAP=40` + `MAX_SENTINELS=6/MAX_ORBS=8/MAX_SHOCKWAVES=12/MAX_RUNES=24` + `thunderRunes=24/bursts=12/mirageResidues=32`），压测验证后期不掉帧。可访问性：retribution(红)/sentinel(绿) 配色仅靠色相易混淆，已用亮度差区分。**v2.1 起 8 件神器图标不再共用「纹章盾」底形，改为各自专属剪影——fatalis(八方罗盘星)/retribution(直立审判剑)/mirage(不对称碎晶簇)/bastion(城塞垛口)/sentinel(全视之眼)/cataclysm(战锤)/bloodpact(缠棘血心)/absolution(钟)，配色与暗描边风格不变**。**v2.2 起渲染进一步差异化：5 把新武器弹丸各有专属剪影（星陨=八方星芒 / 幻影=不对称碎晶 / 血怒=獠牙滴血 / 壁垒=晶棱弩矢 / 守望=环纹能量球，经 `SHAPE_DRAWERS`+`getShapeSprite`+`projShape` 离屏缓存）；8 件神器觉醒 id 同步驱动弹幕/形态差异（终焉=彗星残迹 / 幻界=双重残影 / 血契=血心 / 堡垒哨卫=六边结界纹 / 哨卫法球=眼形瞳孔 / 灭世冲击波=红色锯齿环 / 赦罪符文=红圈血钟），全部 `getShapeSprite` 缓存、无逐帧 shadowBlur、均在 `enforceCaps()` 桶内，性能红线未破**。
 
 ---
 
@@ -328,6 +328,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+fb0a75888537bb926d0d3feaf6f320f06b223219 v2.2 武器弹丸差异化(星/碎晶/獠牙/弩矢/能量球剪影) + 8神器觉醒弹幕/形态差异化(彗星/残影/血心/结界纹/眼瞳/锯齿红环) + 镇魂钟鸣红圈血钟(弃用光晕圈) | getShapeSprite离屏缓存保性能
+
 4f3f6a5437f6d90983243de96cb59e71b0cc64c0 v2.1 八神器图标差异化重绘(星/剑/碎晶/城塞/眼/战锤/血心/钟剪影，弃用共用纹章盾底形)
 
 cc6986d0e1dc2a832a8cb2ebb92452dfd36e2b20 v2.0 武器8→16/神器10→18(8新武器+8新神器被动配对合成+觉醒门控) + RL2性能硬上限enforceCaps + D4新武器发现加成 + 敌方眩晕/减伤
