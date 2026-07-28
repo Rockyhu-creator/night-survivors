@@ -5,6 +5,21 @@
 
 ---
 
+## v2.4（2026-07-28 · `7a53a1cfbf8bd563e99fc6fe88c3e9d6fad43384`）
+
+> 本轮修复 v2.2/v2.3「武器/神器弹丸差异化」**代码已部署但运行时未生效**的问题（用户硬刷新仍见棱形）。
+
+### 修复
+- **子弹形状未渲染（根因修复，src/weapons.js `addWeapon`/`addArtifact`）**：v2.2 的 `SHAPE_DRAWERS`/`getShapeSprite`/`projShape` 代码与线上包均包含，但**运行时 `p.shape` 恒为 `null`**——`addWeapon` 创建的实例为 `{id, level, timer}`，**无 `.visual` 字段**；`fireHoming` 等内部 `projShape(weapon.visual, …)` 拿到 `undefined` → `default: return null` → 永远回落菱形 fallback（仅 `tint` 换色，故「棱形、只是颜色不同」）。现于 `addWeapon`/`addArtifact` 创建实例时补齐 `visual: WEAPONS[id].visual || id`，整条链路（homing/splitting/lifesteal/sentinel/orb 发射、哨卫/法球/符文对象 `visual` 派生）从此取得到正确剪影；神器 `tick*` 本就显式传 `{visual,…}` 故不受影响。**探针验证**：starfall→`star`、phantom→`shard`、sanguine→`fang`、aegis 哨卫→`bolt`、warden 法球→`orbiter` 全部正确挂上；起始武器 `blade`（忍者飞刀）按设计保留菱形。
+- **镇魂钟鸣红钟扩展到基础武器（src/weapons.js rune 渲染）**：v2.2 红钟仅当 `rn.awaken==='absolution'` 触发，而神器 `absolution`（镇魂赦令）那条路本就正确；用户实际测的是**基础武器 `resolve`（镇魂钟鸣）**，其 `rn.awaken==='resolve'` 走 `else` 仍为圆圈光晕。现条件扩展为 `rn.awaken==='absolution' || rn.awaken==='resolve'`，**整个钟鸣家族（基础 + 觉醒）均渲染红圈血钟**，与「镇魂钟鸣应是红钟不是圆圈」的设计意图一致。
+
+### 优化
+- 双表 `update()` 每帧迭代 `[...weapons, ...innateWeapons]`，槽外固有武器（圣水洗礼）与占槽武器共用同一套差异化渲染，无额外热路径分配；`getShapeSprite` 离屏缓存不变，性能红线未破。
+
+> 注：v2.2/v2.3 条目所记「武器弹丸差异化 / 神器形态差异化 / 镇魂钟鸣红圈血钟」**代码已落地并部署**，本次为「运行时挂载缺失 + 钟鸣家族判定收窄」的修正，非功能回退。
+
+---
+
 ## v2.3（2026-07-27 · `2ca06f00c18e6e1d607ea8099e24076474cfba9e`）
 
 > 本轮两类修复：① 升级卡内「神器合成提示」行溢出/被裁，改为选项卡最下方单独整行、允许换行不再溢出；② 圣水洗礼占槽问题——灵魂祭坛「双生武装」与「圣徒」血裔各给一把圣水、共占 2 个武器槽。现改为「槽外固有武器」机制：圣水不占武器槽、双源持有自动合并为两级、仍可被升级与进化（圣徒路线仍可进化出「吞噬」神器）。
