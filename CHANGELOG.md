@@ -5,6 +5,25 @@
 
 ---
 
+## v2.3（2026-07-27 · `2ca06f00c18e6e1d607ea8099e24076474cfba9e`）
+
+> 本轮两类修复：① 升级卡内「神器合成提示」行溢出/被裁，改为选项卡最下方单独整行、允许换行不再溢出；② 圣水洗礼占槽问题——灵魂祭坛「双生武装」与「圣徒」血裔各给一把圣水、共占 2 个武器槽。现改为「槽外固有武器」机制：圣水不占武器槽、双源持有自动合并为两级、仍可被升级与进化（圣徒路线仍可进化出「吞噬」神器）。
+
+### 调整
+- **升级卡合成提示置底整行（src/upgrade.js + src/style.css）**：原 `.uc-recipe` 行塞在正文列内、窄卡 `white-space:nowrap` 溢出被裁。改为卡片纵向结构 `[.uc-top(图标+正文)] / 合成提示整行置底 / 选择按钮置底通栏`；`.uc-recipe` 取消 `nowrap`、允许换行并占满宽度，不再溢出。触屏覆写段同步（`.uc-top` 横向、`.uc-recipe` 换行）。整体观感与暗哥特风格一致。
+- **圣水洗礼改为槽外固有（src/weapons.js `innateWeapons` + `addWeapon`/`removeWeapon` + `update`；src/entities.js `innateWeapons` 字段；src/game.js 血裔授予；src/data.js `soul_dual`/`saint`；src/ui.js 装备栏；src/evolution.js `performEvolution`）**：新增「槽外固有武器」双表模型——`player.weapons`(占槽) 与 `player.innateWeapons`(槽外)。`addWeapon(id, level, innate)` 的 `innate=true` 入槽外表；`hasWeapon`/`weaponLevel`/`upgradeWeapon` 查双表；`update()` 每帧迭代 `[...weapons, ...innateWeapons]` 保证槽外武器照样开火；`removeWeapon` 跨表移除（兼容进化消费）。**双生武装**(`soul_dual.apply`) 与 **圣徒**(`blade.weapon` + `innate:true`) 的圣水洗礼均走 `innate`，故 **0 槽占用**；二者皆持有时 `addWeapon` 合并为 **单条两级圣水**（不再占第 2 槽）。圣徒路线仍可升满级 + 持 magnet → 进化「吞噬」神器（devour 从槽外表移除基础圣水）。
+
+### 优化
+- **装备栏槽外标记（src/ui.js `refreshLoadout` + src/style.css）**：装备栏循环同时渲染 `weapons` 与 `innateWeapons`，槽外固有武器以青描边 + 角标「免」标注，玩家可直观看到圣水洗礼生效且不占槽。
+
+### 验证
+- 构建：`node --check` 全改文件通过、`vite build` 零错误。
+- 运行时探针（Playwright）：圣徒起手 → `innateWeapons=[holywater lv1 innate]`、`weapons=[]`（**槽占用 0**）、`areaMul=1.2`；双源合并 → 单条 `holywater lv2`；圣水注入敌人后 `fire()` 正常生成 vials（确认槽外武器开火无碍）；升满级至 lv5；`removeWeapon` 跨表移除后 `hasWeapon` 返回 false。
+- e2e（test_game.py）：升级流程/血裔/进化/装备栏断言全过、控制台零报错。升级卡合成提示断言随布局调整同步更新；Boss 65% 阶段召唤断言改为校验「阶段技能已触发(skillRuntime[0].triggered)」，比净蝙蝠数稳健（蝙蝠会被玩家武器消耗，净数时序不稳）。
+- **注意**：用户侧若仍见旧版「棱形弹丸」，系浏览器缓存了旧 `index-*.js` 包，硬刷新（Cmd/Ctrl+Shift+R）即可见 v2.2 已部署的星芒/碎晶/獠牙/眼瞳等差异化剪影。
+
+---
+
 ## v2.2（2026-07-27 · `fb0a75888537bb926d0d3feaf6f320f06b223219`）
 
 > 渲染差异化热修：v2.0 新增的 8 件武器中 5 把走「菱形弹丸 + 换色」分支、辨识度低；8 件新神器觉醒后弹幕形态与基础武器完全一致、缺乏神器特征；镇魂钟鸣(absolution) 沿用 resolve 的「光晕圆圈」、无专属视觉。本次为 5 把新武器弹丸 + 8 件神器觉醒弹幕/形态 + 钟鸣重绘差异化剪影，全走离屏缓存 sprite 保障性能。
