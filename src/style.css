@@ -225,6 +225,14 @@ html, body {
 }
 .loadout-icon.passive { border-color: rgba(142,68,173,.6); }
 .loadout-icon.passive .loadout-lv { background: var(--purple); color: #fff; }
+/* 槽外固有武器（如圣水洗礼）：青描边 + 角标「免」，提示不占武器槽 */
+.loadout-icon.innate { border-color: rgba(120,210,255,.7); box-shadow: 0 0 6px rgba(120,210,255,.35); }
+.loadout-free {
+  position: absolute; left: -3px; top: -3px;
+  font-family: var(--body-font); font-size: 8px; line-height: 1;
+  background: #46b6ff; color: #04121c; padding: 2px 3px; border-radius: 4px;
+  border: 1px solid #04121c;
+}
 .loadout-slots { width: 100%; font-family: var(--body-font); font-size: 9px; color: var(--gold); opacity: 0.8; margin-bottom: 4px; letter-spacing: 1px; }
 
 /* ---------- 升级界面 ---------- */
@@ -243,9 +251,10 @@ html, body {
   clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
   transition: transform .18s ease, box-shadow .18s ease;
   animation: cardIn .45s cubic-bezier(.2,1.4,.4,1) both;
-  display: flex; flex-direction: row; align-items: center; gap: 14px;
+  display: flex; flex-direction: column; gap: 10px;
   text-align: left;
 }
+.upgrade-card .uc-top { display: flex; flex-direction: row; align-items: center; gap: 14px; }
 .upgrade-card:nth-child(2) { animation-delay: .08s; }
 .upgrade-card:nth-child(3) { animation-delay: .16s; }
 @keyframes cardIn { from { opacity: 0; transform: translateY(46px) scale(.9); } to { opacity: 1; transform: none; } }
@@ -286,16 +295,20 @@ html, body {
 @keyframes evoReadyPulse { 0%, 100% { opacity: 1; } 50% { opacity: .85; } }
 .upgrade-card .uc-evo-ready + .uc-kind { margin-top: 0; }
 
-/* 方案 B：精炼配方行（灰青，desc 下方，单行截断） */
+/* 方案 B：精炼配方行（卡片最下方单独整行，灰青底，允许换行不溢出） */
 .upgrade-card .uc-recipe {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: #9fc5ff;
-  opacity: .9;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: .92;
+  background: rgba(159,197,255,.08);
+  border: 1px solid rgba(159,197,255,.25);
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* ---------- 结算界面 ---------- */
@@ -471,7 +484,7 @@ html, body {
   box-shadow: 0 0 18px rgba(231, 76, 60, 0.5) !important;
 }
 .uc-pick {
-  flex-shrink: 0; font-family: var(--body-font); font-size: 11px;
+  flex-shrink: 0; align-self: stretch; font-family: var(--body-font); font-size: 11px;
   letter-spacing: 2px; background: var(--blood); color: var(--bone);
   border: none; padding: 10px 18px; cursor: pointer; transition: all 0.15s;
   white-space: nowrap;
@@ -612,12 +625,12 @@ html, body {
   width: min(420px, 88vw);
   padding: 14px 16px;
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 10px;
   text-align: left;
 }
-.touch-device .upgrade-card > img { width: 56px; height: 56px; flex-shrink: 0; }
+.touch-device .upgrade-card .uc-top { display: flex; flex-direction: row; align-items: center; gap: 14px; }
+.touch-device .upgrade-card .uc-top > img { width: 56px; height: 56px; flex-shrink: 0; }
 .touch-device .upgrade-card .uc-body {
   flex: 1 1 auto;
   min-width: 0;
@@ -626,11 +639,11 @@ html, body {
   gap: 2px;
 }
 .touch-device .upgrade-card .uc-evo-ready { white-space: normal; font-size: 9px; }
-.touch-device .upgrade-card .uc-recipe { font-size: 10px; }
+.touch-device .upgrade-card .uc-recipe { font-size: 10px; white-space: normal; }
 .touch-device .upgrade-card .uc-kind { margin-top: 0; font-size: 8px; }
 .touch-device .upgrade-card h3 { margin: 2px 0; font-size: 15px; }
 .touch-device .upgrade-card p { font-size: 11px; line-height: 1.4; }
-.touch-device .upgrade-card > .uc-pick { flex-shrink: 0; padding: 10px 14px; font-size: 11px; }
+.touch-device .upgrade-card .uc-pick { align-self: stretch; flex-shrink: 0; padding: 10px 14px; font-size: 11px; }
 
 .touch-device .levelup-title { font-size: 32px; letter-spacing: 8px; }
 .touch-device .levelup-sub { margin: 8px 0 18px; letter-spacing: 3px; font-size: 13px; }

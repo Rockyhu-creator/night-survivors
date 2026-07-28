@@ -18,8 +18,7 @@ export function hasEvolvable(player, weaponSystem) {
 
 // 执行进化：移除满级原武器，注入神器，解锁图鉴，返回神器定义
 export function performEvolution(player, weaponSystem, recipe) {
-  const idx = player.weapons.findIndex((w) => w.id === recipe.weapon);
-  if (idx >= 0) player.weapons.splice(idx, 1);
+  weaponSystem.removeWeapon(recipe.weapon);
   weaponSystem.addArtifact(recipe.artifact);
   unlockInCollection(recipe.artifact);
   unlockInCollection(recipe.weapon);

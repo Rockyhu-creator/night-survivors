@@ -171,10 +171,12 @@ with sync_playwright() as p:
     }""")
     page.wait_for_timeout(1500)
     dismiss_upgrades(page)
-    bats_after = page.evaluate("() => window.__game.enemies.enemies.filter(e => !e.isBoss && e.type && e.type.sprite === 'bat').length")
-    expect('65%血 召唤蝙蝠', bats_after > bats_before)
+    # 稳健判定：直接校验「65% 阶段技能已触发」(rt[0]=true)，而非净蝙蝠数（蝙蝠会被玩家武器消耗，净数不稳定）
+    page.wait_for_timeout(300)
+    summon65 = page.evaluate("() => { const b = window.__game.enemies.activeBoss; return !!(b && b.skillRuntime[0] && b.skillRuntime[0].triggered); }")
+    expect('65%血 召唤蝙蝠', summon65)
 
-    # 打到 35% 触发弹幕（同样重臂技能运行时，放宽等待窗口，消除 TOTAL FAILURES 偶发误报）
+    # 打到 35% 触发弹幕（重置技能运行时 + 钉 0.35；校验 Boss 弹幕已生成。弹幕为独立投射物，即使 Boss 阵亡仍存续，比净数稳健）
     page.evaluate("""() => {
       const b = window.__game.enemies.activeBoss;
       if (b) {
@@ -715,16 +717,16 @@ with sync_playwright() as p:
     expect('流浪者起手 血之飞刃', wl['weapons'] == ['blade'])
     expect('流浪者 微幅全能力(damageMul>1)', wl['dmg'] > 1)
 
-    # 圣徒：圣水起手 + 范围倍率>1
+    # 圣徒：圣水起手（槽外固有·不占武器槽）+ 范围倍率>1
     saint = page.evaluate("""() => {
       window.__bloodlines.buyBloodlineUnlock('saint');
       window.__bloodlines.setBloodline('saint');
       window.__game.startRun();
       const p = window.__game.player;
-      return { weapons: p.weapons.map(w=>w.id), area: p.areaMul };
+      return { slots: p.weapons.map(w=>w.id), innate: p.innateWeapons.map(w=>w.id), area: p.areaMul };
     }""")
     expect('圣徒 解锁+选择', page.evaluate("() => window.__bloodlines.isBloodlineUnlocked('saint')"))
-    expect('圣徒起手 圣水洗礼', saint['weapons'] == ['holywater'])
+    expect('圣徒起手 圣水洗礼(槽外固有·不占槽)', saint['innate'] == ['holywater'] and saint['slots'] == [])
     expect('圣徒 范围倍率>1', saint['area'] > 1)
 
     # 狂战：战斧起手 + 冷却倍率<1 + 移速>1

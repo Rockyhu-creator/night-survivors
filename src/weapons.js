@@ -285,22 +285,45 @@ export class WeaponSystem {
     this.devourPool = null;
   }
 
-  addWeapon(id) {
-    this.game.player.weapons.push({ id, level: 1, timer: 0.4 });
+  // innate=true → 入「槽外固有」表（不占武器槽、仍可被升级/进化）；如已持有则合并升一级（双源圣水→两级）
+  addWeapon(id, level = 1, innate = false) {
+    const p = this.game.player;
+    const existing = [...p.weapons, ...p.innateWeapons].find((w) => w.id === id);
+    if (existing) {
+      existing.level = Math.min(WEAPONS[id].maxLevel, existing.level + 1);
+      existing.innate = existing.innate || innate;
+      return existing;
+    }
+    const arr = innate ? p.innateWeapons : p.weapons;
+    const entry = { id, level, timer: 0.4, innate };
+    arr.push(entry);
+    return entry;
   }
 
   upgradeWeapon(id) {
-    const w = this.game.player.weapons.find((x) => x.id === id);
+    const p = this.game.player;
+    const w = [...p.weapons, ...p.innateWeapons].find((x) => x.id === id);
     if (w && w.level < WEAPONS[id].maxLevel) w.level += 1;
   }
 
   hasWeapon(id) {
-    return this.game.player.weapons.some((w) => w.id === id);
+    const p = this.game.player;
+    return [...p.weapons, ...p.innateWeapons].some((w) => w.id === id);
   }
 
   weaponLevel(id) {
-    const w = this.game.player.weapons.find((x) => x.id === id);
+    const p = this.game.player;
+    const w = [...p.weapons, ...p.innateWeapons].find((x) => x.id === id);
     return w ? w.level : 0;
+  }
+
+  // 从「武器槽」或「槽外固有」任一处移除（供进化消费基础武器，兼容固有圣水）
+  removeWeapon(id) {
+    const p = this.game.player;
+    let idx = p.weapons.findIndex((w) => w.id === id);
+    if (idx >= 0) { p.weapons.splice(idx, 1); return; }
+    idx = p.innateWeapons.findIndex((w) => w.id === id);
+    if (idx >= 0) p.innateWeapons.splice(idx, 1);
   }
 
   addArtifact(id) {
@@ -325,7 +348,7 @@ export class WeaponSystem {
 
   update(dt) {
     const player = this.game.player;
-    for (const weapon of player.weapons) {
+    for (const weapon of [...player.weapons, ...player.innateWeapons]) {
       if (weapon.artifact) { this.updateArtifact(weapon, dt); continue; }
       weapon.timer -= dt;
       if (weapon.timer <= 0) {

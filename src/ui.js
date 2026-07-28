@@ -316,10 +316,10 @@ export class UIManager {
     counter.className = 'loadout-slots';
     counter.textContent = `武器 ${player.weapons.length}/${player.maxWeapons} · 被动 ${player.passives.size}/${player.maxPassives}`;
     this.loadoutEl.appendChild(counter);
-    for (const w of player.weapons) {
+    for (const w of [...player.weapons, ...player.innateWeapons]) {
       const def = WEAPONS[w.id] || ARTIFACTS[w.id];
       const div = document.createElement('div');
-      div.className = 'loadout-icon';
+      div.className = 'loadout-icon' + (w.innate ? ' innate' : '');
       const img = document.createElement('img');
       img.src = this.iconURL(def.icon);
       img.alt = def.name;
@@ -327,6 +327,12 @@ export class UIManager {
       lv.className = 'loadout-lv';
       lv.textContent = w.level;
       div.append(img, lv);
+      if (w.innate) {
+        const free = document.createElement('span');
+        free.className = 'loadout-free';
+        free.textContent = '免';
+        div.append(free);
+      }
       this.loadoutEl.appendChild(div);
     }
     for (const [id, lv] of player.passives) {

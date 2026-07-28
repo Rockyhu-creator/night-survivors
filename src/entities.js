@@ -43,6 +43,7 @@ export class Player {
     this.level = 1;
     this.exp = 0;
     this.weapons = [];
+    this.innateWeapons = []; // 槽外固有武器（如双生武装/圣徒授予的圣水洗礼）：不占武器槽、仍可升级/进化
     this.passives = new Map();
     // S3 槽位上限（基础上限，startRun 时由祭坛解锁 +1）
     this.maxWeapons = CONFIG.MAX_WEAPONS;

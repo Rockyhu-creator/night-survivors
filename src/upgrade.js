@@ -232,11 +232,13 @@ export class UpgradeSystem {
       const info = this.describe(option);
       const card = document.createElement('div');
       card.className = 'upgrade-card';
+      const top = document.createElement('div');
+      top.className = 'uc-top';
       const img = document.createElement('img');
       const src = sprite(info.icon);
       img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
       img.alt = info.title;
-      card.appendChild(img);
+      top.appendChild(img);
       const body = document.createElement('div');
       body.className = 'uc-body';
       const tag = document.createElement('div');
@@ -256,7 +258,9 @@ export class UpgradeSystem {
       } else {
         body.append(tag, h3, p);
       }
-      // 方案 B：精炼配方行（desc 下方，灰青；多目标只列首条 + 等 N 种）
+      top.appendChild(body);
+      card.appendChild(top);
+      // 方案 B：精炼配方行（卡片最下方单独整行，灰青底，允许换行不溢出）
       if (info.recipeHint) {
         const recipe = info.recipeHint[0];
         const artName = artifactDisplayName(recipe.artifact, unlockedSet);
@@ -266,9 +270,8 @@ export class UpgradeSystem {
         let text = `可合成 ✨${artName} = 满级🗡️${wName} + 本被动`;
         if (info.recipeHint.length > 1) text += ` 等 ${info.recipeHint.length} 种 ›`;
         row.textContent = text;
-        body.append(row);
+        card.appendChild(row);
       }
-      card.appendChild(body);
       const pickBtn = document.createElement('button');
       pickBtn.className = 'uc-pick';
       pickBtn.textContent = '选择';

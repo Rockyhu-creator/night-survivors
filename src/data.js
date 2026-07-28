@@ -38,7 +38,7 @@ export const ALTAR = [
   { id: 'soul_spd', name: '疾风之拥', icon: 'altar_spd',    cost: 90,  desc: '移动速度 +6%（永久）',        apply: (g) => { g.player.speedMul += 0.06; } },
   { id: 'soul_dmg', name: '嗜血诅咒', icon: 'altar_dmg',     cost: 130, desc: '所有伤害 +5%（永久）',        apply: (g) => { g.player.damageMul += 0.05; } },
   { id: 'soul_gain',name: '亡魂低语', icon: 'altar_gain', cost: 160, desc: '灵魂获取 +25%（永久）',       apply: (g) => { g.soulGainMul *= 1.25; } },
-  { id: 'soul_dual',name: '双生武装', icon: 'altar_dual', cost: 220, desc: '开局额外获得「圣水洗礼」',     apply: (g) => { g.weapons.addWeapon('holywater'); } },
+  { id: 'soul_dual',name: '双生武装', icon: 'altar_dual', cost: 220, desc: '开局额外获得「圣水洗礼」（槽外固有·不占武器槽）',     apply: (g) => { g.weapons.addWeapon('holywater', 1, true); } },
   // S3 槽位上限扩容：花灵魂永久 +1 槽（上限 7），深化长期循环
   { id: 'soul_slot_weapon',  name: '扩容武器槽', icon: 'altar_slot_weapon',  cost: 150, desc: '武器槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxWeapons += 1; } },
   { id: 'soul_slot_passive', name: '扩容被动槽', icon: 'altar_slot_passive', cost: 150, desc: '被动槽 +1（永久，上限 7）',  apply: (g) => { g.player.maxPassives += 1; } },
@@ -412,8 +412,8 @@ export const BLOODLINES = [
   },
   {
     id: 'saint', name: '圣徒', icon: 'portrait_saint',
-    desc: '圣水起手 · 范围与持续 +20%',
-    weapon: 'holywater', cost: 80, hidden: false,
+    desc: '圣水起手（槽外固有·不占武器槽） · 范围与持续 +20%',
+    weapon: 'holywater', innate: true, cost: 80, hidden: false,
     apply: (g) => { g.player.areaMul *= 1.20; },
   },
   {

@@ -222,7 +222,7 @@ export class Game {
     const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
     this.bloodline = bl.id;
     if (bl.weapon) {
-      this.weapons.addWeapon(bl.weapon);
+      this.weapons.addWeapon(bl.weapon, 1, bl.innate);
       unlockInCollection(bl.weapon);
     }
     bl.apply(this);
