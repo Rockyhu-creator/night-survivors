@@ -262,6 +262,7 @@ export class WeaponSystem {
     this.orbs = [];             // 回响哨卫/回响守望 环绕法球
     this.shockwaves = [];       // 碎甲重锤/碎甲天罚 扩张波
     this.runes = [];            // 镇魂钟鸣/镇魂赦令 符文陷阱
+    this.runePulses = [];       // 符文周期性扩张音波脉冲（每脉冲一道环，前缘扫敌）
     this.mirageResidues = [];   // 幻影千袭 残留魅影（持续 AoE）
     this.bursts = [];           // 瞬时爆裂环（断罪十字爆裂等，上限 12）
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
@@ -279,6 +280,7 @@ export class WeaponSystem {
     this.orbs.length = 0;
     this.shockwaves.length = 0;
     this.runes.length = 0;
+    this.runePulses.length = 0;
     this.mirageResidues.length = 0;
     this.bursts.length = 0;
     this.artifactState = { stormTimer: 0, devourAngle: 0, stormcallTimer: 1.0, tempestDistance: 0, tempestIdleTimer: 0, lastX: 0, lastY: 0 };
@@ -372,6 +374,7 @@ export class WeaponSystem {
     this.updateOrbs(dt);
     this.updateShockwaves(dt);
     this.updateRunes(dt);
+    this.updateRunePulses(dt);
     this.updateMirageResidues(dt);
     this.updateBursts(dt);
     this.enforceCaps();
@@ -391,6 +394,7 @@ export class WeaponSystem {
     trim(this.orbs, MAX_ORBS);
     trim(this.shockwaves, MAX_SHOCKWAVES);
     trim(this.runes, MAX_RUNES);
+    trim(this.runePulses, 200);   // 音波脉冲有 life 上限自然收敛；此处为性能安全网
     trim(this.bursts, 12);            // 瞬时爆裂环，注释约定上限 12
     trim(this.mirageResidues, 32);    // 幻影残留 AoE 安全网
   }
@@ -1165,9 +1169,14 @@ export class WeaponSystem {
     const r = s.deployRange || 150;
     this.runes.push({
       x: player.x + Math.cos(ang) * r, y: player.y + Math.sin(ang) * r,
+      offAng: ang, offR: r,
       triggerRange: s.triggerRange || 30, burstRadius: s.burstRadius || 80,
       damage: s.damage * player.damageMul, duration: s.duration || 8, life: s.duration || 8,
-      triggered: false, color: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
+      maxLife: s.duration || 8,
+      pulseInterval: s.pulseInterval || 1.0,
+      pulseMul: s.pulseMul != null ? s.pulseMul : 0.5,
+      pulseTimer: 0.3,
+      color: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
       awaken: weapon.id,
     });
   }
@@ -1246,19 +1255,51 @@ export class WeaponSystem {
 
   updateRunes(dt) {
     const game = this.game;
+    const player = game.player;
     for (let i = this.runes.length - 1; i >= 0; i -= 1) {
       const rn = this.runes[i];
       rn.life -= dt;
-      if (!rn.triggered) {
-        for (const e of game.enemies.enemiesNear(rn.x, rn.y, rn.triggerRange + 30)) {
-          if (e.hp > 0 && Math.hypot(e.x - rn.x, e.y - rn.y) < rn.triggerRange) {
-            rn.triggered = true;
-            this.spawnBurst(rn.x, rn.y, rn.burstRadius, rn.damage, rn.color);
-            break;
+      // 符文环绕玩家：每帧重算世界坐标，避免玩家移动后范围被甩在身后
+      rn.x = player.x + Math.cos(rn.offAng) * rn.offR;
+      rn.y = player.y + Math.sin(rn.offAng) * rn.offR;
+      // 周期性音波脉冲：每隔 pulseInterval 秒从中心发出一道扩张环（替换原单次踏入触发）
+      rn.pulseTimer -= dt;
+      if (rn.pulseTimer <= 0) {
+        rn.pulseTimer += rn.pulseInterval;
+        this.runePulses.push({
+          x: rn.x, y: rn.y, maxR: rn.burstRadius,
+          currentR: 0, width: 26, speed: rn.burstRadius / 0.22,
+          damage: rn.damage * rn.pulseMul, hitSet: new Set(),
+          life: 0.28, maxLife: 0.28,
+          awaken: rn.awaken,
+          color: (rn.awaken === 'absolution' || rn.awaken === 'resolve') ? '#ff3b5c' : rn.color,
+        });
+      }
+      // 进入即触发：敌人踏入 burstRadius 圈内时把脉冲等待压到 0.3s 以内（持续脉冲）；无敌人时回落到 idle 慢节奏
+      const ACTIVE_CAP = 0.3; // 敌人进入圈内后脉冲最快节奏(秒)
+      const hasEnemy = game.enemies.enemiesNear(rn.x, rn.y, rn.burstRadius).length > 0;
+      if (hasEnemy && rn.pulseTimer > ACTIVE_CAP) rn.pulseTimer = ACTIVE_CAP;
+      if (rn.life <= 0) this.runes.splice(i, 1);
+    }
+  }
+
+  updateRunePulses(dt) {
+    const game = this.game;
+    for (let i = this.runePulses.length - 1; i >= 0; i -= 1) {
+      const p = this.runePulses[i];
+      p.life -= dt;
+      p.currentR += p.speed * dt;
+      const targets = game.enemies.enemiesNear(p.x, p.y, p.maxR + p.width);
+      for (const e of targets) {
+        if (e.hp > 0 && !p.hitSet.has(e)) {
+          const d = Math.hypot(e.x - p.x, e.y - p.y);
+          if (d <= p.currentR && d >= p.currentR - p.width - e.radius) {
+            this.hitEnemy(e, p.damage, 0, 0, p.color);
+            p.hitSet.add(e);
           }
         }
       }
-      if (rn.life <= 0) this.runes.splice(i, 1);
+      if (p.life <= 0 || p.currentR > p.maxR + p.width) this.runePulses.splice(i, 1);
     }
   }
 
@@ -1372,7 +1413,7 @@ export class WeaponSystem {
     weapon.timer -= dt;
     if (weapon.timer <= 0) {
       weapon.timer += 2.2 * (player.cooldownMul || 1);
-      this.fireRune({ visual: 'resolve', id: weapon.id }, { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 110, deployRange: 180, duration: 12, maxRunes: 12 });
+      this.fireRune({ visual: 'resolve', id: weapon.id }, { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 200, deployRange: 150, duration: 12, maxRunes: 12, pulseInterval: 0.7, pulseMul: 0.6 });
     }
     if (this._awakened(weapon)) {
       let inRune = false;
@@ -1807,6 +1848,21 @@ export class WeaponSystem {
         ctx.beginPath(); ctx.arc(0, 0, rn.triggerRange, 0, Math.PI * 2); ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
       }
+      ctx.restore();
+    }
+    // 符文音波脉冲（resolve/absolution：周期性扩张环，亮外环 + 淡内回响环）
+    for (const p of this.runePulses) {
+      const sx = p.x - cam.ox, sy = p.y - cam.oy, a = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.7 * a;
+      ctx.strokeStyle = p.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, p.currentR, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.3 * a;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, 0, p.currentR * 0.7, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
     }
     // 魅影残留（mirage）

@@ -313,13 +313,13 @@ export const WEAPONS = {
   },
   resolve: {
     id: 'resolve', name: '镇魂钟鸣', icon: 'weapon_resolve', maxLevel: 5,
-    desc: '埋设镇魂符文,敌人踏入即引爆', mech: 'rune', visual: 'resolve',
+    desc: '符文环绕周身,敌人进入范围即触发音波脉冲', mech: 'rune', visual: 'resolve',
     levels: [
-      { damage: 18, cooldown: 3.0, count: 1, triggerRange: 28, burstRadius: 70,  deployRange: 140, duration: 8,  maxRunes: 8 },
-      { damage: 23, cooldown: 2.8, count: 1, triggerRange: 30, burstRadius: 80,  deployRange: 150, duration: 9,  maxRunes: 8 },
-      { damage: 29, cooldown: 2.6, count: 2, triggerRange: 32, burstRadius: 90,  deployRange: 160, duration: 10, maxRunes: 10 },
-      { damage: 36, cooldown: 2.4, count: 2, triggerRange: 34, burstRadius: 100, deployRange: 170, duration: 11, maxRunes: 10 },
-      { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 110, deployRange: 180, duration: 12, maxRunes: 12 },
+      { damage: 18, cooldown: 3.0, count: 1, triggerRange: 28, burstRadius: 130, deployRange: 110, duration: 8,  maxRunes: 8,  pulseInterval: 1.0,  pulseMul: 0.5 }, // [PLACEHOLDER] 脉冲节奏/倍率/范围待真机校准
+      { damage: 23, cooldown: 2.8, count: 1, triggerRange: 30, burstRadius: 145, deployRange: 120, duration: 9,  maxRunes: 9,  pulseInterval: 0.95, pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 29, cooldown: 2.6, count: 2, triggerRange: 32, burstRadius: 160, deployRange: 130, duration: 10, maxRunes: 10, pulseInterval: 0.9,  pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 36, cooldown: 2.4, count: 2, triggerRange: 34, burstRadius: 175, deployRange: 140, duration: 11, maxRunes: 11, pulseInterval: 0.85, pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 190, deployRange: 150, duration: 12, maxRunes: 12, pulseInterval: 0.8,  pulseMul: 0.5 }, // [PLACEHOLDER]
     ],
   },
 };
