@@ -292,10 +292,13 @@ export class WeaponSystem {
     if (existing) {
       existing.level = Math.min(WEAPONS[id].maxLevel, existing.level + 1);
       existing.innate = existing.innate || innate;
+      existing.visual = (WEAPONS[id] && WEAPONS[id].visual) || id;
       return existing;
     }
     const arr = innate ? p.innateWeapons : p.weapons;
-    const entry = { id, level, timer: 0.4, innate };
+    // 实例带 visual：v2.2+ 子弹/形态差异化靠 projShape(weapon.visual,...) 取剪影；
+    // 实例此前无 .visual → projShape(undefined,...) 恒返 null → 永远回落菱形。此处根治。
+    const entry = { id, level, timer: 0.4, innate, visual: (WEAPONS[id] && WEAPONS[id].visual) || id };
     arr.push(entry);
     return entry;
   }
@@ -327,7 +330,7 @@ export class WeaponSystem {
   }
 
   addArtifact(id) {
-    this.game.player.weapons.push({ id, artifact: true, level: 1, timer: 0 });
+    this.game.player.weapons.push({ id, artifact: true, level: 1, timer: 0, visual: (WEAPONS[id] && WEAPONS[id].visual) || id });
   }
 
   hasArtifact(id) {
@@ -1784,8 +1787,8 @@ export class WeaponSystem {
       const sx = rn.x - cam.ox, sy = rn.y - cam.oy, a = Math.max(0, rn.life / rn.maxLife);
       ctx.save();
       ctx.translate(sx, sy); ctx.rotate(this.game.time * 0.8);
-      if (rn.awaken === 'absolution') {
-        // 镇魂钟鸣(觉醒)：红色圆环内嵌血色红钟（替换原光晕圈）
+      if (rn.awaken === 'absolution' || rn.awaken === 'resolve') {
+        // 镇魂钟鸣家族（基础 resolve + 觉醒 absolution）：红色圆环内嵌血色红钟（替换原光晕圈）
         ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4 * a;
         ctx.drawImage(getGlowSprite('absolution', rn.burstRadius * 2, 'rgba(255,59,92,0.9)'), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.9 * a;
