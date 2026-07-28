@@ -5,6 +5,30 @@
 
 ---
 
+## v2.5（2026-07-28 · `4a20a3ede271d19f7fc02b7a736bad029ee9df17`）
+
+> 本轮重做「镇魂钟鸣」(resolve) / 「镇魂赦令」(absolution) 的伤害触发机制：原符文陷阱为「敌人踏入极小触发圈才引爆一次、且一生只炸一次」，导致敌人在大爆发圈内未踩中中心小圈时完全不掉血、且符文存活期(8~12s)内仅造成一次伤害（用户反馈「触发频率低、进圈有时不触发伤害」）。现为圈内**周期性音波脉冲**：每个存活符文每隔 `pulseInterval`（L1~L5：1.1→0.8s；absolution：0.7s）从中心发出一道向外扩张的音波环（亮外环 + 内回响环视觉），环前缘扫过的敌人掉血（每脉冲每敌只命中一次，伤害 = 符文基础伤害 × `pulseMul`，基础 0.5 / absolution 0.6）。
+
+### 调整
+- **镇魂钟鸣机制重做（src/weapons.js `updateRunes`/`updateRunePulses`/`fireRune` + src/data.js `resolve.levels`）**：移除原 `triggered` 单次踏入触发分支；`fireRune` 在符文上记录 `pulseInterval`/`pulseMul`/`pulseTimer`，`updateRunes` 每帧递减 `pulseTimer`、归零即向 `runePulses` 桶 push 一道扩张环（`maxR=burstRadius`、`speed=burstRadius/0.22`、`width=26`、`life=0.28`、钟鸣家族色 `#ff3b5c`）；`updateRunePulses` 仿 `updateShockwaves` 用 `enemiesNear` 半径裁剪、`hitSet` 保证每脉冲每敌一次，命中带 `d<=currentR && d>=currentR-width-e.radius` 时 `hitEnemy`。渲染新增脉冲环绘制（亮外环 + 淡内回响环，`lighter` 辉光）。`absolution` 觉醒在 `tickAbsolution` 的 `fireRune` 内补 `pulseInterval:0.7, pulseMul:0.6`（更快更强），玩家减伤光环逻辑不受影响。
+- **隐性 bug 修复（src/weapons.js `fireRune`）**：原符文对象缺 `maxLife`，而渲染用 `rn.life/rn.maxLife` 算透明度 → `NaN`；现补 `maxLife:s.duration`。
+- **武器描述同步（src/data.js `resolve.desc`）**：由「埋设镇魂符文,敌人踏入即引爆」改为「符文环绕周身,敌人进入范围即触发音波脉冲」（v2.5a 范围修复后）。
+
+### 修复
+- **范围过小（v2.5a 跟进修复，src/weapons.js `fireRune`/`updateRunes` + src/data.js `resolve.levels`/`tickAbsolution`）**：用户实测 v2.5「范围还是太小、进圈有时不触发」。根因有三——① 符文布在开火那一刻的玩家周围、之后**静止不动**，玩家移动后范围被甩在身后；② **内圈死区**：符文布在 `deployRange`(140~180px) 一圈但 `burstRadius`(70~110px) 小于它，玩家身边约 70px 内打不到；③ **环间隙**：8~12 个符文按角度分布，相邻爆发圈之间有缝。现改为：符文**每帧环绕玩家重算坐标**（跟随移动，`fireRune` 存 `offAng/offR`、`updateRunes` 重算 `x/y`）；`burstRadius` 调大、`deployRange` 调小使 `burstRadius > deployRange`（L1~L5：130/145/160/175/190 vs 110/120/130/140/150，觉醒 absolution：200 vs 150），封闭内圈死区并显著扩大范围；`updateRunes` 新增**进入即触发**——敌人踏入 `burstRadius` 圈内时把脉冲等待压到 `ACTIVE_CAP=0.3s`（进入即触发、停留期间每 0.3s 持续脉冲），无敌人时回落 `pulseInterval` 慢节奏。
+- **连带增强（觉醒 absolution 减伤常驻）**：因符文现跟随玩家且 `burstRadius>offR`，觉醒形态玩家恒在圈内，`tickAbsolution` 末尾的玩家减伤光环（`player.absolutionDR=0.8`）由「站圈内才生效」变为**常驻**——属合理增强（钟鸣护体），逻辑未改。
+
+### 优化
+- 性能：`enforceCaps()` 新增 `trim(this.runePulses, 200)` 安全网；脉冲 `life` 上限自然收敛、并发 ≤~12、`enemiesNear` 裁剪 + 极小 `hitSet`，无无界增长；`runes` 桶仍受 `MAX_RUNES` 约束；进入检测每帧每符文一次 `enemiesNear` 网格查询，开销极小。
+
+### 验证
+- 语法：`node --check` src/weapons.js / src/data.js 通过。
+- e2e（test_game.py）：全断言 ALL PASS、控制台零报错（含新渲染循环与 `updateRunePulses` 无崩溃、无回归）。
+- 针对性探针（Playwright，`?debug`）：① 加满级 resolve → 符文布设 → 圈内塞高血量敌 → 2 个脉冲周期后敌血量下降 23.1（= 44×0.5×玩家伤害系数），确认音波脉冲对范围内敌人可靠造成伤害；② **范围修复探针**：符文布设后瞬移玩家 220px，符文同步位移 220px（**跟随玩家**）；玩家身边 20px（旧内圈死区）敌与圈外敌均被脉冲击中掉血（delta=9 = L1 18×0.5），**内圈死区封死 + 进入即触发**成立；全程零控制台报错。
+- 数值：`pulseMul` / `pulseInterval` / 脉冲 `life` / `speed` / `width` 为初版占位，标 `[PLACEHOLDER]` 待真机校准（相对原单次爆发为显著增强，建议实机手感微调）。
+
+---
+
 ## v2.4（2026-07-28 · `7a53a1cfbf8bd563e99fc6fe88c3e9d6fad43384`）
 
 > 本轮修复 v2.2/v2.3「武器/神器弹丸差异化」**代码已部署但运行时未生效**的问题（用户硬刷新仍见棱形）。
