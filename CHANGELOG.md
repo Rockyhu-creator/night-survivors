@@ -5,6 +5,23 @@
 
 <arg_value:6124c78e>---
 
+## v3.3（2026-07-29 · `92d6e56`）
+
+> 技能树布局重构为真正的**树状图**（用户诉求：v3.2 的 CSS grid 纵横对齐不像技能树、连线乱）。纯表现层、无机制/数值改动。
+
+### 新增
+- **树状布局**：每分支是一棵自上而下树（根 gate 在上，子节点按 prereq 深度向下分层，同父节点的子节点 y 取平均的经典 tidy-tree 排布）；5 分支左右并排平铺于一个画布。
+- **可平移 / 缩放画布**：鼠标拖拽平移、滚轮以光标为锚缩放；右上角 ＋/－/适配 按钮（适配一键居中全图）。`prefers-reduced-motion` 降级。
+- **world 坐标连线**：节点改为 `position:absolute` 绝对定位，连线按 world 坐标直接画贝塞尔（不再依赖 grid 中心），40 条边干净对应 40 个 prereq；三态 `lk-owned`(已点亮)/`lk-next`(可解锁流光)/`lk-latent`(暗灰)。
+
+### 优化
+- 旧 `drawConnections`（基于 grid 中心、连线乱）标记弃用，连线逻辑内联进 `renderSkillTree` 的 world 空间。
+
+### 验证
+- `/tmp/skilltree_tree_probe.py`（?debug）T1–T8 ALL PASS：39 卡 / 5 分支标题 / 5 层纵深(span 504px) + 21 横向位（真树状）/ 40 连线 / 平移 transform 变化 / 缩放 0.36→0.432 / 购买触发 just-unlocked + 5 条 lk-next / 零控制台报错。`test_game.py` 全量 ALL PASS 零回归零报错。
+
+---
+
 ## v3.2（2026-07-29 · `47b4d53`）
 
 > 技能树 UI 打磨三件套（纯表现层，无机制/数值改动）。依据 `docs/plans/2026-07-29-skilltree-ui-polish-design.md`（UX 规范）与 `-art.md`（视觉规范）落地，主理人整合裁决采用其「推荐」项。

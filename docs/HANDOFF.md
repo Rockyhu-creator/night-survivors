@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.2 技能树 UI 打磨：节点详情浮层 + prereq 分支内路径连线三态 + 解锁动画 450ms；纯表现层无机制改动）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.3 技能树重构为树状图：每分支自上而下 tidy-tree 布局 + 5分支左右并排可平移画布 + 拖拽/滚轮缩放 + world坐标贝塞尔连线；纯表现层无机制改动）
 
 ---
 
@@ -95,6 +95,20 @@
 3. **解锁动画**：购买成功 `available→owned` 触发 `.just-unlocked` 450ms 脉冲（边框金光→回落绿边 + scale 1.06 回弹，`::after` 分支色扫光一次），文字 opacity 全程 1.0 无 blur。
 
 **验证**：`/tmp/skilltree_ui_polish_probe.py`（?debug）T1–T5 ALL PASS（5 分支连线 svg / 40 条边 / hover 浮层含前置+状态 / 购买触发 just-unlocked + 5 条 lk-next 高亮 / 零控制台报错）；`test_game.py` 全量 ALL PASS 零回归零报错。
+
+---
+
+## 0e. v3.3 技能树重构为树状图（可平移/缩放）
+
+**依据**：用户诉求——v3.2 的 CSS grid 纵横对齐不像技能树、连线乱。纯表现层、无机制/数值改动。
+
+**布局算法**（`src/ui.js` `renderSkillTree` 内联）：children 反向图 → root(空 prereq) → 深度 cd() → 后序 ay() 分配 slot（叶顺序+1、内部取首尾子平均；共享子 `id in yPos` 守卫防双计）；`x = bandX + slot*COL_W, y = TITLE_OFF + depth*ROW_H`；`bandX += (maxSlot+1)*COL_W + BAND_GAP`。常量 `CARD_W150 / CARD_H104 / COL_W190 / ROW_H126 / BAND_GAP64 / TITLE_OFF46`。
+
+**平移缩放**：`stTx/stTy/stScale` 状态 + `applyStTransform(translate+scale)` + `fitSkillTreeView`(适配居中, scale∈[0.35,1]) + `zoomSkillTree`(光标锚定) + `bindSkillTreePan`(pointerdown/move/up + wheel，按钮不触发拖拽, `stMoved` 防误触展开) + `buildSkillTreeViewCtl`(＋/－/适配)。`resize`→re-fit。
+
+**改动文件**：`src/ui.js`（renderSkillTree 重写为树布局 + 平移缩放控制器；旧 `drawConnections` 重命名为 `_drawConnections` 弃用）、`src/style.css`（`#skilltree-content` 改 flex:1 画布 `overflow:hidden/cursor:grab/touch-action:none`；新增 `.st-world`/`.st-world>.st-links`/`.st-world .altar-card`(absolute 紧凑)/`.st-band-title`/`.st-viewctl`/`.st-ctl-btn`；`.st-links` 去 inset/width/height 改仅视觉）。
+
+**验证**：`/tmp/skilltree_tree_probe.py`（?debug）T1–T8 ALL PASS（39 卡 / 5 标题 / 5 层纵深 span504 / 21 横向位 / 40 连线 / 平移 transform 变化 / 缩放 0.36→0.432 / 购买触发 just-unlocked+5 lk-next / 零报错）；`test_game.py` 全量 ALL PASS 零回归零报错。
 
 ---
 
@@ -389,6 +403,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+92d6e56 v3.3 技能树重构为树状图：每分支自上而下tidy-tree布局(按prereq深度分层) + 5分支左右并排可平移画布 + 拖拽平移/滚轮缩放(＋/－/适配) + world坐标贝塞尔连线(40边) | 树状探针T1-T8+test_game全PASS零回归
 47b4d53 v3.2 技能树 UI 打磨：节点详情浮层(hover/点击单真源,含前置✓✗态) + prereq分支内SVG路径连线(lk-done/lk-next/lk-locked三态,流光仅lk-next) + 解锁动画just-unlocked450ms(reduced-motion降级) | 打磨探针T1-T5+test_game全PASS零回归
 692ae11 v3.1 生存向平衡校准：nightBase 软化(1.12/1.22/1.32->1.08/1.16/1.24) + 刷怪地板0.18->0.22 + 血瓶2.5%->3.5% | 模拟器量化后期小怪HP×16.9->×14.5 test_game连跑2次全PASS
 4223272 v3.0 技能树：元进度层(5分支39节点含洗点) + 独立入口图标(skilltree_menu.png) + 4引擎钩子(weaponMods/rollCrit扩参/吸血转盾/startRun并列注入) | 探针T1-T7+UI冒烟+test_game全PASS零报错零回归
