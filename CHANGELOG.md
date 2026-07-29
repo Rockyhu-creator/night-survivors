@@ -3,6 +3,25 @@
 > 本文档专门用于版本管理。**每当发生版本更新时，在此记录当前版本的功能变更记录，统一使用中文书写。**
 > 格式约定：按版本倒序排列（最新在最上），每个版本标注日期与 commit 哈希，下设「新增 / 调整 / 修复 / 优化」分类条目。
 
+<arg_value:6124c78e>---
+
+## v3.0（2026-07-29 · `4223272`）
+
+> 新增「技能树」元进度层：跨局永久、消耗灵魂、`localStorage` 存档，与灵魂祭坛并存为双 sink，零污染 `ALTAR`/`startRun`。5 分支（征伐/血裔协同/永夜抗性/灵魂经济/通用机能）× 4 节点类型（gate/stat/modifier/keystone）= **39 节点**，含洗点(respec)。标题屏新增独立入口「灵魂树」按钮（`skilltree_menu.png` 图标）。
+
+### 新增
+- **技能树数据层（src/data.js `SKILL_TREE`）**：39 节点完整定义（id/branch/type/name/icon/desc/cost/prereq/gateReq/apply）；`buySkillNode(id)` 幂等购买（prereq 链 + cleared/achievement 门槛 + balance 校验）；`respecTree()` 全额返还 + 一次性小额手续费 `max(25, floor(refund*0.05))`（[校准] 5% 斜率待真机观察）。暴露 `window.__skilltree/__buySkillNode/__respecTree` 调试钩子。
+- **4 个引擎钩子**：① `entities.js Player.weaponMods`（武器机制修饰 axe/lightning/holywater/starfall）② `rollCrit(baseDamage, bonusChance, bonusMul)` 扩参支持逐武器暴击 ③ `Player.lifestealToShield`（吸血溢出转护盾）④ `game.js startRun()` 在 ALTAR 循环后并列注入已购技能树节点（不碰 ALTAR/其余逻辑）。
+- **武器接线（src/weapons.js）**：`hitEnemy` 扩参 `critBonus/critMulBonus` 透传 `rollCrit`；blade/holywater/axe 循环接 `player.weaponMods.{blade/holywater/axe}.count`；lightning 跳数接 `weaponMods.lightning.chains`；starfall 暴击接 `weaponMods.starfall`；吸血位点改「先回血、溢出且 lifestealToShield 时转盾」。
+- **UI 入口（src/ui.js / index.html / main.js / style.css）**：标题屏新增 `btn-skilltree`（含 `skilltree_menu.png` 图标）与 `skilltree-screen`；5 分支卡片渲染、三态（owned/available/locked）、点击购买、重置天赋（confirm 显示返还/手续费）、返回；分支色 征伐红/血裔紫/永夜蓝/灵魂经济暗金/通用机能青绿。
+- **独立入口图标（public/assets/skilltree_menu.png + gen_skilltree_menu.py）**：80×80 像素风、透明底、1px 暗描边；已注册 `gen_assets.py` AI_OWNED 防程序化生成器覆盖。
+
+### 调整
+- 全树成本约 13,750 灵魂（gate 250~350 / stat 160~360 / modifier 280~360 / keystone 650~850）；高风险 keystone（使徒权能 `bly_keystone_apostle`、终焉守护 `nfr_keystone_endgame`）需 `cleared:['hard']` 门槛，噩梦投资子区 `eco_gate_nightmare` 需 `cleared:['normal']` 门槛。
+
+### 验证
+- `node --check` src/* 全 OK；`/tmp/skilltree_v1_probe.py`（?debug）T1-T7 + 零控制台报错 ALL PASS（购买链/幂等/prereq 拦截/cleared 门槛 normal+hard/startRun 注入增量/洗点精确/不变量/39 节点）；`/tmp/skilltree_ui_smoke.py` 菜单按钮+图标+界面+39 卡+5 分支+返回 ALL PASS；`test_game.py` 全量 ALL PASS 零回归零报错。
+
 ---
 
 ## v2.5b（2026-07-29 · `dad7f2f`）

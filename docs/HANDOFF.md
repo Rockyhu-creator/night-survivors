@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v2.5b 镇魂钟鸣符文吸附修复：deployRange 外推 burstRadius+40 + 符文自转扫场，后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.0 技能树：元进度层 5分支39节点含洗点 + 独立入口图标 + 4引擎钩子）
 
 ---
 
@@ -36,6 +36,35 @@
 **v1.12 修复（icon 纠错 + loot beacon 隐藏 + 护盾自然回盾）**：① icon 纠错——`passive_armor.png` 还原为 v1.9 之前暗夜铠甲原版（git checkout v1.8 提交），`passive_guard.png`(真正的钢铁意志) 经 ImageGen 重做亮银骑士盾+十字（亮度 177、居中清晰）；② `src/ui.js` loot beacon 在 `showTitle()` 补 `hideLootBeacon()` 且 `updateLootBeacon()` 非 playing 态强制隐藏，通关/返回主界面不再残留宝箱圆圈；③ `src/entities.js`+`src/data.js` 新增 `SHIELD_REGEN_BASE=2` 基础回盾速率，护盾不受击 3s 后自然回盾（带「灵能回响」被动后共 3.5/s）。红线：未动 15 张 AI_OWNED 其他图、未跑 gen_assets.sh。
 
 **v2.0 大版本跃迁（武器 8→16 / 神器 10→18）**：① 新增 8 件武器（starfall/judgment/phantom/aegis/warden/maul/sanguine/resolve），开火逻辑落地 `src/weapons.js` 的 `fire*` + `update*` 桶；② 新增 8 件神器（fatalis/retribution/mirage/bastion/sentinel/cataclysm/bloodpact/absolution，rarity:'normal'），经 RECIPES 与被动 critrate/critdmg/dodge/shield/shieldregen/armor/regen/guard 1:1 配对，由「满级对应武器 + 该被动」合成进化；③ 神器觉醒效果门控 `_awakened(weapon)`（仅当玩家持有配对被动时启用觉醒效果）；④ D4 新武器发现加成（`ownedWeaponKinds<4` 时 v2.0 新武器 `weapon-new` 权重 ×1.5，`NEW_WEAPON_BOOST=1.5`，后期按 `(1-0.85*late)` 衰减，src/upgrade.js）；⑤ RL2 性能硬上限 `enforceCaps()`（src/weapons.js `update(dt)` 末尾按桶 oldest-first 裁剪，`PROJECTILE_CAP=600/POOL_CAP=60/BOLT_CAP=80/VIAL_CAP=40/SLASH_CAP=40` + 环绕类 `MAX_SENTINELS=6/MAX_ORBS=8/MAX_SHOCKWAVES=12/MAX_RUNES=24` + `thunderRunes=24/bursts=12/mirageResidues=32`）；⑥ `src/entities.js` 新增 `stunTimer`（敌方眩晕跳过移动）与 `absolutionDR`（承伤链减伤，赦罪觉醒用）。可访问性：红/绿配对神器 裁决(retribution)/哨卫(sentinel) 仅靠色相易混淆，已通过亮度(luminance)差异区分。红线：未动 15 张 AI_OWNED、未跑 gen_assets.sh、未跑 `npm run build` 清 dist（用 `npx vite build --outDir .ns-build-2x` 验证）。
+
+---
+
+## 0b. 技能树 v3.0（元进度·独立层）
+
+**定位**：跨局永久元进度，消耗灵魂（与灵魂祭坛并存双 sink），`localStorage` 存档（`loadSouls().tree/treeResets`），零污染 `ALTAR`/`startRun` 现有循环逻辑（仅追加并列注入循环）。
+
+**结构（5 分支 × 4 类型 = 39 节点）**：
+- 分支：征伐 `war`（武器/伤害）、血裔协同 `bly`（6 血裔深化）、永夜抗性 `nfr`（生存/终局）、灵魂经济 `eco`（灵魂获取）、通用机能 `utl`（冷却/暴击/吸血/闪避/拾取）。
+- 类型：`gate`（开门无效果）/ `stat`（数值加成）/ `modifier`（武器机制修饰）/ `keystone`（强力节点，部分需 `cleared:['hard']` 或 `cleared:['normal']` 门槛）。
+- 全树成本约 13,750 灵魂（gate 250~350 / stat 160~360 / modifier 280~360 / keystone 650~850）；高风险 keystone（使徒权能 `bly_keystone_apostle`、终焉守护 `nfr_keystone_endgame`）需 `cleared:['hard']` 门槛；噩梦投资子区 `eco_gate_nightmare` 需 `cleared:['normal']` 门槛。
+
+**4 引擎钩子（src/entities.js + src/weapons.js + src/game.js）**：
+- `Player.weaponMods = {}`（axe.count / lightning.chains / holywater.count / starfall.critChance,critMul）——武器机制修饰，默认空。
+- `rollCrit(baseDamage, bonusChance=0, bonusMul=0)` 扩参（默认 0 = 行为不变）；逐武器暴击由 `weapons.js hitEnemy(e,baseDamage,knockX,knockY,color,critBonus=0,critMulBonus=0)` 透传 `rollCrit(...,critBonus,critMulBonus)`。
+- `Player.lifestealToShield = false`（`bly_blood_lifeshield` 置 true）——吸血回血溢出转护盾。
+- `game.js startRun()` 在 ALTAR 循环后并列 `for (const n of SKILL_TREE) if (soulsNow.tree.includes(n.id)) n.apply(this)`（不碰 ALTAR/其余逻辑）。
+
+**购买 / 洗点（src/data.js）**：
+- `buySkillNode(id)`：幂等（已购返 `owned`）、prereq 链校验、cleared/achievement 门槛、balance 校验、扣费写档。
+- `respecTree()`：全额返还 `refund` + 一次性手续费 `fee = max(25, floor(refund*0.05))`（[校准] 5% 斜率待真机观察），`tree=[]`、`treeResets+1`。
+
+**UI（src/ui.js / index.html / main.js / style.css）**：标题屏 `btn-skilltree`（含 `skilltree_menu.png` 图标，与祭坛/图鉴并列的菜单按钮）+ `skilltree-screen`；5 分支卡片三态渲染（owned/available/locked，locked 显 prereq/cleared 门槛文案）、点击购买、`btn-skilltree-respec`（confirm 显返还/手续费）、返回按钮。分支色：war 红 / bly 紫 / nfr 蓝 / eco 暗金 / utl 青绿。
+
+**图标（public/assets/skilltree_menu.png + gen_skilltree_menu.py）**：80×80 像素风透明底 1px 暗描边，已注册 `gen_assets.py` AI_OWNED 防程序化生成器覆盖。
+
+**设计 / 美术规格**：`docs/plans/2026-07-29-skilltree-v1-spec.md`（39 节点目录/apply/钩子/洗点/断言）、`docs/plans/2026-07-29-skilltree-art-spec.md`（节点视觉/分支色）。
+
+**验证**：`node --check` 全 OK；`/tmp/skilltree_v1_probe.py`（?debug）T1-T7 + 零控制台报错 ALL PASS（购买链/幂等/prereq 拦截/cleared 门槛 normal+hard/startRun 注入增量/洗点精确/不变量/39 节点）；`/tmp/skilltree_ui_smoke.py` 菜单按钮+图标+界面+39 卡+5 分支+返回 ALL PASS；`test_game.py` 全量 ALL PASS 零回归零报错。
 
 ---
 
@@ -193,7 +222,7 @@ title → playing → paused（ESC/P/按钮/切后台自动触发）
 - 桌面：`WASD / 方向键` 移动
 - 移动：`触屏拖动` 移动
 - 基于 `.desktop-only` / `.touch-only` class + `.touch-device` 切换
-- 「玩法说明」弹层（`index.html` #guide-screen）已于 v0.26 对接现状：12 分钟终局 / 9 分钟入夜 / Boss 3·6·9·12′、8 武器 / 13 被动 / 10 神器进化 / 6 血裔 / 灵魂祭坛 / 词缀怪；标题栏新增「Boss 宝箱→进化神器」提示。改动指南须同步此处。
+- 「玩法说明」弹层（`index.html` #guide-screen）已于 v0.26 对接现状：12 分钟终局 / 9 分钟入夜 / Boss 3·6·9·12′、8 武器 / 13 被动 / 10 神器进化 / 6 血裔 / 灵魂祭坛 / 技能树 / 词缀怪；标题栏新增「Boss 宝箱→进化神器」提示。改动指南须同步此处。
 
 ### 竖屏布局（.portrait class，v0.24 起锁竖屏）
 - HUD 顶部元素垂直排列
@@ -330,6 +359,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+4223272 v3.0 技能树：元进度层(5分支39节点含洗点) + 独立入口图标(skilltree_menu.png) + 4引擎钩子(weaponMods/rollCrit扩参/吸血转盾/startRun并列注入) | 探针T1-T7+UI冒烟+test_game全PASS零报错零回归
+
 dad7f2f v2.5b 镇魂钟鸣符文吸附修复：deployRange 外推 burstRadius+40(L1~L5 170/185/200/215/230,absolution 240)使辉光不罩脸 + 符文自转扫场(fireRune记spin/updateRunes每帧offAng+=spin*dt) | 探针验证12符文距230/净空+40/零报错 test_game全PASS
 
 4a20a3ede271d19f7fc02b7a736bad029ee9df17 v2.5 镇魂钟鸣/镇魂赦令重做：圈内周期音波脉冲(替换单次踏入触发→每符文周期扩张音波环扫敌掉血) + v2.5a 范围跟进修复(符文跟随玩家/封闭内圈死区/扩大burstRadius/进入即触发ACTIVE_CAP=0.3s) + 补fireRune缺maxLife渲染NaN隐性bug + resolve.desc同步 | enforceCaps新增trim(runePulses,200)
