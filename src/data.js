@@ -45,6 +45,32 @@ export const ALTAR = [
 ];
 if (typeof window !== 'undefined') window.__altar = ALTAR;
 
+// 成就枚举（G3 · v1 落地 6 项，覆盖技能树 gate 刚需）。id 即 achievements[] 存储值。
+export const ACHIEVEMENTS = {
+  clear_easy: '夜行者首通',
+  clear_normal: '梦魇行者首通',
+  clear_hard: '终焉行者首通',
+  no_hit_clear: '无伤通关',
+  beat_endgame_any: '直面永夜',
+  beat_hard_endgame: '终焉征服者',
+};
+if (typeof window !== 'undefined') window.__achievements = ACHIEVEMENTS;
+
+export function hasAchievement(id) {
+  return loadSouls().achievements.includes(id);
+}
+
+// 幂等写入：仅首次解锁时落盘，避免重复弹成就 / 重复持久化
+export function grantAchievement(id) {
+  const s = loadSouls();
+  if (!s.achievements.includes(id)) {
+    s.achievements.push(id);
+    saveSouls(s);
+    return true;
+  }
+  return false;
+}
+
 // 难度配置：hpSlope/dmgSlope=线性段敌我成长斜率；spawnMul=刷怪频率倍率；
 // bossCalm=boss存活时刷怪比例；bossGapMul=boss间隔倍率；
 // nightBase=永夜指数底数(敌人在永夜阶段HP/伤害乘 1.35^D 等)；artifactCounter=神器反制系数；
@@ -315,11 +341,11 @@ export const WEAPONS = {
     id: 'resolve', name: '镇魂钟鸣', icon: 'weapon_resolve', maxLevel: 5,
     desc: '符文环绕周身,敌人进入范围即触发音波脉冲', mech: 'rune', visual: 'resolve',
     levels: [
-      { damage: 18, cooldown: 3.0, count: 1, triggerRange: 28, burstRadius: 130, deployRange: 110, duration: 8,  maxRunes: 8,  pulseInterval: 1.0,  pulseMul: 0.5 }, // [PLACEHOLDER] 脉冲节奏/倍率/范围待真机校准
-      { damage: 23, cooldown: 2.8, count: 1, triggerRange: 30, burstRadius: 145, deployRange: 120, duration: 9,  maxRunes: 9,  pulseInterval: 0.95, pulseMul: 0.5 }, // [PLACEHOLDER]
-      { damage: 29, cooldown: 2.6, count: 2, triggerRange: 32, burstRadius: 160, deployRange: 130, duration: 10, maxRunes: 10, pulseInterval: 0.9,  pulseMul: 0.5 }, // [PLACEHOLDER]
-      { damage: 36, cooldown: 2.4, count: 2, triggerRange: 34, burstRadius: 175, deployRange: 140, duration: 11, maxRunes: 11, pulseInterval: 0.85, pulseMul: 0.5 }, // [PLACEHOLDER]
-      { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 190, deployRange: 150, duration: 12, maxRunes: 12, pulseInterval: 0.8,  pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 18, cooldown: 3.0, count: 1, triggerRange: 28, burstRadius: 130, deployRange: 170, spin: 0.6, duration: 8,  maxRunes: 8,  pulseInterval: 1.0,  pulseMul: 0.5 }, // [PLACEHOLDER] 脉冲节奏/倍率/范围待真机校准
+      { damage: 23, cooldown: 2.8, count: 1, triggerRange: 30, burstRadius: 145, deployRange: 185, spin: 0.6, duration: 9,  maxRunes: 9,  pulseInterval: 0.95, pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 29, cooldown: 2.6, count: 2, triggerRange: 32, burstRadius: 160, deployRange: 200, spin: 0.6, duration: 10, maxRunes: 10, pulseInterval: 0.9,  pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 36, cooldown: 2.4, count: 2, triggerRange: 34, burstRadius: 175, deployRange: 215, spin: 0.6, duration: 11, maxRunes: 11, pulseInterval: 0.85, pulseMul: 0.5 }, // [PLACEHOLDER]
+      { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 190, deployRange: 230, spin: 0.6, duration: 12, maxRunes: 12, pulseInterval: 0.8,  pulseMul: 0.5 }, // [PLACEHOLDER]
     ],
   },
 };
@@ -449,22 +475,38 @@ export const BLOODLINES = [
 
 // ---------- 灵魂货币持久化 ----------
 const SOUL_KEY = 'night_survivors_souls';
+export const SOUL_SCHEMA_VERSION = 1;
 
 export function loadSouls() {
   try {
     const raw = localStorage.getItem(SOUL_KEY);
     const o = raw ? JSON.parse(raw) : null;
-    return {
+    const base = {
       balance: o?.balance || 0,
       spent: o?.spent || 0,
       unlocks: o?.unlocks || [],
       cleared: o?.cleared || [],
       bloodlines: o?.bloodlines || ['wanderer'],
       selectedBloodline: o?.selectedBloodline || 'wanderer',
+      // === 技能树 v1 持久化地基（G1：向后兼容默认，旧档缺字段 → 安全兜底）===
+      tree: o?.tree || [],                 // 已购技能树节点 id
+      treeResets: o?.treeResets || 0,      // 洗点次数
+      achievements: o?.achievements || [], // 成就（与 G1 合并迁移）
+      totalKills: o?.totalKills || 0,      // 累计击杀（前向兼容计数器）
+      version: o?.version || SOUL_SCHEMA_VERSION,
     };
+    return migrateSouls(base, o?.version);
   } catch {
-    return { balance: 0, spent: 0, unlocks: [], cleared: [], bloodlines: ['wanderer'], selectedBloodline: 'wanderer' };
+    return { balance: 0, spent: 0, unlocks: [], cleared: [], bloodlines: ['wanderer'],
+             selectedBloodline: 'wanderer', tree: [], treeResets: 0, achievements: [], totalKills: 0, version: 1 };
   }
+}
+
+// 版本驱动迁移：未来 schema 升级唯一入口（v1 仅占位留口，禁止在 loadSouls 散点判断）
+function migrateSouls(s, fromVersion) {
+  const v = fromVersion || 1;
+  // 未来示例：if (v < 2) { s.xxx = []; s.version = 2; }
+  return s;
 }
 
 export function saveSouls(s) {

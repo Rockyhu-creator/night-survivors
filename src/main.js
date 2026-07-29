@@ -1,6 +1,6 @@
 import { Game } from './game.js';
 import { initVersionCheck } from './version-check.js';
-import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked, getSelectedBloodline, setSelectedBloodline } from './data.js';
+import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, grantAchievement, hasAchievement, BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked, getSelectedBloodline, setSelectedBloodline } from './data.js';
 import { MobileControls } from './mobile-controls.js';
 
 // 触屏设备检测：必须在 game.init() 之前完成，
@@ -107,7 +107,7 @@ window.addEventListener('keydown', unlockAudio, { once: true });
 // 自动化测试调试钩子
 if (new URLSearchParams(window.location.search).has('debug')) {
   window.__game = game;
-  window.__souls = { loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked };
+  window.__souls = { loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, grantAchievement, hasAchievement };
   window.__bloodlines = {
     BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked,
     getSelectedBloodline, setSelectedBloodline,

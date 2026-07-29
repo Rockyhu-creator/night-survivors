@@ -648,6 +648,9 @@ export class WeaponSystem {
       for (const e of game.enemies.enemiesNear(player.x, player.y, r + 30)) {
         if (e.hp > 0 && Math.hypot(e.x - player.x, e.y - player.y) < r) {
           this.hitEnemy(e, s.damage * player.damageMul, 0, 0, '#c060a0');
+          // 状态增幅 proof-of-concept：仅当玩家已投资 statusAmp(>1) 时，aura 对环内敌人施加短暂减速；
+          // 默认 statusAmp=1 → 不触发，现有光环行为逐字节不变（减速强度随 statusAmp 放大）
+          if (player.statusAmp > 1) this.game.enemies.applyDebuff(e, { type: 'slow', value: 0.06, duration: 0.5 });
           // 血裔·吸血(嗜血者) 同步回血
           if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
         }
@@ -1169,7 +1172,7 @@ export class WeaponSystem {
     const r = s.deployRange || 150;
     this.runes.push({
       x: player.x + Math.cos(ang) * r, y: player.y + Math.sin(ang) * r,
-      offAng: ang, offR: r,
+      offAng: ang, offR: r, spin: s.spin != null ? s.spin : 0.6,
       triggerRange: s.triggerRange || 30, burstRadius: s.burstRadius || 80,
       damage: s.damage * player.damageMul, duration: s.duration || 8, life: s.duration || 8,
       maxLife: s.duration || 8,
@@ -1259,6 +1262,8 @@ export class WeaponSystem {
     for (let i = this.runes.length - 1; i >= 0; i -= 1) {
       const rn = this.runes[i];
       rn.life -= dt;
+      // 符文绕玩家自转(orbit) + 跟随：角度随时间推进，世界坐标每帧重算
+      rn.offAng += (rn.spin || 0) * dt;
       // 符文环绕玩家：每帧重算世界坐标，避免玩家移动后范围被甩在身后
       rn.x = player.x + Math.cos(rn.offAng) * rn.offR;
       rn.y = player.y + Math.sin(rn.offAng) * rn.offR;
@@ -1413,7 +1418,7 @@ export class WeaponSystem {
     weapon.timer -= dt;
     if (weapon.timer <= 0) {
       weapon.timer += 2.2 * (player.cooldownMul || 1);
-      this.fireRune({ visual: 'resolve', id: weapon.id }, { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 200, deployRange: 150, duration: 12, maxRunes: 12, pulseInterval: 0.7, pulseMul: 0.6 });
+      this.fireRune({ visual: 'resolve', id: weapon.id }, { damage: 44, cooldown: 2.2, count: 2, triggerRange: 36, burstRadius: 200, deployRange: 240, spin: 0.6, duration: 12, maxRunes: 12, pulseInterval: 0.7, pulseMul: 0.6 });
     }
     if (this._awakened(weapon)) {
       let inRune = false;

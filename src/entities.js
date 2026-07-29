@@ -40,6 +40,10 @@ export class Player {
     this.armor = 0;                      // 防御（固定减伤值）
     this.dodgeChance = 0;                // 闪避率（0~1，硬上限 DODGE_CAP，基础 0）
     this.lastHitTime = -999;             // 最后一次实际承伤的游戏时间（受击打断回盾用）
+    // 技能树 v1 前置 · 三缺失机制引擎字段（默认零值 = 行为逐字节不变）
+    this.thorns = 0;                // 反伤：受击时对来源敌人反弹等量伤害
+    this.nightDmgReduction = 0;     // 永夜减伤：NIGHT_START 后受伤 ×(1 - val)
+    this.statusAmp = 1;             // 状态增幅：对敌 debuff 强度 ×statusAmp
     this.level = 1;
     this.exp = 0;
     this.weapons = [];
@@ -88,7 +92,8 @@ export class Player {
   }
 
   // 承伤四段（顺序固定）：闪避 → 防御 → 护盾 → 扣血。返回 true=实际承伤；false=未承伤（iframes 中或闪避）。
-  takeDamage(amount) {
+  // source=造成本次伤害的来源敌人（用于 thorns 反伤）；无来源时省略。
+  takeDamage(amount, source) {
     if (this.iframes > 0) return false;
     // ① 闪避：概率完全免伤，但仍刷新 iframes 保持受击节奏
     if (Math.random() < this.dodgeChance) {
@@ -97,7 +102,13 @@ export class Player {
       return false;
     }
     // ② 防御：固定减伤后乘百分比乘区，保底 DAMAGE_MIN
-    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1) * (this.absolutionDR || 1);
+    // 永夜减伤：NIGHT_START 后受伤额外 ×(1 - nightDmgReduction)；默认 0 → 不受影响（逐字节不变）
+    const nightDR = (this.game && this.game.time >= NIGHT_START) ? (1 - (this.nightDmgReduction || 0)) : 1;
+    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1) * (this.absolutionDR || 1) * nightDR;
+    // 反伤（thorns）：来源为敌人且 thorns>0 时反弹等量伤害（默认 0 不触发，逐字节不变）
+    if (source && this.thorns > 0) {
+      this.game?.weapons?.hitEnemy(source, this.thorns, 0, 0, '#ff6b6b');
+    }
     // ③ 护盾吸收：先扣盾，扣完再扣血
     if (this.shield > 0) {
       const absorbed = Math.min(this.shield, dmg);
@@ -106,6 +117,7 @@ export class Player {
     }
     // ④ 扣血 + 受击打断回盾计时
     this.hp -= dmg;
+    if (dmg > 0 && this.game) this.game.tookDamage = true;
     this.lastHitTime = this.game ? this.game.time : 0;
     this.iframes = 0.5;
     if (navigator.vibrate) navigator.vibrate(50);
@@ -277,6 +289,11 @@ export class EnemyManager {
       dotAccumulator: 0,
       // 亡魂收割者·撕裂 DOT：scythe 命中(reaper 激活)时由 weapons.js 写入 { dps, time }；null=无
       rend: null,
+      // 状态增幅 debuff（statusAmp）：burn=持续掉血；slow=减速。默认零值不生效
+      burnTimer: 0,
+      burnDps: 0,
+      slowTimer: 0,
+      slowMul: 1,
     };
     return e;
   }
@@ -305,6 +322,11 @@ export class EnemyManager {
       wobble: Math.random() * Math.PI * 2,
       dotAccumulator: 0,
       rend: null,
+      // 状态增幅 debuff（statusAmp）：burn/slow。Boss 同样可被 debuff
+      burnTimer: 0,
+      burnDps: 0,
+      slowTimer: 0,
+      slowMul: 1,
       isBoss: true,
       bossDef: def,
       // 技能运行时状态（门槛+冷却双条件）：每技能独立 {triggered, lastCast}
@@ -480,8 +502,9 @@ export class EnemyManager {
           e.x += e.kx * dt;
           e.y += e.ky * dt;
         } else {
-          e.x += (dx / dist) * e.speed * dt + e.kx * dt;
-          e.y += (dy / dist) * e.speed * dt + e.ky * dt;
+          const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+          e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+          e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
         }
       }
       if (e.isBoss) {
@@ -529,6 +552,18 @@ export class EnemyManager {
         if ((e.flashCd || 0) <= 0) { e.flash = 0.08; e.flashCd = 0.2; }
       }
 
+      // 状态增幅 debuff 结算（statusAmp 框架）：burn=持续掉血；slow=减速。默认零值不生效
+      if (e.burnTimer > 0) {
+        const { damage: bd, isCrit } = this.game.player.rollCrit(e.burnDps * dt);
+        e.hp -= bd * (e.dmgTakenMul || 1);
+        e.burnTimer -= dt;
+        if ((e.flashCd || 0) <= 0) { e.flash = 0.08; e.flashCd = 0.2; }
+      }
+      if (e.slowTimer > 0) {
+        e.slowTimer -= dt;
+        if (e.slowTimer <= 0) e.slowMul = 1;  // 到期复位，避免陈旧 slowMul 残留
+      }
+
       // 敌人间软推开
       const neighbors = this.neighborsOf(grid, e.x, e.y);
       for (const o of neighbors) {
@@ -554,7 +589,7 @@ export class EnemyManager {
           const cap = player.maxHp * 0.35;
           if (touchDamage > cap) touchDamage = cap;
         }
-        if (player.takeDamage(touchDamage)) {
+        if (player.takeDamage(touchDamage, e)) {
           this.game.onPlayerHit();
         }
         e.hitCooldown = 0.8;
@@ -626,7 +661,7 @@ export class EnemyManager {
       const d2 = dxP * dxP + dyP * dyP;
       const touchR = p.radius + player.radius;
       if (d2 < touchR * touchR) {
-        if (player.takeDamage(p.damage)) {
+        if (player.takeDamage(p.damage, p.owner)) {
           this.game.onPlayerHit();
         }
         this.enemyProjectiles.splice(i, 1);
@@ -845,5 +880,22 @@ export class EnemyManager {
     const kb = 90 * (1 - e.knockResist);
     e.kx += knockX * kb;
     e.ky += knockY * kb;
+  }
+
+  // 状态增幅 debuff 施加：强度按 player.statusAmp 放大（默认 1 → 不放大）。
+  // type='slow'：降低敌人速度（slowMul 越低越慢，取更强者）；type='burn'：持续掉血（burnDps）。
+  // 时长取较大者刷新；默认零值不生效。供武器命中时调用（如 aura 在 statusAmp>1 时施加 slow）。
+  applyDebuff(e, opts) {
+    if (!e) return;
+    const amp = (this.game && this.game.player && this.game.player.statusAmp) || 1;
+    if (opts.type === 'slow') {
+      const v = (opts.value || 0) * amp;
+      e.slowMul = Math.min(e.slowMul != null ? e.slowMul : 1, 1 - v);
+      e.slowTimer = Math.max(e.slowTimer || 0, opts.duration || 0);
+    } else if (opts.type === 'burn') {
+      const v = (opts.value || 0) * amp;
+      e.burnDps = Math.max(e.burnDps || 0, v);
+      e.burnTimer = Math.max(e.burnTimer || 0, opts.duration || 0);
+    }
   }
 }

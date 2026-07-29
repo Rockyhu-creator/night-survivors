@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -29,6 +29,7 @@ export class Game {
     this.state = 'loading';
     this.time = 0;
     this.kills = 0;
+    this.tookDamage = false;
     this.expQueue = 0;
     this.accumulator = 0;
     this.lastTs = 0;
@@ -204,6 +205,7 @@ export class Game {
   startRun() {
     this.time = 0;
     this.kills = 0;
+    this.tookDamage = false;
     this.expQueue = 0;
     this.accumulator = 0;
     this.rerollsLeft = 3;
@@ -445,8 +447,18 @@ export class Game {
       saveSouls(souls);
       this.ui.showAchievement('成就解锁 · 永夜使徒', '你直面了永夜的尽头,隐藏血裔「永夜使徒」现已可选');
     }
+    this.recordAchievements();
     this.ui.showVictory();
     this.audio.gameover();
+  }
+
+  // G3 成就记录：仅在终局通关（gameWin）时调用，按成就枚举幂等写入
+  recordAchievements() {
+    const diff = this.difficulty?.id;
+    if (diff) grantAchievement('clear_' + diff);
+    grantAchievement('beat_endgame_any');
+    if (diff === 'hard') grantAchievement('beat_hard_endgame');
+    if (!this.tookDamage) grantAchievement('no_hit_clear');
   }
 
   renderBackdropOnly() {
