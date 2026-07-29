@@ -59,8 +59,14 @@ export class UIManager {
     this.skillTreeTip = document.createElement('div');
     this.skillTreeTip.className = 'st-tooltip';
     this.skillTreeScreen.appendChild(this.skillTreeTip);
+    // 技能树画布平移/缩放状态
+    this.stTx = 0; this.stTy = 0; this.stScale = 1;
+    this.stWorldW = 0; this.stWorldH = 0; this.stDragging = false; this.stMoved = false;
+    this.stViewCtl = this.buildSkillTreeViewCtl();
+    this.skillTreeScreen.appendChild(this.stViewCtl);
+    this.bindSkillTreePan();
     window.addEventListener('resize', () => {
-      if (this.skillTreeScreen && !this.skillTreeScreen.classList.contains('hidden')) { this.drawConnections(); this.hideTip(); }
+      if (this.skillTreeScreen && !this.skillTreeScreen.classList.contains('hidden')) { this.fitSkillTreeView(); this.hideTip(); }
     });
     this.bloodlineContentEl = document.getElementById('bloodline-content');
     this.vignette = document.getElementById('damage-vignette');
@@ -933,16 +939,48 @@ export class UIManager {
     const typeNames = { gate: '门槛', stat: '属性', modifier: '机制', keystone: '基石' };
     const clearedNames = { easy: '轻松', normal: '普通', hard: '噩梦' };
     const branchColor = { war: 'rgba(198,60,60,.85)', bly: 'rgba(142,68,173,.85)', nfr: 'rgba(70,120,210,.85)', eco: 'rgba(201,162,39,.85)', utl: 'rgba(60,180,150,.85)' };
+    const solid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
+
+    const CARD_W = 150, CARD_H = 104, COL_W = 190, ROW_H = 126, BAND_GAP = 64, TITLE_OFF = 46;
+
+    const world = document.createElement('div');
+    world.className = 'st-world';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'st-links');
+    world.appendChild(svg);
+
+    const positions = {};
+    const cards = {};
+    let bandX = 0, maxW = 0, maxH = 0;
+
     for (const bid of Object.keys(branchNames)) {
-      const wrap = document.createElement('div');
-      wrap.className = 'st-branch';
-      const h = document.createElement('h3');
-      h.className = 'st-branch-title';
-      h.textContent = branchNames[bid];
-      wrap.appendChild(h);
-      const grid = document.createElement('div');
-      grid.className = 'st-branch-grid';
-      for (const def of SKILL_TREE.filter((n) => n.branch === bid)) {
+      const nodes = SKILL_TREE.filter((n) => n.branch === bid);
+      const children = {}; nodes.forEach((n) => { children[n.id] = []; });
+      nodes.forEach((n) => (n.prereq || []).forEach((p) => { if (children[p]) children[p].push(n.id); }));
+      const root = nodes.find((n) => !(n.prereq || []).length) || nodes[0];
+      const depth = {};
+      const cd = (id, d) => { depth[id] = Math.max(depth[id] || 0, d); (children[id] || []).forEach((c) => cd(c, d + 1)); };
+      cd(root.id, 0);
+      const yPos = {}; let slot = 0;
+      const ay = (id) => {
+        if (id in yPos) return;
+        const ch = children[id] || [];
+        if (!ch.length) { yPos[id] = slot; slot += 1; return; }
+        ch.forEach(ay);
+        yPos[id] = (yPos[ch[0]] + yPos[ch[ch.length - 1]]) / 2;
+      };
+      ay(root.id);
+      const maxSlot = Math.max(...nodes.map((n) => yPos[n.id] || 0));
+
+      const title = document.createElement('div');
+      title.className = 'st-band-title';
+      title.style.color = branchColor[bid];
+      title.textContent = branchNames[bid];
+      title.style.left = `${bandX + (maxSlot * COL_W) / 2}px`;
+      title.style.top = `${TITLE_OFF - 38}px`;
+      world.appendChild(title);
+
+      for (const def of nodes) {
         const isOwned = owned.has(def.id);
         const prereqOk = (def.prereq || []).every((p) => owned.has(p));
         let gateOk = true, lockMsg = '';
@@ -951,52 +989,151 @@ export class UIManager {
           lockMsg = `需通关 ${def.gateReq.cleared.map((c) => clearedNames[c] || c).join('/')}`;
         }
         const affordable = souls.balance >= def.cost;
+        const x = bandX + (yPos[def.id] || 0) * COL_W;
+        const y = TITLE_OFF + (depth[def.id] || 0) * ROW_H;
+        positions[def.id] = { x, y };
+        maxW = Math.max(maxW, x + CARD_W);
+        maxH = Math.max(maxH, y + CARD_H);
+
         const card = document.createElement('div');
         card.dataset.id = def.id;
-        card.style.setProperty('--branch-color', branchColor[def.branch] || 'rgba(142,68,173,.85)');
-        card.className = `altar-card st-${def.branch} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}${def.id === justUnlocked ? ' just-unlocked' : ''}`;
-        const nm = document.createElement('h3');
-        nm.textContent = def.name;
-        const tp = document.createElement('div');
-        tp.className = 'st-type';
-        tp.textContent = typeNames[def.type] || def.type;
-        const desc = document.createElement('p');
-        desc.className = 'ac-desc';
-        desc.textContent = def.desc;
-        const btn = document.createElement('button');
-        btn.className = 'gothic-btn ac-buy';
-        if (isOwned) {
-          btn.textContent = '已解锁'; btn.disabled = true; btn.classList.add('owned-btn');
-        } else if (!prereqOk) {
-          btn.textContent = '前置未解锁'; btn.disabled = true;
-        } else if (!gateOk) {
-          btn.textContent = lockMsg; btn.disabled = true;
-        } else if (!affordable) {
-          btn.textContent = `👁 ${def.cost}`; btn.disabled = true;
-        } else {
-          btn.textContent = `👁 ${def.cost}`;
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id); }
-          });
-        }
+        card.style.setProperty('--branch-color', branchColor[bid]);
+        card.style.setProperty('--branch-solid', solid[bid]);
+        card.style.left = `${x}px`;
+        card.style.top = `${y}px`;
+        card.style.width = `${CARD_W}px`;
+        card.className = `altar-card st-${bid} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}${def.id === justUnlocked ? ' just-unlocked' : ''}`;
+        const nm = document.createElement('h3'); nm.textContent = def.name;
+        const tp = document.createElement('div'); tp.className = 'st-type'; tp.textContent = typeNames[def.type] || def.type;
+        const desc = document.createElement('p'); desc.className = 'ac-desc'; desc.textContent = def.desc;
+        const btn = document.createElement('button'); btn.className = 'gothic-btn ac-buy';
+        if (isOwned) { btn.textContent = '已解锁'; btn.disabled = true; btn.classList.add('owned-btn'); }
+        else if (!prereqOk) { btn.textContent = '前置未解锁'; btn.disabled = true; }
+        else if (!gateOk) { btn.textContent = lockMsg; btn.disabled = true; }
+        else if (!affordable) { btn.textContent = `👁 ${def.cost}`; btn.disabled = true; }
+        else { btn.textContent = `👁 ${def.cost}`; btn.addEventListener('click', (e) => { e.stopPropagation(); if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id); } }); }
         card.append(nm, tp, desc, btn);
         card.addEventListener('mouseenter', () => this.showTip(def, card, owned, souls));
         card.addEventListener('mouseleave', () => this.hideTip());
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
+          if (this.stMoved) return;
           if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); }
           else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); }
         });
-        grid.appendChild(card);
+        world.appendChild(card);
+        cards[def.id] = card;
       }
-      wrap.appendChild(grid);
-      this.skillTreeContentEl.appendChild(wrap);
+      bandX += (maxSlot + 1) * COL_W + BAND_GAP;
     }
-    requestAnimationFrame(() => this.drawConnections());
+
+    world.style.width = `${maxW}px`;
+    world.style.height = `${maxH}px`;
+    svg.setAttribute('width', maxW);
+    svg.setAttribute('height', maxH);
+
+    for (const def of SKILL_TREE) {
+      if (!def.prereq || !def.prereq.length) continue;
+      const c = positions[def.id]; if (!c) continue;
+      const b = cards[def.id]; if (!b) continue;
+      for (const pid of def.prereq) {
+        const a = positions[pid]; if (!a) continue;
+        const pa = cards[pid]; if (!pa) continue;
+        const ax = a.x + CARD_W / 2, ay2 = a.y + CARD_H;
+        const bx = c.x + CARD_W / 2, by = c.y;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${ax} ${ay2} C ${ax} ${(ay2 + by) / 2}, ${bx} ${(ay2 + by) / 2}, ${bx} ${by}`);
+        let cls = 'lk-latent';
+        if (pa.classList.contains('owned') && b.classList.contains('owned')) cls = 'lk-owned';
+        else if (pa.classList.contains('owned') && b.classList.contains('available')) cls = 'lk-next';
+        path.setAttribute('class', cls);
+        svg.appendChild(path);
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', bx); dot.setAttribute('cy', by); dot.setAttribute('r', 3);
+        dot.setAttribute('class', cls === 'lk-latent' ? 'lk-dot-latent' : 'lk-dot-owned');
+        svg.appendChild(dot);
+      }
+    }
+
+    this.skillTreeContentEl.appendChild(world);
+    this.stWorld = world; this.stWorldW = maxW; this.stWorldH = maxH;
+    requestAnimationFrame(() => this.fitSkillTreeView());
   }
 
-  drawConnections() {
+  applyStTransform() {
+    if (this.stWorld) this.stWorld.style.transform = `translate(${this.stTx}px, ${this.stTy}px) scale(${this.stScale})`;
+  }
+
+  fitSkillTreeView() {
+    if (!this.stWorldW || !this.stWorldH) return;
+    const c = this.skillTreeContentEl;
+    const cw = c.clientWidth, ch = c.clientHeight;
+    if (!cw || !ch) return;
+    const s = Math.min(cw / (this.stWorldW + 48), ch / (this.stWorldH + 48), 1) * 0.96;
+    this.stScale = Math.max(0.35, s);
+    this.stTx = (cw - this.stWorldW * this.stScale) / 2;
+    this.stTy = Math.max(8, (ch - this.stWorldH * this.stScale) / 2);
+    this.applyStTransform();
+  }
+
+  zoomSkillTree(factor, mx, my) {
+    const ns = Math.min(2.2, Math.max(0.35, this.stScale * factor));
+    const k = ns / this.stScale;
+    this.stTx = mx - (mx - this.stTx) * k;
+    this.stTy = my - (my - this.stTy) * k;
+    this.stScale = ns;
+    this.applyStTransform();
+  }
+
+  bindSkillTreePan() {
+    const c = this.skillTreeContentEl;
+    let sx = 0, sy = 0, stx = 0, sty = 0;
+    const move = (e) => {
+      if (!this.stDragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) this.stMoved = true;
+      this.stTx = stx + dx; this.stTy = sty + dy;
+      this.applyStTransform();
+    };
+    const up = () => {
+      this.stDragging = false;
+      c.style.cursor = 'grab';
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    c.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      this.stDragging = true; this.stMoved = false;
+      sx = e.clientX; sy = e.clientY; stx = this.stTx; sty = this.stTy;
+      c.style.cursor = 'grabbing';
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+    c.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = c.getBoundingClientRect();
+      this.zoomSkillTree(Math.exp(-e.deltaY * 0.0015), e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+  }
+
+  buildSkillTreeViewCtl() {
+    const wrap = document.createElement('div');
+    wrap.className = 'st-viewctl';
+    const mk = (label, fn) => {
+      const b = document.createElement('button');
+      b.className = 'st-ctl-btn'; b.textContent = label;
+      b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+      return b;
+    };
+    const cc = () => ({ w: this.skillTreeContentEl.clientWidth, h: this.skillTreeContentEl.clientHeight });
+    wrap.appendChild(mk('＋', () => { const { w, h } = cc(); this.zoomSkillTree(1.2, w / 2, h / 2); }));
+    wrap.appendChild(mk('－', () => { const { w, h } = cc(); this.zoomSkillTree(1 / 1.2, w / 2, h / 2); }));
+    wrap.appendChild(mk('适配', () => this.fitSkillTreeView()));
+    return wrap;
+  }
+
+  // drawConnections 已弃用：连线现于 renderSkillTree 内按 world 坐标直接绘制（树状布局），不再调用本方法
+  _drawConnections() {
     const solid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
     for (const grid of this.skillTreeContentEl.querySelectorAll('.st-branch-grid')) {
       const prev = grid.querySelector('.st-links');
