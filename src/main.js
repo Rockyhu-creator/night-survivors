@@ -71,6 +71,10 @@ document.getElementById('btn-bloodline').addEventListener('click', () => game.ui
 document.getElementById('btn-bloodline-back').addEventListener('click', () => game.ui.hideBloodline());
 // 左上角返回按钮（与底部返回并存，符合用户习惯）
 document.getElementById('btn-altar-topback').addEventListener('click', () => game.ui.hideAltar());
+document.getElementById('btn-skilltree').addEventListener('click', () => game.ui.showSkillTree());
+document.getElementById('btn-skilltree-back').addEventListener('click', () => game.ui.hideSkillTree());
+document.getElementById('btn-skilltree-topback').addEventListener('click', () => game.ui.hideSkillTree());
+document.getElementById('btn-skilltree-respec').addEventListener('click', () => game.ui.respecSkillTree());
 document.getElementById('btn-bloodline-topback').addEventListener('click', () => game.ui.hideBloodline());
 document.getElementById('btn-guide').addEventListener('click', () => game.ui.showGuide());
 // 暂停界面的"继续"按钮（桌面/移动端通用，移动端主要恢复路径）

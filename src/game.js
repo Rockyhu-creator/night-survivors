@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement } from './data.js';
 import { loadAssets, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -232,6 +232,11 @@ export class Game {
     this.soulGainMul = 1;
     for (const a of ALTAR) {
       if (isUnlocked(a.id)) a.apply(this);
+    }
+    // 注入技能树 v1 已购节点（独立数组，与祭坛并列，不污染 ALTAR 循环；不碰 startRun 其余逻辑）
+    const soulsNow = loadSouls();
+    for (const n of SKILL_TREE) {
+      if (soulsNow.tree.includes(n.id)) n.apply(this);
     }
     // 增益可能抬高 maxHp，同步回满血避免开局残血
     this.player.hp = this.player.maxHp;

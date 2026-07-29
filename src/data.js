@@ -513,6 +513,167 @@ export function saveSouls(s) {
   try { localStorage.setItem(SOUL_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
+// ============ 技能树 v1（元进度 · 独立层）============
+// 与 ALTAR 并列的独立数组，存于 loadSouls().tree[]，不污染祭坛循环。
+// apply(g) 在 game.js startRun 中 ALTAR 循环之后并列注入。
+// cost 已填（均显著高于祭坛，防双 sink 失衡）；数值待真机校准处已标注。
+export const SKILL_TREE = [
+  // ---------- 征伐 war ----------
+  { id: 'war_root', branch: 'war', type: 'gate', name: '征伐之门', icon: 'sk_war_root',
+    desc: '解锁「征伐」分支：武器与伤害的专精投资线', cost: 300, prereq: [], gateReq: null, apply: () => {} },
+  { id: 'war_dmg', branch: 'war', type: 'stat', name: '全军破阵', icon: 'sk_war_dmg',
+    desc: '所有武器伤害 +8%', cost: 180, prereq: ['war_root'], gateReq: null,
+    apply: (g) => { g.player.damageMul += 0.08; } },
+  { id: 'war_cd', branch: 'war', type: 'stat', name: '急速号令', icon: 'sk_war_cd',
+    desc: '所有武器冷却 -8%', cost: 180, prereq: ['war_root'], gateReq: null,
+    apply: (g) => { g.player.cooldownMul *= 0.92; } },
+  { id: 'war_axe_extra', branch: 'war', type: 'modifier', name: '回旋精通', icon: 'sk_war_axe_extra',
+    desc: '回旋战斧 同时投掷 +1 把', cost: 280, prereq: ['war_root'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.axe = m.axe || {}; m.axe.count = (m.axe.count || 0) + 1; } },
+  { id: 'war_lightning_chain', branch: 'war', type: 'modifier', name: '雷霆连锁', icon: 'sk_war_lightning_chain',
+    desc: '雷霆审判 跳跃 +2 段', cost: 300, prereq: ['war_root'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.lightning = m.lightning || {}; m.lightning.chains = (m.lightning.chains || 0) + 2; } },
+  { id: 'war_holywater_layer', branch: 'war', type: 'modifier', name: '圣水漫延', icon: 'sk_war_holywater_layer',
+    desc: '圣水洗礼 同时泼洒 +1 片领域', cost: 320, prereq: ['war_root'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.holywater = m.holywater || {}; m.holywater.count = (m.holywater.count || 0) + 1; } },
+  { id: 'war_starfall_crit', branch: 'war', type: 'modifier', name: '星陨锐击', icon: 'sk_war_starfall_crit',
+    desc: '星陨弩 暴击率 +15% & 暴击伤害 +25%', cost: 360, prereq: ['war_dmg'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.starfall = m.starfall || {}; m.starfall.critChance = (m.starfall.critChance || 0) + 0.15; m.starfall.critMul = (m.starfall.critMul || 0) + 0.25; } },
+  { id: 'war_keystone_omni', branch: 'war', type: 'keystone', name: '万象征伐', icon: 'sk_war_keystone_omni',
+    desc: '全武器伤害 +12% & 冷却 -10%', cost: 700, prereq: ['war_dmg', 'war_axe_extra'], gateReq: null,
+    apply: (g) => { g.player.damageMul += 0.12; g.player.cooldownMul *= 0.90; } },
+  { id: 'war_keystone_avalanche', branch: 'war', type: 'keystone', name: '崩裂征伐', icon: 'sk_war_keystone_avalanche',
+    desc: '全武器伤害 +15% & 范围 +20%', cost: 750, prereq: ['war_axe_extra', 'war_lightning_chain'], gateReq: null,
+    apply: (g) => { g.player.damageMul += 0.15; g.player.areaMul *= 1.20; } },
+  // ---------- 血裔协同 bly ----------
+  { id: 'bly_root', branch: 'bly', type: 'gate', name: '血裔之门', icon: 'sk_bly_root',
+    desc: '解锁「血裔协同」分支：6 血裔的起始武器/属性偏向深化', cost: 250, prereq: [], gateReq: null, apply: () => {} },
+  { id: 'bly_saint_pulse', branch: 'bly', type: 'modifier', name: '圣徒恩泽', icon: 'sk_bly_saint_pulse',
+    desc: '圣水洗礼 同时泼洒 +1 片领域（圣徒协同）', cost: 300, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.holywater = m.holywater || {}; m.holywater.count = (m.holywater.count || 0) + 1; } },
+  { id: 'bly_blood_lifeshield', branch: 'bly', type: 'keystone', name: '噬血结界', icon: 'sk_bly_blood_lifeshield',
+    desc: '吸血(lifesteal) 溢出转为护盾', cost: 700, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { g.player.lifestealToShield = true; } },
+  { id: 'bly_thunder_chain', branch: 'bly', type: 'modifier', name: '雷巫共鸣', icon: 'sk_bly_thunder_chain',
+    desc: '雷霆审判 跳跃 +2 段（雷巫协同）', cost: 300, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { const m = g.player.weaponMods; m.lightning = m.lightning || {}; m.lightning.chains = (m.lightning.chains || 0) + 2; } },
+  { id: 'bly_berserk_rage', branch: 'bly', type: 'stat', name: '狂战之怒', icon: 'sk_bly_berserk_rage',
+    desc: '伤害 +8% & 移速 +5%（狂战协同）', cost: 260, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { g.player.damageMul += 0.08; g.player.speedMul += 0.05; } },
+  { id: 'bly_wanderer_omni', branch: 'bly', type: 'stat', name: '流浪均衡', icon: 'sk_bly_wanderer_omni',
+    desc: '伤害 +5% & 生命上限 +20（流浪者均衡）', cost: 240, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { g.player.damageMul += 0.05; g.player.maxHp += 20; } },
+  { id: 'bly_sanguine_lifesteal', branch: 'bly', type: 'stat', name: '噬血渴望', icon: 'sk_bly_sanguine_lifesteal',
+    desc: '命中回血(lifesteal) +1.0（噬血协同）', cost: 300, prereq: ['bly_root'], gateReq: null,
+    apply: (g) => { g.player.lifesteal += 1.0; } },
+  { id: 'bly_keystone_apostle', branch: 'bly', type: 'keystone', name: '使徒权能', icon: 'sk_bly_keystone_apostle',
+    desc: '伤害 +15% & 永夜减伤 +15%（高风险高回报）', cost: 850, prereq: ['bly_wanderer_omni', 'bly_sanguine_lifesteal'], gateReq: { cleared: ['hard'] },
+    apply: (g) => { g.player.damageMul += 0.15; g.player.nightDmgReduction = Math.min(0.9, g.player.nightDmgReduction + 0.15); } },
+  // ---------- 永夜抗性 nfr ----------
+  { id: 'nfr_root', branch: 'nfr', type: 'gate', name: '永夜之门', icon: 'sk_nfr_root',
+    desc: '解锁「永夜抗性」分支：生存/终局，高难门槛线', cost: 250, prereq: [], gateReq: null, apply: () => {} },
+  { id: 'nfr_hp', branch: 'nfr', type: 'stat', name: '坚韧体魄', icon: 'sk_nfr_hp',
+    desc: '生命上限 +40', cost: 180, prereq: ['nfr_root'], gateReq: null,
+    apply: (g) => { g.player.maxHp += 40; } },
+  { id: 'nfr_shield', branch: 'nfr', type: 'stat', name: '壁垒护盾', icon: 'sk_nfr_shield',
+    desc: '护盾上限 +25（并立即获得 25 盾）', cost: 240, prereq: ['nfr_hp'], gateReq: null,
+    apply: (g) => { g.player.maxShield += 25; g.player.shield = Math.min(g.player.maxShield, g.player.shield + 25); } },
+  { id: 'nfr_armor', branch: 'nfr', type: 'stat', name: '铁壁防御', icon: 'sk_nfr_armor',
+    desc: '防御(固定减伤) +3', cost: 200, prereq: ['nfr_root'], gateReq: null,
+    apply: (g) => { g.player.armor += 3; } },
+  { id: 'nfr_thorns', branch: 'nfr', type: 'stat', name: '荆棘反伤', icon: 'sk_nfr_thorns',
+    desc: '反伤(thorns) +20（受击反弹等量）', cost: 320, prereq: ['nfr_root'], gateReq: null,
+    apply: (g) => { g.player.thorns += 20; } },
+  { id: 'nfr_nightdr', branch: 'nfr', type: 'stat', name: '永夜庇护', icon: 'sk_nfr_nightdr',
+    desc: '永夜阶段(≥540s)受伤 -20%', cost: 360, prereq: ['nfr_shield'], gateReq: null,
+    apply: (g) => { g.player.nightDmgReduction = Math.min(0.9, g.player.nightDmgReduction + 0.20); } },
+  { id: 'nfr_statusamp', branch: 'nfr', type: 'stat', name: '深渊侵蚀', icon: 'sk_nfr_statusamp',
+    desc: '状态增幅(statusAmp) +0.5（放大减速等）', cost: 340, prereq: ['nfr_armor'], gateReq: null,
+    apply: (g) => { g.player.statusAmp += 0.5; } },
+  { id: 'nfr_keystone_endgame', branch: 'nfr', type: 'keystone', name: '终焉守护', icon: 'sk_nfr_keystone_endgame',
+    desc: '永夜减伤 +20% & 反伤 +25 & 护盾上限 +30', cost: 800, prereq: ['nfr_nightdr', 'nfr_statusamp'], gateReq: { cleared: ['hard'] },
+    apply: (g) => { g.player.nightDmgReduction = Math.min(0.9, g.player.nightDmgReduction + 0.20); g.player.thorns += 25; g.player.maxShield += 30; g.player.shield = Math.min(g.player.maxShield, g.player.shield + 30); } },
+  // ---------- 灵魂经济 eco ----------
+  { id: 'eco_root', branch: 'eco', type: 'gate', name: '贪婪之门', icon: 'sk_eco_root',
+    desc: '解锁「灵魂经济」分支：灵魂获取/再投资', cost: 250, prereq: [], gateReq: null, apply: () => {} },
+  { id: 'eco_gain1', branch: 'eco', type: 'stat', name: '亡魂亲和', icon: 'sk_eco_gain1',
+    desc: '灵魂获取(soulGainMul) ×1.15', cost: 200, prereq: ['eco_root'], gateReq: null,
+    apply: (g) => { g.soulGainMul *= 1.15; } },
+  { id: 'eco_gain2', branch: 'eco', type: 'stat', name: '亡魂眷顾', icon: 'sk_eco_gain2',
+    desc: '灵魂获取(soulGainMul) ×1.15（叠加）', cost: 320, prereq: ['eco_gain1'], gateReq: null,
+    apply: (g) => { g.soulGainMul *= 1.15; } },
+  { id: 'eco_gate_nightmare', branch: 'eco', type: 'gate', name: '噩梦投资', icon: 'sk_eco_gate_nightmare',
+    desc: '解锁"噩梦投资"子区（高难高回报）', cost: 350, prereq: ['eco_root'], gateReq: { cleared: ['normal'] }, apply: () => {} },
+  { id: 'eco_nightmare', branch: 'eco', type: 'stat', name: '噩梦红利', icon: 'sk_eco_nightmare',
+    desc: '灵魂获取(soulGainMul) ×1.20（高难 soulMul 已乘 → 高难高回报）', cost: 450, prereq: ['eco_gate_nightmare'], gateReq: null,
+    apply: (g) => { g.soulGainMul *= 1.20; } },
+  { id: 'eco_keystone_hoarder', branch: 'eco', type: 'keystone', name: '守财龙裔', icon: 'sk_eco_keystone_hoarder',
+    desc: '灵魂获取(soulGainMul) ×1.30（软上限 4.0）', cost: 800, prereq: ['eco_gain2', 'eco_nightmare'], gateReq: null,
+    apply: (g) => { g.soulGainMul = Math.min(4.0, g.soulGainMul * 1.30); } }, // [校准] 软上限 4.0 待真机观察
+  // ---------- 通用机能 utl ----------
+  { id: 'utl_root', branch: 'utl', type: 'gate', name: '机能之门', icon: 'sk_utl_root',
+    desc: '解锁「通用机能」分支：冷却/暴击/吸血/闪避/拾取', cost: 250, prereq: [], gateReq: null, apply: () => {} },
+  { id: 'utl_cd', branch: 'utl', type: 'stat', name: '时序优化', icon: 'sk_utl_cd',
+    desc: '全武器冷却 -7%', cost: 180, prereq: ['utl_root'], gateReq: null,
+    apply: (g) => { g.player.cooldownMul *= 0.93; } },
+  { id: 'utl_crit', branch: 'utl', type: 'stat', name: '致命精准', icon: 'sk_utl_crit',
+    desc: '暴击率 +8%（封顶 CRIT_CHANCE_CAP）', cost: 220, prereq: ['utl_cd'], gateReq: null,
+    apply: (g) => { g.player.critChance = Math.min(CRIT_CHANCE_CAP, g.player.critChance + 0.08); } },
+  { id: 'utl_critdmg', branch: 'utl', type: 'stat', name: '致命重创', icon: 'sk_utl_critdmg',
+    desc: '暴击伤害 +20%', cost: 220, prereq: ['utl_crit'], gateReq: null,
+    apply: (g) => { g.player.critMul += 0.20; } },
+  { id: 'utl_magnet', branch: 'utl', type: 'stat', name: '磁力场', icon: 'sk_utl_magnet',
+    desc: '拾取范围(magnetMul) +25%', cost: 160, prereq: ['utl_root'], gateReq: null,
+    apply: (g) => { g.player.magnetMul += 0.25; } },
+  { id: 'utl_dodge', branch: 'utl', type: 'stat', name: '幻影步', icon: 'sk_utl_dodge',
+    desc: '闪避率 +4%（封顶 DODGE_CAP）', cost: 240, prereq: ['utl_root'], gateReq: null,
+    apply: (g) => { g.player.dodgeChance = Math.min(DODGE_CAP, g.player.dodgeChance + 0.04); } },
+  { id: 'utl_regen', branch: 'utl', type: 'stat', name: '血色再生', icon: 'sk_utl_regen',
+    desc: '每秒回血(regenRate) +1.0', cost: 200, prereq: ['utl_magnet'], gateReq: null,
+    apply: (g) => { g.player.regenRate += 1.0; } },
+  { id: 'utl_keystone_efficient', branch: 'utl', type: 'keystone', name: '极致机能', icon: 'sk_utl_keystone_efficient',
+    desc: '冷却 -10% & 暴击率 +5% & 闪避 +3%（封顶）', cost: 650, prereq: ['utl_crit', 'utl_dodge'], gateReq: null,
+    apply: (g) => { g.player.cooldownMul *= 0.90; g.player.critChance = Math.min(CRIT_CHANCE_CAP, g.player.critChance + 0.05); g.player.dodgeChance = Math.min(DODGE_CAP, g.player.dodgeChance + 0.03); } },
+];
+if (typeof window !== 'undefined') window.__skilltree = SKILL_TREE;
+if (typeof window !== 'undefined') { window.__buySkillNode = buySkillNode; window.__respecTree = respecTree; }
+
+// 购买技能树节点（幂等，防连点/重复扣费）。返回 { ok, reason? }
+export function buySkillNode(id) {
+  const def = SKILL_TREE.find((n) => n.id === id);
+  if (!def) return { ok: false, reason: 'not_found' };
+  const s = loadSouls();
+  if (s.tree.includes(id)) return { ok: false, reason: 'owned' };            // 幂等：已购不重复扣
+  for (const p of def.prereq || [])                                          // 前置链
+    if (!s.tree.includes(p)) return { ok: false, reason: 'prereq' };
+  if (def.gateReq) {                                                        // 门槛（cleared / achievement）
+    if (def.gateReq.cleared && !def.gateReq.cleared.every((c) => s.cleared.includes(c)))
+      return { ok: false, reason: 'cleared' };
+    if (def.gateReq.achievement && !def.gateReq.achievement.every((a) => s.achievements.includes(a)))
+      return { ok: false, reason: 'achievement' };
+  }
+  if (s.balance < def.cost) return { ok: false, reason: 'balance' };
+  s.balance -= def.cost;
+  s.spent += def.cost;
+  s.tree.push(id);
+  saveSouls(s);
+  return { ok: true };
+}
+
+// 洗点（respec）：灵魂全额返还 + 一次性小额手续费。返回 { ok, reason?, fee?, refund? }
+export function respecTree() {
+  const s = loadSouls();
+  const refund = SKILL_TREE.filter((n) => s.tree.includes(n.id)).reduce((sum, n) => sum + n.cost, 0);
+  const fee = Math.max(25, Math.floor(refund * 0.05));                       // [校准] 5% 斜率待真机观察
+  if (s.balance < fee) return { ok: false, reason: 'fee', fee, refund };     // 需手头有足额手续费
+  s.balance += refund;          // 灵魂全额返还
+  s.balance -= fee;             // 扣除一次性小额手续费
+  s.tree = [];                  // 清空已购节点
+  s.treeResets += 1;            // 计数 +1（统计/成就用）
+  saveSouls(s);
+  return { ok: true, fee, refund };
+}
+
 export function addSouls(n) {
   const s = loadSouls();
   s.balance += Math.max(0, Math.floor(n));

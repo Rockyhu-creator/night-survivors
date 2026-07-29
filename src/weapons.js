@@ -340,8 +340,9 @@ export class WeaponSystem {
   }
 
   // 伤害+飘字一把梭（所有直伤点改用此函数）：先经 player.rollCrit，暴击飘字金色放大
-  hitEnemy(e, baseDamage, knockX = 0, knockY = 0, color) {
-    const { damage, isCrit } = this.game.player.rollCrit(baseDamage);
+  // critBonus/critMulBonus：逐武器暴击加成（技能树 war_starfall_crit），默认 0 = 行为不变
+  hitEnemy(e, baseDamage, knockX = 0, knockY = 0, color, critBonus = 0, critMulBonus = 0) {
+    const { damage, isCrit } = this.game.player.rollCrit(baseDamage, critBonus, critMulBonus);
     this.game.enemies.damageEnemy(e, damage, knockX, knockY);
     this.game.fx.spawnDamageNumber(e.x, e.y - e.radius, Math.round(damage), isCrit ? '#ffd24a' : color, isCrit);
     return { damage, isCrit };
@@ -591,7 +592,7 @@ export class WeaponSystem {
       const target = this.pickTarget(0) || enemies[0];
       const base = Math.atan2(target.y - player.y, target.x - player.x);
       const spread = 0.16;
-      const n = s.count;
+      const n = s.count + (player.weaponMods?.blade?.count || 0);
       for (let i = 0; i < n; i += 1) {
         const ang = base + (i - (n - 1) / 2) * spread;
         this.projectiles.push({
@@ -605,7 +606,7 @@ export class WeaponSystem {
     } else if (weapon.id === 'holywater') {
       // 血裔·范围/持续：圣徒 areaMul 放大圣水领域；改为抛物线飞瓶，落地生成领域
       const area = player.areaMul || 1;
-      for (let i = 0; i < s.count; i += 1) {
+      for (let i = 0; i < s.count + (player.weaponMods?.holywater?.count || 0); i += 1) {
         const target = this.pickTarget(i) || enemies[0];
         const jx = target.x + (Math.random() * 2 - 1) * 40;
         const jy = target.y + (Math.random() * 2 - 1) * 40;
@@ -625,8 +626,9 @@ export class WeaponSystem {
         this.game.enemies.enemies[0].y - player.y,
         this.game.enemies.enemies[0].x - player.x,
       );
-      for (let i = 0; i < s.count; i += 1) {
-        const angle = baseAngle + (i - (s.count - 1) / 2) * 0.5;
+      const n = s.count + (player.weaponMods?.axe?.count || 0);
+      for (let i = 0; i < n; i += 1) {
+        const angle = baseAngle + (i - (n - 1) / 2) * 0.5;
         this.projectiles.push({
           kind: 'axe',
           x: player.x, y: player.y,
@@ -640,7 +642,7 @@ export class WeaponSystem {
     } else if (weapon.id === 'lightning') {
       for (let i = 0; i < s.strikes; i += 1) {
         const target = enemies[Math.floor(Math.random() * enemies.length)];
-        this.strikeLightning(target, s, new Set());
+        this.strikeLightning(target, { ...s, chains: (s.chains || 0) + (player.weaponMods?.lightning?.chains || 0) }, new Set());
       }
     } else if (weapon.id === 'aura') {
       // 亡灵光环：贴身脉冲，对环内所有敌人造成 tick 伤害（连续 AoE，与圣水远处领域互补）
@@ -652,7 +654,15 @@ export class WeaponSystem {
           // 默认 statusAmp=1 → 不触发，现有光环行为逐字节不变（减速强度随 statusAmp 放大）
           if (player.statusAmp > 1) this.game.enemies.applyDebuff(e, { type: 'slow', value: 0.06, duration: 0.5 });
           // 血裔·吸血(嗜血者) 同步回血
-          if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
+          if (player.lifesteal > 0) {
+            const before = player.hp;
+            player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+            const healed = player.hp - before;
+            if (player.lifestealToShield && healed < player.lifesteal && player.maxShield > 0) {
+              const over = player.lifesteal - healed;
+              player.shield = Math.min(player.maxShield, player.shield + over);
+            }
+          }
         }
       }
     } else if (weapon.id === 'whip') {
@@ -727,7 +737,15 @@ export class WeaponSystem {
             game.fx.spawnSparks(e.x, e.y, tint.spark, 6);
             game.fx.spawnSparks(e.x, e.y, tint.sparkHot, 3);
           }
-          if (player.lifesteal > 0) game.player.hp = Math.min(game.player.maxHp, game.player.hp + player.lifesteal);
+          if (player.lifesteal > 0) {
+            const before = player.hp;
+            player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+            const healed = player.hp - before;
+            if (player.lifestealToShield && healed < player.lifesteal && player.maxShield > 0) {
+              const over = player.lifesteal - healed;
+              player.shield = Math.min(player.maxShield, player.shield + over);
+            }
+          }
           // v2.0：断罪终焉觉醒钩子（仅暴击命中点触发十字爆裂+处决）
           if (onHit) onHit(e, e.x, e.y, res.isCrit);
         }
@@ -889,7 +907,7 @@ export class WeaponSystem {
           p.hitSet.add(e);
           const kd = Math.hypot(p.vx, p.vy) || 1;
           const projColor = p.tint || (p.kind === 'blade' ? '#e74c3c' : (p.kind === 'scythe' ? '#7CFC00' : '#9fc5ff'));
-          const res = this.hitEnemy(e, p.damage, p.vx / kd, p.vy / kd, projColor);
+          const res = this.hitEnemy(e, p.damage, p.vx / kd, p.vy / kd, projColor, p.critBonus || 0, p.critMulBonus || 0);
           game.fx.spawnSparks(e.x, e.y, projColor, 4);
           // v2.0 吸血（sanguine/bloodpact）：命中回血
           if (p.heal) {
@@ -902,7 +920,13 @@ export class WeaponSystem {
             }
           }
           if (game.player.lifesteal > 0) {
+            const before = game.player.hp;
             game.player.hp = Math.min(game.player.maxHp, game.player.hp + game.player.lifesteal);
+            const healed = game.player.hp - before;
+            if (game.player.lifestealToShield && healed < game.player.lifesteal && game.player.maxShield > 0) {
+              const over = game.player.lifesteal - healed;
+              game.player.shield = Math.min(game.player.maxShield, game.player.shield + over);
+            }
           }
           if (p.kind === 'scythe' && this.game.weapons.hasArtifact('reaper')) {
             e.rend = { dps: REND_DPS * game.player.damageMul, time: REND_DURATION };
@@ -1069,6 +1093,9 @@ export class WeaponSystem {
         hitSet: new Set(), tint: pr.color, glowKey: pr.glowKey, glowColor: pr.glowColor, glowSize: pr.glowSize,
         shape: projShape(weapon.visual, awakened ? weapon.id : null),
         awaken: awakened ? weapon.id : null,
+        // 技能树 war_starfall_crit：仅星陨弩携带逐武器暴击加成（其他归航武器默认 0）
+        critBonus: weapon.id === 'starfall' ? (player.weaponMods?.starfall?.critChance || 0) : 0,
+        critMulBonus: weapon.id === 'starfall' ? (player.weaponMods?.starfall?.critMul || 0) : 0,
       });
     }
   }

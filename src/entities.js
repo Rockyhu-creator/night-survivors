@@ -44,6 +44,9 @@ export class Player {
     this.thorns = 0;                // 反伤：受击时对来源敌人反弹等量伤害
     this.nightDmgReduction = 0;     // 永夜减伤：NIGHT_START 后受伤 ×(1 - val)
     this.statusAmp = 1;             // 状态增幅：对敌 debuff 强度 ×statusAmp
+    // 技能树 v1 武器机制修饰（默认空对象 = 行为逐字节不变）
+    this.weaponMods = {};           // { axe:{count}, lightning:{chains}, holywater:{count}, starfall:{critChance,critMul} }
+    this.lifestealToShield = false; // 吸血溢出转护盾（bly_blood_lifeshield 置 true）
     this.level = 1;
     this.exp = 0;
     this.weapons = [];
@@ -62,9 +65,13 @@ export class Player {
   get magnetRange() { return this.baseMagnet * this.magnetMul; }
 
   // 暴击结算：返回 { damage, isCrit }。所有「对敌伤害」必须先经此函数（含 DOT 每 tick）。
-  rollCrit(baseDamage) {
-    const isCrit = Math.random() < this.critChance;
-    return { damage: isCrit ? baseDamage * this.critMul : baseDamage, isCrit };
+  // 暴击结算：返回 { damage, isCrit }。所有「对敌伤害」必须先经此函数（含 DOT 每 tick）。
+  // bonusChance/bonusMul 为逐武器暴击加成（技能树 war_starfall_crit 注入），默认 0 = 行为不变。
+  rollCrit(baseDamage, bonusChance = 0, bonusMul = 0) {
+    const cc = Math.min(CRIT_CHANCE_CAP, this.critChance + bonusChance);
+    const cm = this.critMul + bonusMul;
+    const isCrit = Math.random() < cc;
+    return { damage: isCrit ? baseDamage * cm : baseDamage, isCrit };
   }
 
   update(dt, input) {

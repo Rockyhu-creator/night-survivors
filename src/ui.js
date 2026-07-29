@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
@@ -51,6 +51,11 @@ export class UIManager {
     this.bloodlineBtnEl = document.getElementById('btn-bloodline');
     this.bloodlineScreen = document.getElementById('bloodline-screen');
     this.bloodlineBalanceEl = document.getElementById('bloodline-balance');
+    // 技能树 v1 屏引用
+    this.skillTreeScreen = document.getElementById('skilltree-screen');
+    this.skillTreeBalanceEl = document.getElementById('skilltree-balance');
+    this.skillTreeContentEl = document.getElementById('skilltree-content');
+    this.skillTreeRespecBtn = document.getElementById('btn-skilltree-respec');
     this.bloodlineContentEl = document.getElementById('bloodline-content');
     this.vignette = document.getElementById('damage-vignette');
     this.bossBarWrap = document.getElementById('boss-bar-wrap');
@@ -889,6 +894,88 @@ export class UIManager {
   hideBloodline() {
     this.bloodlineScreen.classList.add('hidden');
     this.showTitle();
+  }
+
+  // ---------- 技能树 v1（复用祭坛视觉与网格，不污染祭坛逻辑）----------
+  showSkillTree() {
+    this.titleScreen.classList.add('hidden');
+    this.skillTreeScreen.classList.remove('hidden');
+    this.renderSkillTree();
+  }
+
+  hideSkillTree() {
+    this.skillTreeScreen.classList.add('hidden');
+    this.showTitle();
+  }
+
+  respecSkillTree() {
+    const s = loadSouls();
+    const refund = SKILL_TREE.filter((n) => s.tree.includes(n.id)).reduce((sum, n) => sum + n.cost, 0);
+    if (refund === 0) return;
+    const fee = Math.max(25, Math.floor(refund * 0.05));
+    if (!confirm(`确定重置灵魂树？\n将返还 ${refund} 灵魂，扣除手续费 ${fee}（净返还 ${refund - fee}）。`)) return;
+    const r = respecTree();
+    if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(); }
+  }
+
+  renderSkillTree() {
+    const souls = loadSouls();
+    this.skillTreeBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    this.skillTreeContentEl.innerHTML = '';
+    const owned = new Set(souls.tree);
+    const branchNames = { war: '征伐', bly: '血裔协同', nfr: '永夜抗性', eco: '灵魂经济', utl: '通用机能' };
+    const typeNames = { gate: '门槛', stat: '属性', modifier: '机制', keystone: '基石' };
+    const clearedNames = { easy: '轻松', normal: '普通', hard: '噩梦' };
+    for (const bid of Object.keys(branchNames)) {
+      const wrap = document.createElement('div');
+      wrap.className = 'st-branch';
+      const h = document.createElement('h3');
+      h.className = 'st-branch-title';
+      h.textContent = branchNames[bid];
+      wrap.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'st-branch-grid';
+      for (const def of SKILL_TREE.filter((n) => n.branch === bid)) {
+        const isOwned = owned.has(def.id);
+        const prereqOk = (def.prereq || []).every((p) => owned.has(p));
+        let gateOk = true, lockMsg = '';
+        if (def.gateReq && def.gateReq.cleared && !def.gateReq.cleared.every((c) => souls.cleared.includes(c))) {
+          gateOk = false;
+          lockMsg = `需通关 ${def.gateReq.cleared.map((c) => clearedNames[c] || c).join('/')}`;
+        }
+        const affordable = souls.balance >= def.cost;
+        const card = document.createElement('div');
+        card.className = `altar-card st-${def.branch} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}`;
+        const nm = document.createElement('h3');
+        nm.textContent = def.name;
+        const tp = document.createElement('div');
+        tp.className = 'st-type';
+        tp.textContent = typeNames[def.type] || def.type;
+        const desc = document.createElement('p');
+        desc.className = 'ac-desc';
+        desc.textContent = def.desc;
+        const btn = document.createElement('button');
+        btn.className = 'gothic-btn ac-buy';
+        if (isOwned) {
+          btn.textContent = '已解锁'; btn.disabled = true; btn.classList.add('owned-btn');
+        } else if (!prereqOk) {
+          btn.textContent = '前置未解锁'; btn.disabled = true;
+        } else if (!gateOk) {
+          btn.textContent = lockMsg; btn.disabled = true;
+        } else if (!affordable) {
+          btn.textContent = `👁 ${def.cost}`; btn.disabled = true;
+        } else {
+          btn.textContent = `👁 ${def.cost}`;
+          btn.addEventListener('click', () => {
+            if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(); }
+          });
+        }
+        card.append(nm, tp, desc, btn);
+        grid.appendChild(card);
+      }
+      wrap.appendChild(grid);
+      this.skillTreeContentEl.appendChild(wrap);
+    }
   }
 
   renderBloodline() {

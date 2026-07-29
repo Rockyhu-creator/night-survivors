@@ -800,6 +800,39 @@ html, body {
 .bl-weapon b { color: var(--purple); }
 .bl-wdesc { font-size: 11px; color: #b9aed0; }
 
+/* 技能树界面：复用祭坛视觉与网格布局，分支化着色 */
+#skilltree-screen {
+  background:
+    linear-gradient(rgba(13,10,26,.7), rgba(13,10,26,.92)),
+    url("/assets/bg_title.png") center / cover no-repeat;
+  z-index: 30; overflow-y: auto; padding: 40px 20px; justify-content: flex-start;
+}
+#skilltree-content { width: min(880px, 92vw); margin: 0 auto; }
+.st-branch { margin-bottom: 26px; }
+.st-branch-title {
+  font-family: var(--body-font); font-weight: 900; font-size: 22px; letter-spacing: 8px;
+  color: var(--bone); text-align: center; margin: 6px 0 14px;
+  border-bottom: 1px solid rgba(142,68,173,.4); padding-bottom: 8px;
+}
+.st-branch-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px;
+}
+.st-type { font-size: 11px; letter-spacing: 2px; color: var(--purple); opacity: .85; }
+/* 分支主色（从紫金基调派生） */
+.st-war { border-color: rgba(198,60,60,.6); }
+.st-bly { border-color: rgba(142,68,173,.6); }
+.st-nfr { border-color: rgba(70,120,210,.6); }
+.st-eco { border-color: rgba(201,162,39,.6); }
+.st-utl { border-color: rgba(60,180,150,.6); }
+/* 节点三态：已解锁 / 可解锁脉冲 / 锁定灰 */
+.altar-card.locked { opacity: .42; filter: grayscale(.6); }
+.altar-card.available { box-shadow: 0 0 16px rgba(201,162,39,.35); }
+.skilltree-actions { display: flex; justify-content: center; margin-top: 18px; }
+#skilltree-screen .gothic-btn { margin-top: 30px; }
+.touch-device #skilltree-content { width: 92vw; }
+.touch-device .st-branch-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.touch-device .altar-card { padding: 12px 8px; }
+
 /* 玩法说明弹窗（首启自动弹） */
 .guide-screen { background: linear-gradient(rgba(8,6,18,.82), rgba(8,6,18,.95)); z-index: 40; }
 .guide-card { width: min(560px, 92vw); background: rgba(24,18,40,.92); border: 1px solid var(--purple); border-radius: 12px; padding: 26px 30px; box-shadow: 0 0 40px rgba(142,68,173,.4); }

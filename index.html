@@ -61,6 +61,10 @@
             <img class="menu-btn-icon" src="/assets/altar_menu.png" alt="祭坛" />
             <span>灵魂祭坛</span>
           </button>
+          <button id="btn-skilltree" class="gothic-btn ghost menu-btn">
+            <img class="menu-btn-icon" src="/assets/skilltree_menu.png" alt="技能树" />
+            <span>灵魂树</span>
+          </button>
           <button id="btn-codex" class="gothic-btn ghost menu-btn">
             <img class="menu-btn-icon" src="/assets/codex_menu.png" alt="图鉴" />
             <span>游戏图鉴</span>
@@ -181,6 +185,21 @@
       <div id="bloodline-balance" class="altar-balance"></div>
       <div id="bloodline-content"></div>
       <button id="btn-bloodline-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- 技能树界面 -->
+    <div id="skilltree-screen" class="screen hidden">
+      <button class="top-back" id="btn-skilltree-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="altar-title">灵 魂 树</p>
+      <p class="altar-sub">以倒下之积蓄,铸就永恒的精通</p>
+      <div id="skilltree-balance" class="altar-balance"></div>
+      <div id="skilltree-content"></div>
+      <div class="skilltree-actions">
+        <button id="btn-skilltree-respec" class="gothic-btn ghost">重置天赋</button>
+      </div>
+      <button id="btn-skilltree-back" class="gothic-btn">返回</button>
     </div>
 
     <!-- 玩法说明（首启自动弹） -->

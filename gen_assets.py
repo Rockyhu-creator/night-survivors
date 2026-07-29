@@ -60,6 +60,8 @@ AI_OWNED = {
     "passive_greed.png", "passive_guard.png", "passive_regen.png",
     "passive_critrate.png", "passive_critdmg.png", "passive_shield.png",
     "passive_shieldregen.png", "passive_armor.png", "passive_dodge.png",
+    # 技能树入口图标（外部程序化脚本生成，防止被全量生成器覆盖）
+    "skilltree_menu.png",
 }
 
 def save(img, name, scale=1):
