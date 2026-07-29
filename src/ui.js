@@ -56,6 +56,12 @@ export class UIManager {
     this.skillTreeBalanceEl = document.getElementById('skilltree-balance');
     this.skillTreeContentEl = document.getElementById('skilltree-content');
     this.skillTreeRespecBtn = document.getElementById('btn-skilltree-respec');
+    this.skillTreeTip = document.createElement('div');
+    this.skillTreeTip.className = 'st-tooltip';
+    this.skillTreeScreen.appendChild(this.skillTreeTip);
+    window.addEventListener('resize', () => {
+      if (this.skillTreeScreen && !this.skillTreeScreen.classList.contains('hidden')) { this.drawConnections(); this.hideTip(); }
+    });
     this.bloodlineContentEl = document.getElementById('bloodline-content');
     this.vignette = document.getElementById('damage-vignette');
     this.bossBarWrap = document.getElementById('boss-bar-wrap');
@@ -918,7 +924,7 @@ export class UIManager {
     if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(); }
   }
 
-  renderSkillTree() {
+  renderSkillTree(justUnlocked = null) {
     const souls = loadSouls();
     this.skillTreeBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
     this.skillTreeContentEl.innerHTML = '';
@@ -926,6 +932,7 @@ export class UIManager {
     const branchNames = { war: '征伐', bly: '血裔协同', nfr: '永夜抗性', eco: '灵魂经济', utl: '通用机能' };
     const typeNames = { gate: '门槛', stat: '属性', modifier: '机制', keystone: '基石' };
     const clearedNames = { easy: '轻松', normal: '普通', hard: '噩梦' };
+    const branchColor = { war: 'rgba(198,60,60,.85)', bly: 'rgba(142,68,173,.85)', nfr: 'rgba(70,120,210,.85)', eco: 'rgba(201,162,39,.85)', utl: 'rgba(60,180,150,.85)' };
     for (const bid of Object.keys(branchNames)) {
       const wrap = document.createElement('div');
       wrap.className = 'st-branch';
@@ -945,7 +952,9 @@ export class UIManager {
         }
         const affordable = souls.balance >= def.cost;
         const card = document.createElement('div');
-        card.className = `altar-card st-${def.branch} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}`;
+        card.dataset.id = def.id;
+        card.style.setProperty('--branch-color', branchColor[def.branch] || 'rgba(142,68,173,.85)');
+        card.className = `altar-card st-${def.branch} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}${def.id === justUnlocked ? ' just-unlocked' : ''}`;
         const nm = document.createElement('h3');
         nm.textContent = def.name;
         const tp = document.createElement('div');
@@ -966,16 +975,90 @@ export class UIManager {
           btn.textContent = `👁 ${def.cost}`; btn.disabled = true;
         } else {
           btn.textContent = `👁 ${def.cost}`;
-          btn.addEventListener('click', () => {
-            if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(); }
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id); }
           });
         }
         card.append(nm, tp, desc, btn);
+        card.addEventListener('mouseenter', () => this.showTip(def, card, owned, souls));
+        card.addEventListener('mouseleave', () => this.hideTip());
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); }
+          else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); }
+        });
         grid.appendChild(card);
       }
       wrap.appendChild(grid);
       this.skillTreeContentEl.appendChild(wrap);
     }
+    requestAnimationFrame(() => this.drawConnections());
+  }
+
+  drawConnections() {
+    const solid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
+    for (const grid of this.skillTreeContentEl.querySelectorAll('.st-branch-grid')) {
+      const prev = grid.querySelector('.st-links');
+      if (prev) prev.remove();
+      const cards = [...grid.querySelectorAll('.altar-card')];
+      if (!cards.length) continue;
+      const bid = (cards[0].dataset.id || 'war').split('_')[0];
+      const gb = grid.getBoundingClientRect();
+      const center = (c) => { const r = c.getBoundingClientRect(); return { x: r.left - gb.left + r.width / 2, y: r.top - gb.top + r.height / 2 }; };
+      const byId = Object.fromEntries(cards.map((c) => [c.dataset.id, c]));
+      const isOwned = (c) => c.classList.contains('owned');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'st-links');
+      svg.style.setProperty('--branch-solid', solid[bid] || '#8e44ad');
+      for (const c of cards) {
+        const def = SKILL_TREE.find((n) => n.id === c.dataset.id);
+        if (!def || !def.prereq) continue;
+        const b = center(c);
+        for (const pid of def.prereq) {
+          const pc = byId[pid];
+          if (!pc) continue;
+          const a = center(pc);
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', `M ${a.x} ${a.y} Q ${(a.x + b.x) / 2} ${Math.min(a.y, b.y) - 18} ${b.x} ${b.y}`);
+          let cls = 'lk-latent';
+          if (isOwned(pc) && isOwned(c)) cls = 'lk-owned';
+          else if (isOwned(pc) && c.classList.contains('available')) cls = 'lk-next';
+          path.setAttribute('class', cls);
+          svg.appendChild(path);
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', b.x); dot.setAttribute('cy', b.y); dot.setAttribute('r', 3);
+          dot.setAttribute('class', cls === 'lk-latent' ? 'lk-dot-latent' : 'lk-dot-owned');
+          svg.appendChild(dot);
+        }
+      }
+      grid.appendChild(svg);
+    }
+  }
+
+  showTip(def, card, owned, souls) {
+    if (!this.skillTreeTip) return;
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const branchNames = { war: '征伐', bly: '血裔协同', nfr: '永夜抗性', eco: '灵魂经济', utl: '通用机能' };
+    const typeNames = { gate: '门槛', stat: '属性', modifier: '机制', keystone: '基石' };
+    const isOwned = owned.has(def.id);
+    let statusText, statusCls;
+    if (isOwned) { statusText = '已点亮'; statusCls = 'tt-own'; }
+    else if (!(def.prereq || []).every((p) => owned.has(p))) { statusText = '前置未解锁'; statusCls = 'tt-lock'; }
+    else if (def.gateReq && def.gateReq.cleared && !def.gateReq.cleared.every((c) => souls.cleared.includes(c))) { statusText = `需通关 ${def.gateReq.cleared.join('/')}`; statusCls = 'tt-lock'; }
+    else { statusText = souls.balance >= def.cost ? '可解锁 ✓' : '灵魂不足'; statusCls = souls.balance >= def.cost ? 'tt-ok' : 'tt-lock'; }
+    const prereqHtml = (def.prereq && def.prereq.length)
+      ? def.prereq.map((p) => { const pn = SKILL_TREE.find((n) => n.id === p); const ok = owned.has(p); return `<div class="tt-pre"><span class="${ok ? 'tt-dot-on' : 'tt-dot-off'}">${ok ? '●' : '○'}</span> ${esc(pn ? pn.name : p)} <span class="${ok ? 'tt-own' : 'tt-lock'}">${ok ? '已解锁' : '未解锁'}</span></div>`; }).join('')
+      : '<div class="tt-pre tt-lock">无前置 · 分支入口</div>';
+    this.skillTreeTip.innerHTML = `<div class="tt-title">${esc(def.name)}</div><div class="tt-type">${typeNames[def.type] || def.type} · ${branchNames[def.branch]}</div><div class="tt-status ${statusCls}">状态：${esc(statusText)}</div><div class="tt-desc">${esc(def.desc)}</div><div class="tt-cost">灵魂 ${isOwned ? '— 已点亮' : '−' + def.cost}</div><div class="tt-prewrap">前置：${prereqHtml}</div>`;
+    const r = card.getBoundingClientRect();
+    this.skillTreeTip.style.left = `${r.left + r.width / 2}px`;
+    this.skillTreeTip.style.top = `${r.top - 12}px`;
+    this.skillTreeTip.classList.add('show');
+  }
+
+  hideTip() {
+    if (this.skillTreeTip) this.skillTreeTip.classList.remove('show');
   }
 
   renderBloodline() {

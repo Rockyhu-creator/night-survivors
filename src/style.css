@@ -833,6 +833,71 @@ html, body {
 .touch-device .st-branch-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .touch-device .altar-card { padding: 12px 8px; }
 
+/* ===== 技能树 UI 打磨（v3.2）：依赖连线 / 详情浮层 / 解锁动画 ===== */
+.altar-card { position: relative; }
+.st-branch { position: relative; }
+.st-branch-grid { position: relative; z-index: 1; }
+.st-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+.st-links path { fill: none; }
+.lk-owned  { stroke: var(--branch-solid, #8e44ad); stroke-width: 2;   opacity: 1;   filter: drop-shadow(0 0 3px var(--branch-solid, #8e44ad)); }
+.lk-next   { stroke: var(--branch-solid, #8e44ad); stroke-width: 2;   opacity: .6;  stroke-dasharray: 7 5; filter: drop-shadow(0 0 2px var(--branch-solid, #8e44ad)); animation: stLinkFlow 1.1s linear infinite; }
+.lk-latent { stroke: rgba(120,120,140,.35);         stroke-width: 1.5; stroke-dasharray: 5 5; }
+.lk-dot-owned  { fill: var(--branch-solid, #8e44ad); }
+.lk-dot-latent { fill: rgba(120,120,140,.5); }
+@keyframes stLinkFlow { to { stroke-dashoffset: -12; } }
+
+/* 详情浮层：单实例挂 #skilltree-screen，fixed 视口定位；桌面 hover / 移动端 tap 共用 */
+.st-tooltip {
+  position: fixed; z-index: 31; width: 260px; max-width: 300px;
+  padding: 12px 14px; border-radius: 10px; pointer-events: none;
+  background: rgba(18,12,30,.94); backdrop-filter: blur(6px);
+  border: 1px solid var(--branch-color, rgba(142,68,173,.6));
+  box-shadow: 0 0 14px rgba(142,68,173,.35), inset 0 0 10px rgba(0,0,0,.4);
+  color: var(--bone); opacity: 0; transform: translate(-50%, calc(-100% + 6px));
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+.st-tooltip.show { opacity: 1; transform: translate(-50%, -100%); }
+.st-tooltip .tt-title { font-size: 15px; font-weight: 700; color: var(--bone); letter-spacing: 1px; }
+.st-tooltip .tt-type  { font-size: 11px; letter-spacing: 2px; color: var(--branch-solid, #8e44ad); margin: 3px 0 6px; }
+.st-tooltip .tt-status { font-size: 12px; margin-bottom: 6px; }
+.st-tooltip .tt-status.tt-own { color: #2ecc71; }
+.st-tooltip .tt-status.tt-ok  { color: #d4af37; }
+.st-tooltip .tt-status.tt-lock { color: #b9aed0; }
+.st-tooltip .tt-desc { font-size: 12px; line-height: 1.6; opacity: .76; }
+.st-tooltip .tt-cost { font-size: 12px; color: #8e44ad; margin-top: 6px; }
+.st-tooltip .tt-prewrap { margin-top: 6px; font-size: 11px; opacity: .85; border-top: 1px solid rgba(255,255,255,.1); padding-top: 6px; }
+.st-tooltip .tt-pre { line-height: 1.6; }
+.st-tooltip .tt-own { color: #2ecc71; }
+.st-tooltip .tt-lock { color: #b9aed0; }
+.st-tooltip .tt-dot-on { color: #2ecc71; }
+.st-tooltip .tt-dot-off { color: #b9aed0; }
+.touch-device .st-tooltip { width: min(86vw, 300px); }
+
+/* 解锁动画 available → owned（450ms；只动边框/伪元素/框，文字恒定） */
+.altar-card.just-unlocked { animation: stUnlockPulse 450ms cubic-bezier(.2,1.4,.4,1) both; }
+.altar-card.just-unlocked::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: screen;
+  background: linear-gradient(105deg, transparent 42%, var(--branch-color, rgba(201,162,39,.6)) 50%, transparent 58%);
+  opacity: 0; animation: stUnlockSweep 340ms cubic-bezier(.4,0,.2,1) 180ms both;
+}
+@keyframes stUnlockPulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 16px rgba(201,162,39,.35); }
+  35%  { transform: scale(1.06); }
+  60%  { transform: scale(1.02); box-shadow: 0 0 18px rgba(46,204,113,.55); }
+  100% { transform: scale(1);    box-shadow: 0 0 12px rgba(46,204,113,.25); }
+}
+@keyframes stUnlockSweep {
+  0%   { opacity: 0; transform: translateX(-120%); }
+  50%  { opacity: .6; }
+  100% { opacity: 0; transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .altar-card.just-unlocked, .altar-card.just-unlocked::after { animation: none; }
+  .altar-card.just-unlocked { transform: none; box-shadow: 0 0 12px rgba(46,204,113,.25); }
+  .lk-next { animation: none; }
+  .st-tooltip { transition: opacity 120ms linear; }
+}
+
 /* 玩法说明弹窗（首启自动弹） */
 .guide-screen { background: linear-gradient(rgba(8,6,18,.82), rgba(8,6,18,.95)); z-index: 40; }
 .guide-card { width: min(560px, 92vw); background: rgba(24,18,40,.92); border: 1px solid var(--purple); border-radius: 12px; padding: 26px 30px; box-shadow: 0 0 40px rgba(142,68,173,.4); }
