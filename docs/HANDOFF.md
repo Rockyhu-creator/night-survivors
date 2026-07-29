@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.0 技能树：元进度层 5分支39节点含洗点 + 独立入口图标 + 4引擎钩子）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.1 生存向平衡校准：nightBase 软化 + 刷怪地板0.18→0.22 + 血瓶2.5%→3.5%；基于无头平衡模拟器量化）
 
 ---
 
@@ -61,6 +61,21 @@
 **UI（src/ui.js / index.html / main.js / style.css）**：标题屏 `btn-skilltree`（含 `skilltree_menu.png` 图标，与祭坛/图鉴并列的菜单按钮）+ `skilltree-screen`；5 分支卡片三态渲染（owned/available/locked，locked 显 prereq/cleared 门槛文案）、点击购买、`btn-skilltree-respec`（confirm 显返还/手续费）、返回按钮。分支色：war 红 / bly 紫 / nfr 蓝 / eco 暗金 / utl 青绿。
 
 **图标（public/assets/skilltree_menu.png + gen_skilltree_menu.py）**：80×80 像素风透明底 1px 暗描边，已注册 `gen_assets.py` AI_OWNED 防程序化生成器覆盖。
+
+## 0c. v3.1 生存向平衡校准（基于无头模拟器量化）
+
+**方法论**：`/tmp/balance_sim.mjs` 纯 Node 导入 `src/data.js` 常量，复刻 `computeSoulReward`（game.js:418）与 `statScale`（entities.js:188）真实公式，量出「灵魂经济可解锁性」+「敌人缩放曲线」。**无需 DOM/Canvas**，可随时重跑出对比表。
+
+**关键量化结论**：
+- 经济已收敛：单局灵魂硬顶 ~500（普通满 15min）+ 一次性首通（普通 50）；典型单局(死亡@8min)≈291。祭坛全买 4 局 / 血裔全解锁 3 局 / 各树门 1–2 局 / 全树 48 局（投满经济分支 ×2.6 后降至 19 局）。时间系数封顶是天然抗通胀闸 → **经济不需要动**。
+- 生存曲线是死亡螺旋风险点：普通档 15min 末小怪 HP ×16.9、伤害 ×10.7，其中 9min 后永夜指数叠 ×1.82；叠加终局刷怪地板 0.18s/波 × 狼群 6–10 只 → 不可风筝怪潮。
+
+**本轮改动（src/data.js / entities.js / game.js，单值可逆）**：
+- `nightBase` easy/normal/hard：1.12/1.22/1.32 → **1.08/1.16/1.24**（后期夜战 ×1.82→×1.56；普通 15min 小怪 HP ×16.9→×14.5、伤害 ×10.7→×9.2，各 −14%）。
+- 刷怪节奏地板 `Math.max(0.18, …)` → **`Math.max(0.22, …)`**（entities.js:442）：终局怪潮密度 −22%。
+- 血瓶掉率 `0.025` → **`0.035`**（game.js:363）：缓解「掉血不可逆」。
+
+**待真机试玩再迭代**：钟鸣脉冲节奏/觉醒镰刀数值（data.js:344-348 / weapons.js:559-571）、装饰密度（game.js:57）仍标 PLACEHOLDER；全树成本 13,750 与难度斜率是否过陡，需真机 DPS/存活数据回调。
 
 **设计 / 美术规格**：`docs/plans/2026-07-29-skilltree-v1-spec.md`（39 节点目录/apply/钩子/洗点/断言）、`docs/plans/2026-07-29-skilltree-art-spec.md`（节点视觉/分支色）。
 
@@ -359,6 +374,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+692ae11 v3.1 生存向平衡校准：nightBase 软化(1.12/1.22/1.32->1.08/1.16/1.24) + 刷怪地板0.18->0.22 + 血瓶2.5%->3.5% | 模拟器量化后期小怪HP×16.9->×14.5 test_game连跑2次全PASS
 4223272 v3.0 技能树：元进度层(5分支39节点含洗点) + 独立入口图标(skilltree_menu.png) + 4引擎钩子(weaponMods/rollCrit扩参/吸血转盾/startRun并列注入) | 探针T1-T7+UI冒烟+test_game全PASS零报错零回归
 
 dad7f2f v2.5b 镇魂钟鸣符文吸附修复：deployRange 外推 burstRadius+40(L1~L5 170/185/200/215/230,absolution 240)使辉光不罩脸 + 符文自转扫场(fireRune记spin/updateRunes每帧offAng+=spin*dt) | 探针验证12符文距230/净空+40/零报错 test_game全PASS
