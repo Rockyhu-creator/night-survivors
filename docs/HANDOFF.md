@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-28（v2.5 镇魂钟鸣/镇魂赦令重做：圈内周期音波脉冲 + 符文跟随玩家/进入即触发/范围扩大(修复范围过小) 后）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v2.5b 镇魂钟鸣符文吸附修复：deployRange 外推 burstRadius+40 + 符文自转扫场，后）
 
 ---
 
@@ -307,7 +307,7 @@ git push origin main
 
 ---
 
-> **v2.5 镇魂钟鸣音波脉冲化（src/weapons.js `updateRunes`/`updateRunePulses`/`fireRune` + src/data.js `resolve.levels`）**：原符文陷阱「敌人踏入极小触发圈(`triggerRange` 28~36px)才引爆一次、且 `triggered=true` 后一生只炸一次」导致大爆发圈(`burstRadius` 70~110px)内未踩中中心小圈的敌人完全不掉血、且符文存活期(8~12s)内仅造成一次伤害（用户反馈「触发频率低、进圈有时不触发」）。现改为圈内**周期性音波脉冲**：每个存活符文每隔 `pulseInterval`(L1~L5：1.1→0.8s；absolution 0.7s) 从中心发出向外扩张的音波环（亮外环 + 内回响环），环前缘扫过的敌人掉血（每脉冲每敌命中一次，伤害 = 符文基础伤害 × `pulseMul`，基础 0.5 / absolution 0.6）。`fireRune` 同步修补原符文缺 `maxLife` 导致渲染透明度 `NaN` 的隐性 bug；`resolve.desc` 同步改为「周期音波脉冲持续肃清范围内敌人」。数值（节奏/倍率/脉冲 life/speed/width）标 `[PLACEHOLDER]` 待真机校准。`enforceCaps()` 新增 `trim(runePulses,200)` 安全网，性能红线未破。**v2.5a 范围跟进修复**：用户实测仍「范围太小、进圈有时不触发」，根因为符文静止被甩在身后、内圈死区(`burstRadius`<`deployRange`)、环间隙。现符文每帧环绕玩家重算坐标(`fireRune` 存 `offAng/offR`、`updateRunes` 重算 `x/y`)；`burstRadius` 调大 `deployRange` 调小使 `burstRadius>deployRange`(L1~L5：130/145/160/175/190 vs 110/120/130/140/150，absolution 200 vs 150)封死内圈死区并扩大范围；`updateRunes` 新增进入即触发(敌人踏入 `burstRadius` 即把脉冲等待压到 `ACTIVE_CAP=0.3s`，无敌人回落 `pulseInterval`)。觉醒 absolution 减伤光环因符文常伴玩家而**常驻**(合理增强)。`resolve.desc` 最终为「符文环绕周身,敌人进入范围即触发音波脉冲」。
+> **v2.5 镇魂钟鸣音波脉冲化（src/weapons.js `updateRunes`/`updateRunePulses`/`fireRune` + src/data.js `resolve.levels`）**：原符文陷阱「敌人踏入极小触发圈(`triggerRange` 28~36px)才引爆一次、且 `triggered=true` 后一生只炸一次」导致大爆发圈(`burstRadius` 70~110px)内未踩中中心小圈的敌人完全不掉血、且符文存活期(8~12s)内仅造成一次伤害（用户反馈「触发频率低、进圈有时不触发」）。现改为圈内**周期性音波脉冲**：每个存活符文每隔 `pulseInterval`(L1~L5：1.1→0.8s；absolution 0.7s) 从中心发出向外扩张的音波环（亮外环 + 内回响环），环前缘扫过的敌人掉血（每脉冲每敌命中一次，伤害 = 符文基础伤害 × `pulseMul`，基础 0.5 / absolution 0.6）。`fireRune` 同步修补原符文缺 `maxLife` 导致渲染透明度 `NaN` 的隐性 bug；`resolve.desc` 同步改为「周期音波脉冲持续肃清范围内敌人」。数值（节奏/倍率/脉冲 life/speed/width）标 `[PLACEHOLDER]` 待真机校准。`enforceCaps()` 新增 `trim(runePulses,200)` 安全网，性能红线未破。**v2.5a 范围跟进修复**：用户实测仍「范围太小、进圈有时不触发」，根因为符文静止被甩在身后、内圈死区(`burstRadius`<`deployRange`)、环间隙。现符文每帧环绕玩家重算坐标(`fireRune` 存 `offAng/offR`、`updateRunes` 重算 `x/y`)；`burstRadius` 调大 `deployRange` 调小使 `burstRadius>deployRange`(L1~L5：130/145/160/175/190 vs 110/120/130/140/150，absolution 200 vs 150)封死内圈死区并扩大范围；`updateRunes` 新增进入即触发(敌人踏入 `burstRadius` 即把脉冲等待压到 `ACTIVE_CAP=0.3s`，无敌人回落 `pulseInterval`)。觉醒 absolution 减伤光环因符文常伴玩家而**常驻**(合理增强)。`resolve.desc` 最终为「符文环绕周身,敌人进入范围即触发音波脉冲」。**v2.5b 吸附修复**：用户实测 v2.5a 虽已跟随但 `burstRadius`(190)>`deployRange`(150) 且符文不自转，12 个辉光罩住玩家像贴脸光环。现 `deployRange` 提到 `burstRadius+40`(L1~L5：170/185/200/215/230，absolution 240) 使辉光向外不罩脸，并加 `spin:0.6` 让符文绕玩家自转扫场(`updateRunes` 每帧 `rn.offAng += spin*dt`)。
 
 ## 10. 测试
 
@@ -330,6 +330,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+dad7f2f v2.5b 镇魂钟鸣符文吸附修复：deployRange 外推 burstRadius+40(L1~L5 170/185/200/215/230,absolution 240)使辉光不罩脸 + 符文自转扫场(fireRune记spin/updateRunes每帧offAng+=spin*dt) | 探针验证12符文距230/净空+40/零报错 test_game全PASS
+
 4a20a3ede271d19f7fc02b7a736bad029ee9df17 v2.5 镇魂钟鸣/镇魂赦令重做：圈内周期音波脉冲(替换单次踏入触发→每符文周期扩张音波环扫敌掉血) + v2.5a 范围跟进修复(符文跟随玩家/封闭内圈死区/扩大burstRadius/进入即触发ACTIVE_CAP=0.3s) + 补fireRune缺maxLife渲染NaN隐性bug + resolve.desc同步 | enforceCaps新增trim(runePulses,200)
 
 2ca06f00c18e6e1d607ea8099e24076474cfba9e v2.3 升级卡合成提示置底整行(不溢出) + 圣水洗礼槽外固有(双生武装/圣徒不占槽、双源合并两级、仍可升级/进化吞噬) | innateWeapons双表 + getShapeSprite保性能
