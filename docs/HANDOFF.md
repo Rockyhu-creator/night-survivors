@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.1 生存向平衡校准：nightBase 软化 + 刷怪地板0.18→0.22 + 血瓶2.5%→3.5%；基于无头平衡模拟器量化）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.2 技能树 UI 打磨：节点详情浮层 + prereq 分支内路径连线三态 + 解锁动画 450ms；纯表现层无机制改动）
 
 ---
 
@@ -80,6 +80,21 @@
 **设计 / 美术规格**：`docs/plans/2026-07-29-skilltree-v1-spec.md`（39 节点目录/apply/钩子/洗点/断言）、`docs/plans/2026-07-29-skilltree-art-spec.md`（节点视觉/分支色）。
 
 **验证**：`node --check` 全 OK；`/tmp/skilltree_v1_probe.py`（?debug）T1-T7 + 零控制台报错 ALL PASS（购买链/幂等/prereq 拦截/cleared 门槛 normal+hard/startRun 注入增量/洗点精确/不变量/39 节点）；`/tmp/skilltree_ui_smoke.py` 菜单按钮+图标+界面+39 卡+5 分支+返回 ALL PASS；`test_game.py` 全量 ALL PASS 零回归零报错。
+
+---
+
+## 0d. v3.2 技能树 UI 打磨（纯表现层 · 三件套）
+
+**依据**：`docs/plans/2026-07-29-skilltree-ui-polish-design.md`（UX 规范：hover 字段层级/连线信息语义/解锁动画 UX）+ `docs/plans/2026-07-29-skilltree-ui-polish-art.md`（视觉规范：解锁 keyframes/tooltip 暗玻璃/typeline 视觉）。主理人整合裁决：解锁动画取 450ms；移动端 hover 降级为**点击卡片展开**（单真源）；连线不按节点类型分线型、流光仅 `lk-next`；owned 持久态统一绿边沿用 `.altar-card.owned`；`prefers-reduced-motion` 降级。
+
+**改动文件**：`src/ui.js`（renderSkillTree 加 `data-id`/tooltip/justUnlocked + 新 `drawConnections`/`showTip`/`hideTip` + resize 重绘连线）、`src/style.css`（`.st-links` SVG overlay / `.st-tooltip` 浮层 / `.just-unlocked` keyframes / `.lk-*` 三态 / reduced-motion 媒体查询）。
+
+**三大件**：
+1. **节点详情浮层**：单实例 `.st-tooltip`（暗玻璃拟态 + 分支色描边），桌面 hover / 触屏点击卡片展开同一真源；含 节点名·类型·状态·完整效果·成本·**前置清单含各自 ✓/✗ 解锁态**。因 `.altar-card` 有 `clip-path` 切角，tooltip 挂在 `#skilltree-screen` 下（非卡片子元素，避裁切）。
+2. **路径连线**：每分支 `.st-branch-grid` 内注入 `<svg class="st-links">`（`position:absolute; inset:0; pointer-events:none; z-index:0`，不挡交互、不引布局抖动）；按 `prereq` 算卡片中心画贝塞尔。`lk-done`(已点亮·分支色 glow) / `lk-next`(可解锁·虚线流光 `stLinkFlow`) / `lk-locked`(暗灰虚线) 三态。
+3. **解锁动画**：购买成功 `available→owned` 触发 `.just-unlocked` 450ms 脉冲（边框金光→回落绿边 + scale 1.06 回弹，`::after` 分支色扫光一次），文字 opacity 全程 1.0 无 blur。
+
+**验证**：`/tmp/skilltree_ui_polish_probe.py`（?debug）T1–T5 ALL PASS（5 分支连线 svg / 40 条边 / hover 浮层含前置+状态 / 购买触发 just-unlocked + 5 条 lk-next 高亮 / 零控制台报错）；`test_game.py` 全量 ALL PASS 零回归零报错。
 
 ---
 
@@ -374,6 +389,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+47b4d53 v3.2 技能树 UI 打磨：节点详情浮层(hover/点击单真源,含前置✓✗态) + prereq分支内SVG路径连线(lk-done/lk-next/lk-locked三态,流光仅lk-next) + 解锁动画just-unlocked450ms(reduced-motion降级) | 打磨探针T1-T5+test_game全PASS零回归
 692ae11 v3.1 生存向平衡校准：nightBase 软化(1.12/1.22/1.32->1.08/1.16/1.24) + 刷怪地板0.18->0.22 + 血瓶2.5%->3.5% | 模拟器量化后期小怪HP×16.9->×14.5 test_game连跑2次全PASS
 4223272 v3.0 技能树：元进度层(5分支39节点含洗点) + 独立入口图标(skilltree_menu.png) + 4引擎钩子(weaponMods/rollCrit扩参/吸血转盾/startRun并列注入) | 探针T1-T7+UI冒烟+test_game全PASS零报错零回归
 

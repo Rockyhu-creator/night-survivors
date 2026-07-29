@@ -5,6 +5,23 @@
 
 <arg_value:6124c78e>---
 
+## v3.2（2026-07-29 · `47b4d53`）
+
+> 技能树 UI 打磨三件套（纯表现层，无机制/数值改动）。依据 `docs/plans/2026-07-29-skilltree-ui-polish-design.md`（UX 规范）与 `-art.md`（视觉规范）落地，主理人整合裁决采用其「推荐」项。
+
+### 新增
+- **节点详情浮层**：单实例 `.st-tooltip`（暗玻璃拟态 + 分支色描边），桌面 hover / 触屏点击卡片展开（同一真源）。字段：节点名 · 类型 · 状态（可解锁/已点亮/前置未解锁）· 完整效果描述 · 灵魂成本 · **前置清单含各自 ✓已解锁/✗未解锁 态**。
+- **路径连线**：每分支 `.st-branch-grid` 内注入 SVG overlay（`pointer-events:none` 不挡交互），按 `prereq` 算卡片中心画贝塞尔。三态：`lk-done`（已点亮路径·分支色 glow）、`lk-next`（可解锁下一步·虚线流光）、`lk-locked`（暗灰虚线）。
+- **解锁动画**：购买成功 `available→owned` 触发 `just-unlocked` 450ms 脉冲（边框金光→回落绿边 + scale 1.06 回弹），文字全程不动。
+
+### 优化
+- `prefers-reduced-motion` 降级：解锁动画降级纯色切换、连线流光降级静态，照顾前庭敏感玩家。
+
+### 验证
+- UI 打磨探针（`/tmp/skilltree_ui_polish_probe.py`）T1–T5 全 PASS：5 分支连线 svg / 40 条边 / hover 浮层含前置+状态 / 购买触发 just-unlocked + 5 条 lk-next 高亮 / 零控制台报错。`test_game.py` 全量 e2e ALL PASS 零回归。
+
+---
+
 ## v3.1（2026-07-29 · `692ae11`）
 
 > 生存向平衡校准（v3.0 后首轮微调）。基于无头平衡模拟器（`/tmp/balance_sim.mjs` 复刻 `computeSoulReward` / `statScale` 真实公式）量化：经济已收敛无需动，校准重心在生存曲线的死亡螺旋风险点。
