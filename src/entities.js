@@ -439,7 +439,7 @@ export class EnemyManager {
         }
       }
     }
-    const interval = Math.max(0.18, 0.9 - t / 160) / diff.spawnMul;
+    const interval = Math.max(0.22, 0.9 - t / 160) / diff.spawnMul;
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer += interval;
