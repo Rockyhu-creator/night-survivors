@@ -1,5 +1,5 @@
 import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement } from './data.js';
-import { loadAssets, sprite } from './assets.js';
+import { loadAssets, loadAssetsLazy, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
 import { WeaponSystem } from './weapons.js';
@@ -118,6 +118,7 @@ export class Game {
       setLoadingProgress(1);
       const loading = document.getElementById('loading');
       if (loading) loading.hidden = true;
+      loadAssetsLazy(); // 关键集完即进标题，懒加载后台跑
     });
 
     requestAnimationFrame((ts) => this.frame(ts));

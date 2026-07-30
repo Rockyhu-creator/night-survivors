@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -205,6 +205,25 @@
 **改动文件**：`src/ui.js`（`renderSkillTree` 加 `fit` 参数 + 4 处调用点适配 + 尾部条件分支）、`index.html`（guide button 改 menu-btn 结构 + guide-list 加灵魂树 bullet）、`gen_assets.py`（新增 `gen_guide_menu()` 函数 + 主块调用）、`public/assets/guide_menu.png`（新生成）。
 
 **验证**：`/tmp/skilltree_v36_probe.py` T1–T10 ALL PASS（全屏/touch-device/fit=0.20/＋缩放0.24/tooltip+tt-buy/**scale不变(解锁)**/持久化/**scale不变(洗点)**/重开re-fit/icon存在/零报错）；`test_game.py` 全量 ALL PASS 零回归。
+
+---
+
+## 0j. v3.8 资源加载优化（内容哈希精准缓存 + 分级懒加载）
+
+**触发**：用户反馈「更新后进度条加载比较慢，是否每次更新都全量加载」，根因定位为全局 `BUILD_ID` 缓存击穿导致每次 push 全量重拉。
+
+**① 内容哈希精准缓存（替代全局 `BUILD_ID`）**：
+- `vite.config.js` 在 config 期读 `public/assets/*.png`（142 张），`crypto.createHash('sha256')` 取前 8 位 hex 建 `{文件名:哈希}` 映射，经 `define` 注入 `__ASSET_HASHES__`（保留 `__BUILD_ID__` 供版本自检）。
+- `src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）+ `loadOne` 助手；`loadAssets`/`loadAssetsLazy` 共用。`src/ui.js` 标题血裔按钮头像同样走哈希 URL。
+- **效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；仅真正改字节的图重拉。纯代码更新近乎秒开。
+
+**② 分级懒加载**：
+- `assets.js` 拆 `LAZY_KEYS`(20) 与 `CRITICAL_KEYS`；进度条只等关键集（标题+开局+升级卡片必需），`loadAssetsLazy()`（模块级 `lazyPromise` 幂等）+ `ensureLazy()` 后台拉取懒加载集（codex_*/altar_*/boss_*/portrait_saint 等 5 张）。
+- `src/game.js` 关键集完即进标题、后台跑懒加载；`src/ui.js` 的 `showCodex/showAltar/showBloodline` 入口包 `ensureLazy().then()` 守卫（视觉/逻辑不变）。
+
+**验证**：`npm run build` 成功（URL 形如 `/assets/player.png?v=0f7a8664`）；`test_game.py` 全量 ALL PASS 零控制台报错。
+
+**改动文件**：`vite.config.js`（新增 `buildAssetHashes()` + `__ASSET_HASHES__` define）、`src/assets.js`（assetUrl/loadOne/LAZY_KEYS/CRITICAL_KEYS/loadAssetsLazy/ensureLazy）、`src/game.js`（关键集完进标题+后台懒加载）、`src/ui.js`（标题头像哈希化 + 三界面 ensureLazy 守卫）。
 
 ---
 
@@ -499,6 +518,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+HASH v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_HASHES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
+
 4f7d6d0 v3.7 重置弹窗暗黑风(#st-respec-modal自定义玻璃拟态,替代原生confirm,取消/确认/遮罩/Esc) + 移动端长按复制屏蔽(#skilltree-content touch-callout:none+user-select:none + contextmenu preventDefault) + 技能树二叉化(每节点≤2子节点,11处prereq改链,零新增节点,validate_skilltree.mjs校验通过) + 前置审计(nfr_shield存在,链路完整) | test_game全PASS零报错+validate全PASS
 
 446bbc6 v3.6 解锁保持面板视图(renderSkillTree加fit参数,仅打开时auto-fit,购买/洗点保持stTx/stTy/stScale) + 玩法说明按钮icon统一(guide_menu.png程序化像素卷轴+问号,menu-btn结构) + 玩法说明补充灵魂树条目 | v36探针T1-T10(含scale不变断言★)+test_game全PASS零回归
@@ -618,12 +639,12 @@ a9435b8 feat: eternalwhip 扩展特效 残影光晕+命中火花+主题伤害数
 - **_headers 增量**：`public/_headers` 显式声明 `/version.json  Cache-Control: no-store`（CF 精确匹配，根路径 `/` 的 no-store 不覆盖它）。
 - **UI 组件**（美术规格 `docs/art/update-ux-spec.md` 落地，工程不另起炉灶）：
   - `#update-prompt`：顶部滑入横幅（z45），`pointer-events:none` 仅 `.up-inner` 可点；主按钮 `.gothic-btn.is-ember`（ember `#f1c40f`），次按钮 `.gothic-btn.ghost`。
-  - `#loading` + `#load-bar`：首屏加载幕（z100，`bg_title.png` 暗化背景），进度条由 `game.js` 的 `loadAssets(onProgress)` 钩子驱动（width + `#load-pct` + `aria-valuenow`），加载完成 `hidden` 移除。
+  - `#loading` + `#load-bar`：首屏加载幕（z100，`bg_title.png` 暗化背景），进度条由 `game.js` 的 `loadAssets(onProgress)` 钩子驱动（width + `#load-pct` + `aria-valuenow`），**只统计「关键集」加载进度**（约 80 张，标题+开局+升级卡片必需），加载完成 `hidden` 移除；图鉴/祭坛/血裔立绘等 20 张「懒加载集」由 `loadAssetsLazy()` 在标题出现后后台拉取（不驱动进度条）。资源 URL 自 v3.8 起按**文件内容 sha256 哈希**作 `?v=` 精准缓存击穿（替代原全局 `BUILD_ID`），未改动的图命中浏览器/CDN 缓存、更新后近乎秒开。
 - **sessionStorage 记忆**：点「稍后」写 `sessionStorage['ns_update_dismiss']=latest`（针对该 latest 版本），命中则本次不再弹；新部署产生新 latest → 仍会提示。仅在同会话、同 latest 下抑制，**不污染 localStorage**。
 - **刷新入口**：`data-action="reload"` → `location.reload(true)`。
 
 ### ⚠️ dev server 重启坑（必读）
-`vite.config.js` 是 vite **启动时**读取的，运行中改动（本次加插件）**不热加载**。改完必须杀旧 dev server（`lsof -ti tcp:5173 | xargs kill -9`）并重启 `npm run dev`，否则旧 dev server 不识别新插件/define，`__BUILD_ID__` 运行时 ReferenceError → e2e 崩溃。生产 `vite build` 不受影响（构建时必读 config）。
+`vite.config.js` 是 vite **启动时**读取的，运行中改动**不热加载**。改完必须杀旧 dev server（`lsof -ti tcp:5173 | xargs kill -9`）并重启 `npm run dev`，否则旧 dev server 不识别新 define（含 `__BUILD_ID__` 与 v3.8 新增的 `__ASSET_HASHES__`），运行时 `ReferenceError: __ASSET_HASHES__ is not defined` → e2e 崩溃。生产 `vite build` 不受影响（构建时必读 config）。
 
 ### 验证命令
 - dev 跑 e2e：先重启 dev server 再 `python test_game.py`。

@@ -105,29 +105,62 @@ const images = {};
 const processed = {};
 if (typeof window !== 'undefined') window.__assets = files;
 
+// 分级懒加载：懒加载集（仅特定界面/后期才用），其余为关键集（标题+开局+升级卡片必需）。
+const LAZY_KEYS = new Set([
+  'codex_artifacts', 'codex_monsters', 'codex_weapons', 'codex_book',
+  'altar_hp', 'altar_spd', 'altar_dmg', 'altar_gain', 'altar_dual',
+  'altar_slot_weapon', 'altar_slot_passive',
+  'boss_baron', 'boss_queen', 'boss_overlord', 'boss_avatar',
+  'portrait_saint', 'portrait_berserker', 'portrait_thunder',
+  'portrait_bloodthirsty', 'portrait_apostle',
+]);
+// 关键集 = files 中除懒加载键外的全部（含 player/passive/art/weapon/敌人/gem/ground/decal/chest/各 menu 图标 等）
+const CRITICAL_KEYS = Object.keys(files).filter((k) => !LAZY_KEYS.has(k));
+
+// 资源 URL：按文件名取内容哈希，缺失回退 BUILD_ID（精准缓存击穿）
+function assetUrl(fn) {
+  const h = (typeof __ASSET_HASHES__ !== 'undefined' && __ASSET_HASHES__[fn])
+    ? __ASSET_HASHES__[fn]
+    : BUILD_ID;
+  return `/assets/${fn}?v=${h}`;
+}
+
+// 单图加载（含内容哈希精准缓存），两波加载共用
+function loadOne(key) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { images[key] = img; resolve(); };
+    img.onerror = () => { images[key] = null; resolve(); };
+    img.src = assetUrl(files[key]);
+  });
+}
+
 export function hasImage(key) {
   return Boolean(images[key]);
 }
 
+// 第一波：仅关键集，进度按 done/关键总数
 export function loadAssets(onProgress) {
-  const keys = Object.keys(files);
   let done = 0;
-  return Promise.all(keys.map((key) => new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      images[key] = img;
-      done += 1;
-      onProgress?.(done / keys.length);
-      resolve();
-    };
-    img.onerror = () => {
-      images[key] = null;
-      done += 1;
-      onProgress?.(done / keys.length);
-      resolve();
-    };
-    img.src = `/assets/${files[key]}?v=${BUILD_ID}`;
+  const total = CRITICAL_KEYS.length;
+  return Promise.all(CRITICAL_KEYS.map((key) => loadOne(key).then(() => {
+    done += 1;
+    onProgress?.(done / total);
   })));
+}
+
+// 第二波：懒加载集（不驱动进度条），模块级 lazyPromise 幂等
+let lazyPromise = null;
+export function loadAssetsLazy() {
+  if (!lazyPromise) {
+    lazyPromise = Promise.all([...LAZY_KEYS].map((key) => loadOne(key)));
+  }
+  return lazyPromise;
+}
+
+// 供界面入口守卫 await：返回懒加载 Promise（未触发则触发）
+export function ensureLazy() {
+  return loadAssetsLazy();
 }
 
 function chromaKey(img, tolerance = 42) {

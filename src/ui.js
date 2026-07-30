@@ -1,6 +1,6 @@
 import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
-import { sprite, drawAffixBadge } from './assets.js';
+import { sprite, drawAffixBadge, ensureLazy } from './assets.js';
 
 // 构建版本号（由 vite define 注入，用于美术图 URL 缓存击穿）
 const BUILD_ID = __BUILD_ID__;
@@ -163,7 +163,9 @@ export class UIManager {
       const span = this.bloodlineBtnEl.querySelector('span');
       if (span) span.textContent = `血裔：${bl.name}`;
       const icon = document.getElementById('btn-bloodline-icon');
-      if (icon) icon.src = `/assets/${bl.icon}.png?v=${BUILD_ID}`;
+      const fn = `${bl.icon}.png`;
+      const h = (typeof __ASSET_HASHES__ !== 'undefined' && __ASSET_HASHES__[fn]) ? __ASSET_HASHES__[fn] : BUILD_ID;
+      if (icon) icon.src = `/assets/${fn}?v=${h}`;
     }
     // 首启自动弹玩法说明（localStorage 记忆，仅首次）。try/catch 防隐私模式抛异常（P0）
     let guideSeen = false;
@@ -568,6 +570,7 @@ export class UIManager {
 
   // 游戏图鉴 一级菜单：三个分类卡片
   showCodex() {
+    ensureLazy().then(() => {
     const root = document.getElementById('codex-hub-grid');
     root.innerHTML = '';
     const cats = [
@@ -600,6 +603,7 @@ export class UIManager {
     }
     this.hideAllScreens();
     document.getElementById('codex-hub').classList.remove('hidden');
+    });
   }
 
   // 神器图鉴（仅神器，合成配方）
@@ -865,9 +869,11 @@ export class UIManager {
   }
 
   showAltar() {
-    this.titleScreen.classList.add('hidden');
-    this.altarScreen.classList.remove('hidden');
-    this.renderAltar();
+    ensureLazy().then(() => {
+      this.titleScreen.classList.add('hidden');
+      this.altarScreen.classList.remove('hidden');
+      this.renderAltar();
+    });
   }
 
   hideAltar() {
@@ -921,9 +927,11 @@ export class UIManager {
   }
 
   showBloodline() {
-    this.titleScreen.classList.add('hidden');
-    this.bloodlineScreen.classList.remove('hidden');
-    this.renderBloodline();
+    ensureLazy().then(() => {
+      this.titleScreen.classList.add('hidden');
+      this.bloodlineScreen.classList.remove('hidden');
+      this.renderBloodline();
+    });
   }
 
   hideBloodline() {
