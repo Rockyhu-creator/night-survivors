@@ -5,12 +5,12 @@
 
 <arg_value:6124c78e>---
 
-## v3.8（2026-07-30 · `HASH`）
+## v3.8（2026-07-30 · `38f5eb9`）
 
 > 资源加载优化：内容哈希精准缓存 + 分级懒加载。根治「每次更新都全量重拉、进度条变慢」——此前所有 ~100+ 张图共用全局 `BUILD_ID` 作 `?v=` 缓存击穿，每次 push 该值必变 → 全部图 URL 同时失效 → 浏览器+CDN 缓存被一次性击穿。
 
 ### 优化
-- **资源 URL 精准缓存击穿（替代全局 `BUILD_ID`）**：`vite.config.js` 在构建期读 `public/assets/*.png`（142 张），对每张图按**文件内容 sha256** 生成 8 位哈希，经 `define` 注入 `__ASSET_HASHES__`（保留 `__BUILD_ID__` 供版本自检）。`src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）、`loadOne`/`loadAssets` 改用之；`src/ui.js` 标题血裔按钮头像同样走哈希 URL。**效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；只有真正改了字节的图才重拉。纯代码更新时近乎秒开。
+- **资源 URL 精准缓存击穿（替代全局 `BUILD_ID`）**：`vite.config.js` 在构建期读 `public/assets/*.png`（142 张），对每张图按**文件内容 sha256** 生成 8 位哈希，经 `define` 注入 `__ASSET_38f5eb9ES__`（保留 `__BUILD_ID__` 供版本自检）。`src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）、`loadOne`/`loadAssets` 改用之；`src/ui.js` 标题血裔按钮头像同样走哈希 URL。**效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；只有真正改了字节的图才重拉。纯代码更新时近乎秒开。
 - **分级懒加载**：`assets.js` 拆 `LAZY_KEYS`(20) 与 `CRITICAL_KEYS`。进度条只等**关键集**（标题+开局+升级卡片必需：player/passive/art/weapon/敌人/gem/ground/decal/chest/各 menu 图标等）；`loadAssetsLazy()`（模块级 `lazyPromise` 幂等）+ `ensureLazy()` 后台拉取懒加载集（codex_*/altar_*/boss_*/portrait_saint 等 5 张）。`src/game.js` 关键集加载完即进标题、后台跑懒加载；`src/ui.js` 的 `showCodex/showAltar/showBloodline` 入口包 `ensureLazy().then()` 守卫，确保极快点开界面时图已就绪（视觉/逻辑不变）。
 
 ### 验证
