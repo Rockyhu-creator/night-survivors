@@ -2636,6 +2636,48 @@ def gen_altar_menu():  # 灵魂祭坛主菜单按钮：阶梯石台 + 上方悬�
     save(img, "altar_menu.png", 2)
 
 
+def gen_guide_menu():  # 玩法说明入口徽记：羊皮卷轴 + 发光问号（区别于 codex 的魔典之眼 / altar 的石坛魂火）
+    S = 48
+    img, d = new_canvas(S)
+    paper = ((214, 196, 150, 255), (236, 222, 178, 255), (250, 240, 206, 255))  # 暖色羊皮纸（左亮右暗）
+    roll = ((120, 96, 60, 255), (160, 128, 80, 255), (196, 160, 104, 255))       # 卷轴棒
+    qcol = ((40, 90, 100, 255), (90, 200, 215, 255), (200, 248, 255, 255))       # 发光问号（青）
+    # 卷身（中段矩形，y 12..36）
+    for y in range(12, 37):
+        for x in range(10, 39):
+            tt = (x - 10) / 28.0
+            col = paper[2] if tt < 0.4 else (paper[1] if tt < 0.75 else paper[0])
+            px(d, x, y, col)
+    # 上下卷边（深色卷轴棒）
+    for yb in ((8, 11), (37, 40)):
+        for y in range(yb[0], yb[1] + 1):
+            for x in range(8, 41):
+                t = (x - 8) / 32.0
+                px(d, x, y, roll[2] if t < 0.4 else (roll[1] if t < 0.75 else roll[0]))
+    for y in (8, 9, 37, 38):
+        px(d, 8, y, roll[2]); px(d, 40, y, roll[2])
+    # 发光问号（7x9 位图，居中偏上）
+    qmap = [
+        ".###.",
+        "#...#",
+        "#...#",
+        "....#",
+        "...#.",
+        "..#..",
+        "..#..",
+        ".....",
+        "..#..",
+    ]
+    qx0, qy0 = 21, 14
+    for r, row in enumerate(qmap):
+        for c, ch in enumerate(row):
+            if ch != "#":
+                continue
+            px(d, qx0 + c, qy0 + r, qcol[1])          # 主体青辉
+            px(d, qx0 + c, qy0 + r - 1, qcol[2])       # 顶部高光（更亮）
+    save(img, "guide_menu.png", 2)
+
+
 gen_passive_boots()
 gen_passive_heart()
 gen_passive_tome()
@@ -2650,6 +2692,7 @@ gen_codex_weapons()
 gen_codex_book()
 gen_codex_menu()
 gen_altar_menu()
+gen_guide_menu()
 gen_boss_avatar()
 gen_enemy_shadow_hunter()
 gen_enemy_gargoyle()

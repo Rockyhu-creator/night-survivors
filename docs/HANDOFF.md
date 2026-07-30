@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.5 移动端技能树全屏画板+双指捏合缩放+移动端购买通路修复）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.6 解锁保持面板视图+玩法说明图标统一）
 
 ---
 
@@ -161,6 +161,27 @@
 **改动文件**：`src/ui.js`（`bindSkillTreePan` 重写多点手势 + `showTip` 加 `.tt-buy` + 构造期浮层点击委托 + `zoomSkillTree`/`fitSkillTreeView` 下限 0.2）、`src/style.css`（`.touch-device` 全屏画板 + 浮层定位 + 视图控制放大 + `.st-tooltip` 触屏可交互 + `.tt-buy` 样式）。
 
 **验证**：`/tmp/skilltree_mobile_probe.py` ALL PASS（全屏布局 / tap→`.tt-buy` 可见可用 / 解锁→owned 持久化 / 捏合 scale 0.2→0.2828 / 零报错）；`test_game.py` 全量 ALL PASS 零回归。
+
+## 0h. v3.6 解锁保持面板视图 + 玩法说明图标统一
+
+**触发**：用户反馈「技能树解锁后会自动恢复到初始缩放大小，需要解锁保持当前面板不自动移动/缩放」+「给玩法说明更新一下，同时玩法说明按钮也加上 icon，保持体验一致性」。
+
+**解锁不重置视图（核心修复）**：
+- **根因**：`renderSkillTree()` 尾部无条件调用 `requestAnimationFrame(() => this.fitSkillTreeView())`，而购买/洗点回调均走 `renderSkillTree(id)` → 每次操作后画板被强制 fit 回初始缩放/位置。
+- **修复**：`renderSkillTree(justUnlocked = null, fit = false)` 新增 `fit` 参数。尾部分支：`fit=true`（仅 `showSkillTree()` 打开时传入）→ 调用 `fitSkillTreeView()` 自动适配；`fit=false`（购买 tooltip buy / 卡片内联 buy / 洗点）→ 仅 `applyStTransform()` 复用当前 `stTx/stTy/stScale` + 更新 `--st-zoom` CSS 变量与缩放指示器文本。
+- **调用点**：`showSkillTree()` → `renderSkillTree(null, true)`；tooltip buy(67行) → `(id, false)`；card buy(1031行) → `(def.id, false)`；respec(937行) → `(null, false)`。
+- **行为**：打开技能树 → 自动 fit；之后任意次解锁/洗点 → 视图不动；关闭重开 → 再次 fit；窗口 resize → fit（resize handler 不变）。
+
+**玩法说明按钮图标统一**：
+- `#btn-guide` 从 `<button class="gothic-btn ghost">玩法说明</button>` 改为 `<button class="gothic-btn ghost menu-btn"><img class="menu-btn-icon" src="/assets/guide_menu.png" alt="玩法说明" /><span>玩法说明</span></button>`，与 `btn-skilltree` / `btn-codex` / `btn-altar` 四个入口按钮结构一致。
+- 新增 `gen_guide_menu()` 程序化像素生成函数（gen_assets.py）：48×48 canvas ×2 → 96×96 PNG。视觉为暖色羊皮纸卷轴（左亮右暗渐变）+ 上下深色卷轴棒 + 居中青色发光 "?" 位图（7×9 像素位图 + 高光）。`outline()` 自动加 1px 深色描边。
+
+**玩法说明内容补充灵魂树条目**：
+- 在「长远」（灵魂祭坛）bullet 后新增「灵魂树」bullet：描述 5 大分支天赋（征伐/血裔协同/永夜抗性/灵魂经济/通用机能）、可随时重置（净额扣 5% 手续费）、build 构建。
+
+**改动文件**：`src/ui.js`（`renderSkillTree` 加 `fit` 参数 + 4 处调用点适配 + 尾部条件分支）、`index.html`（guide button 改 menu-btn 结构 + guide-list 加灵魂树 bullet）、`gen_assets.py`（新增 `gen_guide_menu()` 函数 + 主块调用）、`public/assets/guide_menu.png`（新生成）。
+
+**验证**：`/tmp/skilltree_v36_probe.py` T1–T10 ALL PASS（全屏/touch-device/fit=0.20/＋缩放0.24/tooltip+tt-buy/**scale不变(解锁)**/持久化/**scale不变(洗点)**/重开re-fit/icon存在/零报错）；`test_game.py` 全量 ALL PASS 零回归。
 
 ---
 
@@ -455,6 +476,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+[pending] v3.6 解锁保持面板视图(renderSkillTree加fit参数,仅打开时auto-fit,购买/洗点保持stTx/stTy/stScale) + 玩法说明按钮icon统一(guide_menu.png程序化像素卷轴+问号,menu-btn结构) + 玩法说明补充灵魂树条目 | v36探针T1-T10(含scale不变断言★)+test_game全PASS零回归
 c31a079 v3.5 移动端技能树全屏画板(整页全屏+自由平移) + 双指捏合缩放(bindSkillTreePan重写Pointer多点手势,下限0.2) + 移动端购买通路修复(详情浮层内嵌.tt-buy解锁按钮) | 移动端探针全PASS(全屏/tap购买/捏合0.2->0.2828/零报错)+test_game全PASS零回归
 3ff5dd2 v3.4 技能树UI深度打磨：图标模式(39节点sk_*.png像素风+移动端紧凑56px) + hover高亮上下游路径(lk-highlight BFS祖先/后代) + 缩放字号自适应(--st-zoom CSS变量calc) + 缩放百分比指示器 | v34探针T1-T9+test_game全PASS零回归
 92d6e56 v3.3 技能树重构为树状图：每分支自上而下tidy-tree布局(按prereq深度分层) + 5分支左右并排可平移画布 + 拖拽平移/滚轮缩放(＋/－/适配) + world坐标贝塞尔连线(40边) | 树状探针T1-T8+test_game全PASS零回归

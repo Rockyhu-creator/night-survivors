@@ -64,7 +64,7 @@ export class UIManager {
       const b = e.target.closest('.tt-buy');
       if (!b || b.disabled) return;
       const id = b.dataset.id;
-      if (buySkillNode(id).ok) { this.game.audio.uiClick(); this.hideTip(); this.renderSkillTree(id); }
+      if (buySkillNode(id).ok) { this.game.audio.uiClick(); this.hideTip(); this.renderSkillTree(id, false); }
     });
     // 技能树画布平移/缩放状态
     this.stTx = 0; this.stTy = 0; this.stScale = 1;
@@ -919,7 +919,7 @@ export class UIManager {
   showSkillTree() {
     this.titleScreen.classList.add('hidden');
     this.skillTreeScreen.classList.remove('hidden');
-    this.renderSkillTree();
+    this.renderSkillTree(null, true);
   }
 
   hideSkillTree() {
@@ -934,10 +934,10 @@ export class UIManager {
     const fee = Math.max(25, Math.floor(refund * 0.05));
     if (!confirm(`确定重置灵魂树？\n将返还 ${refund} 灵魂，扣除手续费 ${fee}（净返还 ${refund - fee}）。`)) return;
     const r = respecTree();
-    if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(); }
+    if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(null, false); }
   }
 
-  renderSkillTree(justUnlocked = null) {
+  renderSkillTree(justUnlocked = null, fit = false) {
     const souls = loadSouls();
     this.skillTreeBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
     this.skillTreeContentEl.innerHTML = '';
@@ -1028,7 +1028,7 @@ export class UIManager {
         else if (!prereqOk) { btn.textContent = '前置未解锁'; btn.disabled = true; }
         else if (!gateOk) { btn.textContent = lockMsg; btn.disabled = true; }
         else if (!affordable) { btn.textContent = `👁 ${def.cost}`; btn.disabled = true; }
-        else { btn.textContent = `👁 ${def.cost}`; btn.addEventListener('click', (e) => { e.stopPropagation(); if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id); } }); }
+        else { btn.textContent = `👁 ${def.cost}`; btn.addEventListener('click', (e) => { e.stopPropagation(); if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id, false); } }); }
         card.append(icon, textLayer, btn);
         // Hover / tap: tooltip + highlight upstream/downstream paths
         card.addEventListener('mouseenter', () => { this.showTip(def, card, owned, souls); this.highlightPaths(def.id); });
@@ -1081,7 +1081,14 @@ export class UIManager {
     let zi = this.skillTreeContentEl.querySelector('.st-zoom-indicator');
     if (!zi) { zi = document.createElement('div'); zi.className = 'st-zoom-indicator'; this.skillTreeContentEl.appendChild(zi); }
     this.stZoomInd = zi;
-    requestAnimationFrame(() => this.fitSkillTreeView());
+    if (fit) {
+      // 仅「打开技能树」时自动适配；解锁/重置等局部刷新保持当前面板位置与缩放
+      requestAnimationFrame(() => this.fitSkillTreeView());
+    } else {
+      this.applyStTransform();
+      this.skillTreeContentEl.style.setProperty('--st-zoom', this.stScale);
+      if (this.stZoomInd) this.stZoomInd.textContent = `${Math.round(this.stScale * 100)}%`;
+    }
   }
 
   applyStTransform() {

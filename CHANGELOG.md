@@ -5,6 +5,26 @@
 
 <arg_value:6124c78e>---
 
+## v3.6（2026-07-30 · `[pending]`）
+
+> 解锁后保持面板位置/缩放 + 玩法说明内容更新与图标统一。
+
+### 修复
+- **解锁不重置视图**：`renderSkillTree(justUnlocked, fit)` 新增 `fit` 参数——仅「打开技能树」时自动适配画板（`fit=true`）；解锁/重置等局部刷新保持当前平移与缩放不变（`fit=false`），解决每次点亮节点后面板突然跳回初始缩放的问题。`showSkillTree()` → `renderSkillTree(null, true)`；购买/洗点回调 → `renderSkillTree(id/null, false)`。
+
+### 新增
+- **玩法说明按钮图标**：`btn-guide` 改为 `.menu-btn` 结构，内嵌 `<img class="menu-btn-icon" src="/assets/guide_menu.png">` + `<span>` 标签，与技能树/图鉴/祭坛三个入口按钮视觉一致。
+- **guide_menu.png**：程序化像素风「羊皮卷轴 + 发光问号」菜单图标（96×96 RGBA），由 `gen_assets.py` 新增 `gen_guide_menu()` 函数生成（暖色羊皮纸卷轴 + 青色发光 "?" 位图）。
+
+### 调整
+- **玩法说明内容补充灵魂树条目**：在「长远」条目后新增「灵魂树」bullet，描述 5 大分支天赋 / 洗点手续费 / build 构建，引导玩家发现主菜单的永久成长第二条线。
+
+### 验证
+- v3.6 探针 T1–T10 ALL PASS：全屏布局 / 初始 fit=0.20 / ＋缩放到 0.24 / tooltip+tt-buy 可用 / **解锁后 scale 不变(0.24==0.24)** / 持久化正确 / **洗点后 scale 不变(0.24==0.24)** / 重开 re-fit 回 0.20 / 玩法说明有 icon / 零报错。
+- `test_game.py` 全量 ALL PASS 零回归。
+
+---
+
 ## v3.5（2026-07-30 · `c31a079`）
 
 > 移动端技能树全屏化 + 手势缩放 + 移动端购买通路修复：整页全屏铺满视口的自由平移画板、双指捏合缩放与放大/缩小按钮；并修复移动端「看得见买不了」的隐性缺陷（详情浮层内嵌解锁按钮）。
