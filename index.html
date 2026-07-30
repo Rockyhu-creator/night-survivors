@@ -203,6 +203,17 @@
         <button id="btn-skilltree-respec" class="gothic-btn ghost">重置天赋</button>
       </div>
       <button id="btn-skilltree-back" class="gothic-btn">返回</button>
+      <!-- 重置天赋确认弹窗（v3.7）：替代原生 confirm，贴合暗黑哥特 UI -->
+      <div id="st-respec-modal" class="st-modal hidden">
+        <div class="st-modal-card">
+          <h3 class="st-modal-title">重 置 灵 魂 树</h3>
+          <p class="st-modal-body" id="st-respec-body"></p>
+          <div class="st-modal-actions">
+            <button id="st-respec-cancel" class="gothic-btn ghost">取消</button>
+            <button id="st-respec-confirm" class="gothic-btn">确认重置</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 玩法说明（首启自动弹） -->

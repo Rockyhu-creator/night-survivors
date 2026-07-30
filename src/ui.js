@@ -56,6 +56,22 @@ export class UIManager {
     this.skillTreeBalanceEl = document.getElementById('skilltree-balance');
     this.skillTreeContentEl = document.getElementById('skilltree-content');
     this.skillTreeRespecBtn = document.getElementById('btn-skilltree-respec');
+    // 重置确认弹窗（v3.7）：替代原生 confirm，贴合游戏 UI
+    this.stRespecModal = document.getElementById('st-respec-modal');
+    this.stRespecBody = document.getElementById('st-respec-body');
+    document.getElementById('st-respec-cancel').addEventListener('click', () => this.stRespecModal.classList.add('hidden'));
+    document.getElementById('st-respec-confirm').addEventListener('click', () => {
+      this.stRespecModal.classList.add('hidden');
+      const r = respecTree();
+      if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(null, false); }
+    });
+    // 点遮罩 / Esc 取消
+    this.stRespecModal.addEventListener('click', (e) => { if (e.target === this.stRespecModal) this.stRespecModal.classList.add('hidden'); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !this.stRespecModal.classList.contains('hidden')) this.stRespecModal.classList.add('hidden');
+    });
+    // 长按菜单 / 选中复制：屏蔽原生 contextmenu（移动端长按复制浮层）
+    this.skillTreeContentEl.addEventListener('contextmenu', (e) => e.preventDefault());
     this.skillTreeTip = document.createElement('div');
     this.skillTreeTip.className = 'st-tooltip';
     this.skillTreeScreen.appendChild(this.skillTreeTip);
@@ -932,9 +948,8 @@ export class UIManager {
     const refund = SKILL_TREE.filter((n) => s.tree.includes(n.id)).reduce((sum, n) => sum + n.cost, 0);
     if (refund === 0) return;
     const fee = Math.max(25, Math.floor(refund * 0.05));
-    if (!confirm(`确定重置灵魂树？\n将返还 ${refund} 灵魂，扣除手续费 ${fee}（净返还 ${refund - fee}）。`)) return;
-    const r = respecTree();
-    if (r.ok) { this.game.audio.uiClick(); this.renderSkillTree(null, false); }
+    this.stRespecBody.textContent = `将返还 ${refund} 灵魂，扣除手续费 ${fee}（净返还 ${refund - fee}）。\n\n此操作不可撤销，已点亮的天赋将全部重置。`;
+    this.stRespecModal.classList.remove('hidden');
   }
 
   renderSkillTree(justUnlocked = null, fit = false) {

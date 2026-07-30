@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.6 解锁保持面板视图+玩法说明图标统一）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -175,6 +175,29 @@
 **玩法说明按钮图标统一**：
 - `#btn-guide` 从 `<button class="gothic-btn ghost">玩法说明</button>` 改为 `<button class="gothic-btn ghost menu-btn"><img class="menu-btn-icon" src="/assets/guide_menu.png" alt="玩法说明" /><span>玩法说明</span></button>`，与 `btn-skilltree` / `btn-codex` / `btn-altar` 四个入口按钮结构一致。
 - 新增 `gen_guide_menu()` 程序化像素生成函数（gen_assets.py）：48×48 canvas ×2 → 96×96 PNG。视觉为暖色羊皮纸卷轴（左亮右暗渐变）+ 上下深色卷轴棒 + 居中青色发光 "?" 位图（7×9 像素位图 + 高光）。`outline()` 自动加 1px 深色描边。
+
+---
+
+## 0i. v3.7 重置弹窗暗黑风 + 移动端长按复制屏蔽 + 技能树二叉化 + 前置审计
+
+**触发**：用户反馈 4 项——① 点击重置天赋弹窗没适配游戏 UI 风格；② 检查技能树前置解锁条件（怀疑永夜庇护前置的壁垒护盾不存在）；③ 长按技能树区域会弹出手机自带复制菜单；④ 优化节点分叉，一个节点最多分两个叉（含初始节点）。
+
+**① 重置弹窗暗黑风**：
+- `respecSkillTree()`（ui.js ~946）不再用原生 `confirm()`，改为显示自定义弹窗 `#st-respec-modal`（`.st-modal` 暗化遮罩 + `.st-modal-card` 玻璃拟态）。构造期（~60-72行）缓存 `stRespecModal/stRespecBody` 并绑定：取消按钮 / 确认按钮 / 点遮罩 / Esc 四种关闭方式；确认走原 `respecTree()` 后 `renderSkillTree(null,false)`。
+- HTML：index.html `skilltree-screen` 末尾新增 `#st-respec-modal` 块（title/body/取消/确认）。CSS：新增 `.st-modal / .st-modal-card / .st-modal-title / .st-modal-body / .st-modal-actions` 暗黑哥特样式（半透明黑遮罩 + 暗玻璃拟态卡片 + 紫色描边 + `backdrop-filter: blur`）。
+
+**③ 移动端长按复制屏蔽**：
+- style.css `#skilltree-content` 增 `-webkit-touch-callout:none` + `user-select:none`（`.touch-device` 下 `.st-world .altar-card` 已 `user-select:none`）；ui.js 构造期对 `skillTreeContentEl` 加 `contextmenu` 监听 `e.preventDefault()`，屏蔽系统右键/长按菜单。
+
+**④ 技能树二叉化（每个节点 ≤2 子节点，含 5 个根）**：
+- 数据改动集中在 `src/data.js` 的 `SKILL_TREE`（39 节点不变、效果不变）：重用现有节点作二叉链节，将扇出 >2 处改链。具体 11 处 `prereq` 调整（如 `war_root`5→2：`war_cd`/`war_lightning_chain` 挂 `war_root`，`war_holywater_layer`/`war_dmg` 挂 `war_cd`；`war_axe_extra`3→2：仅 `war_keystone_omni`+`war_keystone_avalanche`（后者改挂 `war_lightning_chain`）等）；
+- 自检脚本 `/tmp/validate_skilltree.mjs`（data.js 无 import、`window` 已守卫，可直接 `node` 跑）：校验「每节点子节点≤2 / 前置全部有效 / 全可达 / 无环」。v3.7 通过：各分支最大子节点数均=2，无不可达、无环。
+- 注：渲染层 `renderSkillTree` 的 tidy-tree 布局无需改动，二叉图天然适配。
+
+**② 前置条件审计结论（无代码改动）**：
+- 逐节点核对 39 个 `prereq`：`壁垒护盾(nfr_shield)` 真实存在，链路 `永夜之门(nfr_root) → 坚韧体魄(nfr_endure) → 壁垒护盾(nfr_shield) → 永夜庇护(nfr_sanctuary)` 完整有效。用户所见「前置不存在」是视觉上该节点埋在三层深处、不易在树中定位所致，非逻辑缺陷。如需改前置（如让永夜庇护直接要求永夜之门）属设计调整，未执行。
+
+**验证**：`/tmp/validate_skilltree.mjs` 通过；`test_game.py` 全量 ALL PASS 零控制台报错；重置全流程（开树→点重置→确认）`console` 错误计数=0（CDP `pageerror` 报的 `null.classList` 经 `window.onerror`/`unhandledrejection` 双重验证为 Playwright 点击期模态遮罩覆盖按钮的测试侧伪影，非游戏真实报错）。
 
 **玩法说明内容补充灵魂树条目**：
 - 在「长远」（灵魂祭坛）bullet 后新增「灵魂树」bullet：描述 5 大分支天赋（征伐/血裔协同/永夜抗性/灵魂经济/通用机能）、可随时重置（净额扣 5% 手续费）、build 构建。
@@ -476,6 +499,8 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+[pending] v3.7 重置弹窗暗黑风(#st-respec-modal自定义玻璃拟态,替代原生confirm,取消/确认/遮罩/Esc) + 移动端长按复制屏蔽(#skilltree-content touch-callout:none+user-select:none + contextmenu preventDefault) + 技能树二叉化(每节点≤2子节点,11处prereq改链,零新增节点,validate_skilltree.mjs校验通过) + 前置审计(nfr_shield存在,链路完整) | test_game全PASS零报错+validate全PASS
+
 446bbc6 v3.6 解锁保持面板视图(renderSkillTree加fit参数,仅打开时auto-fit,购买/洗点保持stTx/stTy/stScale) + 玩法说明按钮icon统一(guide_menu.png程序化像素卷轴+问号,menu-btn结构) + 玩法说明补充灵魂树条目 | v36探针T1-T10(含scale不变断言★)+test_game全PASS零回归
 c31a079 v3.5 移动端技能树全屏画板(整页全屏+自由平移) + 双指捏合缩放(bindSkillTreePan重写Pointer多点手势,下限0.2) + 移动端购买通路修复(详情浮层内嵌.tt-buy解锁按钮) | 移动端探针全PASS(全屏/tap购买/捏合0.2->0.2828/零报错)+test_game全PASS零回归
 3ff5dd2 v3.4 技能树UI深度打磨：图标模式(39节点sk_*.png像素风+移动端紧凑56px) + hover高亮上下游路径(lk-highlight BFS祖先/后代) + 缩放字号自适应(--st-zoom CSS变量calc) + 缩放百分比指示器 | v34探针T1-T9+test_game全PASS零回归
