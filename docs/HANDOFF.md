@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.4 技能树UI深度打磨：图标模式+路径高亮+缩放字号自适应+指示器）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.5 移动端技能树全屏画板+双指捏合缩放+移动端购买通路修复）
 
 ---
 
@@ -137,6 +137,30 @@
 **改动文件**：`src/ui.js`（图标元素+文字层+路径高亮+缩放变量+指示器）、`src/style.css`（图标/紧凑模式/.lk-highlight/字号calc/指示器/分支标题渐变）、`gen_assets.py`（AI_OWNED 追加 39 图标）、`gen_skilltree_icons.py`（新建）、`public/assets/sk_*.png`（39 文件新建）。
 
 **验证**：`skilltree_v34_probe.py` T1–T9 ALL PASS（39 图标 / 39 文件 / 高亮 / 清除 / 指示器 / 缩放机制 / 移动端紧凑 / 购买 / 零报错）；`test_game.py` 全量 ALL PASS 零回归。
+
+## 0g. v3.5 移动端全屏画板 + 手势缩放（含移动端购买通路修复）
+
+**触发**：用户反馈「手机端技能树不能放在这么小的一个画板内，需要该页面全屏能移动画板」+「需要支持技能树画板放大和缩小」。
+
+**移动端全屏画板**：
+- `.touch-device #skilltree-screen`：`display:block; overflow:hidden; padding:0; height:100dvh;` 整页全屏、不可滚动。
+- `#skilltree-content`：`.touch-device` 下 `position:absolute; inset:0; width:100%!important; height:100%;` 铺满视口；圆角/边框/底色去除，画板即整屏。
+- 标题(`#skilltree-screen .altar-title`)/灵魂余额(`#skilltree-balance`)/返回(`#btn-skilltree-topback`)/重置+返回(`#skilltree-actions`/`#btn-skilltree-back`)改为 `position:absolute` 浮层叠于画板之上（`pointer-events` 按需分配，空白区穿透给画板做平移）。
+- 视图控制 `.st-viewctl` 移动端放大至 46px、竖排右下角；`.st-zoom-indicator` 上移避让底部操作条。
+
+**双指捏合缩放（重写 `bindSkillTreePan`）**：
+- 基于 Pointer Events 多点：`pointers` Map 记录活动指针；2 指时记录手势起点快照 `{dist, mx, my, tx, ty, scale}`，以中点为锚做「平移+缩放」合成——`wx0=(mx0−tx0)/scale0; stTx=mx−wx0*ns; stTy=my−wy0*ns`（手势起点世界点黏在中点）。
+- 单指平移 `stDragging`；抬起一指自动以剩指续接平移；`stMoved` 防误触展开/购买。
+- 缩放下限 `Math.max(0.2,…)`（`zoomSkillTree` 与 `fitSkillTreeView` 同步放宽），窄屏可纵览整棵宽树。
+- 点击空白区（非节点）收起浮层。
+
+**移动端购买通路修复**：
+- 原移动端 `.ac-buy` 被 `display:none` 且 `.st-tooltip` `pointer-events:none` → 移动端「看得见买不了」。
+- 现 `.st-tooltip` 触屏端 `pointer-events:auto`，`showTip` 内嵌 `.tt-buy` 按钮（可解锁→「解锁 −X 灵魂」；锁定→禁用并显示原因）；构造期在 `#skilltree-screen` 的浮层上注册事件委托，点击 `.tt-buy` → `buySkillNode` + 刷新。桌面端 `.tt-buy` 仍 `display:none`（沿用卡片内联购买），无回归。
+
+**改动文件**：`src/ui.js`（`bindSkillTreePan` 重写多点手势 + `showTip` 加 `.tt-buy` + 构造期浮层点击委托 + `zoomSkillTree`/`fitSkillTreeView` 下限 0.2）、`src/style.css`（`.touch-device` 全屏画板 + 浮层定位 + 视图控制放大 + `.st-tooltip` 触屏可交互 + `.tt-buy` 样式）。
+
+**验证**：`/tmp/skilltree_mobile_probe.py` ALL PASS（全屏布局 / tap→`.tt-buy` 可见可用 / 解锁→owned 持久化 / 捏合 scale 0.2→0.2828 / 零报错）；`test_game.py` 全量 ALL PASS 零回归。
 
 ---
 
@@ -431,6 +455,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+[pending] v3.5 移动端技能树全屏画板(整页全屏+自由平移) + 双指捏合缩放(bindSkillTreePan重写Pointer多点手势,下限0.2) + 移动端购买通路修复(详情浮层内嵌.tt-buy解锁按钮) | 移动端探针全PASS(全屏/tap购买/捏合0.2->0.2828/零报错)+test_game全PASS零回归
 3ff5dd2 v3.4 技能树UI深度打磨：图标模式(39节点sk_*.png像素风+移动端紧凑56px) + hover高亮上下游路径(lk-highlight BFS祖先/后代) + 缩放字号自适应(--st-zoom CSS变量calc) + 缩放百分比指示器 | v34探针T1-T9+test_game全PASS零回归
 92d6e56 v3.3 技能树重构为树状图：每分支自上而下tidy-tree布局(按prereq深度分层) + 5分支左右并排可平移画布 + 拖拽平移/滚轮缩放(＋/－/适配) + world坐标贝塞尔连线(40边) | 树状探针T1-T8+test_game全PASS零回归
 47b4d53 v3.2 技能树 UI 打磨：节点详情浮层(hover/点击单真源,含前置✓✗态) + prereq分支内SVG路径连线(lk-done/lk-next/lk-locked三态,流光仅lk-next) + 解锁动画just-unlocked450ms(reduced-motion降级) | 打磨探针T1-T5+test_game全PASS零回归

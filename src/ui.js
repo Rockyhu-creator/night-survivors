@@ -59,6 +59,13 @@ export class UIManager {
     this.skillTreeTip = document.createElement('div');
     this.skillTreeTip.className = 'st-tooltip';
     this.skillTreeScreen.appendChild(this.skillTreeTip);
+    // 触屏端：详情浮层内嵌解锁按钮（事件委托，仅在 .touch-device 下可见可点）
+    this.skillTreeTip.addEventListener('click', (e) => {
+      const b = e.target.closest('.tt-buy');
+      if (!b || b.disabled) return;
+      const id = b.dataset.id;
+      if (buySkillNode(id).ok) { this.game.audio.uiClick(); this.hideTip(); this.renderSkillTree(id); }
+    });
     // 技能树画布平移/缩放状态
     this.stTx = 0; this.stTy = 0; this.stScale = 1;
     this.stWorldW = 0; this.stWorldH = 0; this.stDragging = false; this.stMoved = false;
@@ -1087,7 +1094,7 @@ export class UIManager {
     const cw = c.clientWidth, ch = c.clientHeight;
     if (!cw || !ch) return;
     const s = Math.min(cw / (this.stWorldW + 48), ch / (this.stWorldH + 48), 1) * 0.96;
-    this.stScale = Math.max(0.35, s);
+    this.stScale = Math.max(0.2, s);
     this.stTx = (cw - this.stWorldW * this.stScale) / 2;
     this.stTy = Math.max(8, (ch - this.stWorldH * this.stScale) / 2);
     this.applyStTransform();
@@ -1097,7 +1104,7 @@ export class UIManager {
   }
 
   zoomSkillTree(factor, mx, my) {
-    const ns = Math.min(2.2, Math.max(0.35, this.stScale * factor));
+    const ns = Math.min(2.2, Math.max(0.2, this.stScale * factor));
     const k = ns / this.stScale;
     this.stTx = mx - (mx - this.stTx) * k;
     this.stTy = my - (my - this.stTy) * k;
@@ -1109,28 +1116,73 @@ export class UIManager {
 
   bindSkillTreePan() {
     const c = this.skillTreeContentEl;
-    let sx = 0, sy = 0, stx = 0, sty = 0;
-    const move = (e) => {
-      if (!this.stDragging) return;
-      const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) this.stMoved = true;
-      this.stTx = stx + dx; this.stTy = sty + dy;
-      this.applyStTransform();
-    };
-    const up = () => {
-      this.stDragging = false;
-      c.style.cursor = 'grab';
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
+    const pointers = new Map();
+    let pinch = null;            // 手势起点快照 { dist, mx, my, tx, ty, scale }
+    let panSX = 0, panSY = 0, panTx = 0, panTy = 0;
+    const L = (e) => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, cx: e.clientX, cy: e.clientY }; };
+
     c.addEventListener('pointerdown', (e) => {
       if (e.target.closest('button')) return;
-      this.stDragging = true; this.stMoved = false;
-      sx = e.clientX; sy = e.clientY; stx = this.stTx; sty = this.stTy;
-      c.style.cursor = 'grabbing';
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
+      // 点空白处（非节点）收起浮层
+      if (!e.target.closest('.altar-card')) this.hideTip();
+      pointers.set(e.pointerId, L(e));
+      if (pointers.size === 1) {
+        this.stDragging = true; this.stMoved = false;
+        panSX = e.clientX; panSY = e.clientY; panTx = this.stTx; panTy = this.stTy;
+        c.style.cursor = 'grabbing';
+      } else if (pointers.size === 2) {
+        const p = [...pointers.values()];
+        pinch = { dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
+                  mx: (p[0].x + p[1].x) / 2, my: (p[0].y + p[1].y) / 2,
+                  tx: this.stTx, ty: this.stTy, scale: this.stScale };
+        this.stDragging = false; // 双指时暂停单指平移
+      }
     });
+
+    c.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, L(e));
+      if (pointers.size >= 2 && pinch) {
+        // 双指：以中点为锚做「平移 + 缩放」合成（手势起点的世界坐标点黏在中点）
+        const p = [...pointers.values()];
+        const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        const mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
+        const ns = Math.min(2.2, Math.max(0.2, pinch.scale * (dist / pinch.dist)));
+        const wx0 = (pinch.mx - pinch.tx) / pinch.scale;
+        const wy0 = (pinch.my - pinch.ty) / pinch.scale;
+        this.stScale = ns;
+        this.stTx = mx - wx0 * ns;
+        this.stTy = my - wy0 * ns;
+        this.stMoved = true;
+        this.applyStTransform();
+        this.skillTreeContentEl.style.setProperty('--st-zoom', ns);
+        if (this.stZoomInd) this.stZoomInd.textContent = `${Math.round(ns * 100)}%`;
+      } else if (pointers.size === 1 && this.stDragging) {
+        const dx = e.clientX - panSX, dy = e.clientY - panSY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) this.stMoved = true;
+        this.stTx = panTx + dx; this.stTy = panTy + dy;
+        this.applyStTransform();
+      }
+    });
+
+    const onUp = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      if (pointers.size === 1) {
+        // 抬起一指，剩一指继续平移
+        const rem = [...pointers.values()][0];
+        panSX = rem.cx; panSY = rem.cy; panTx = this.stTx; panTy = this.stTy;
+        this.stDragging = true; pinch = null;
+      } else if (pointers.size === 0) {
+        this.stDragging = false; pinch = null;
+        c.style.cursor = 'grab';
+      } else {
+        pinch = null;
+      }
+    };
+    c.addEventListener('pointerup', onUp);
+    c.addEventListener('pointercancel', onUp);
+
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rect = c.getBoundingClientRect();
@@ -1209,7 +1261,15 @@ export class UIManager {
     const prereqHtml = (def.prereq && def.prereq.length)
       ? def.prereq.map((p) => { const pn = SKILL_TREE.find((n) => n.id === p); const ok = owned.has(p); return `<div class="tt-pre"><span class="${ok ? 'tt-dot-on' : 'tt-dot-off'}">${ok ? '●' : '○'}</span> ${esc(pn ? pn.name : p)} <span class="${ok ? 'tt-own' : 'tt-lock'}">${ok ? '已解锁' : '未解锁'}</span></div>`; }).join('')
       : '<div class="tt-pre tt-lock">无前置 · 分支入口</div>';
-    this.skillTreeTip.innerHTML = `<div class="tt-title">${esc(def.name)}</div><div class="tt-type">${typeNames[def.type] || def.type} · ${branchNames[def.branch]}</div><div class="tt-status ${statusCls}">状态：${esc(statusText)}</div><div class="tt-desc">${esc(def.desc)}</div><div class="tt-cost">灵魂 ${isOwned ? '— 已点亮' : '−' + def.cost}</div><div class="tt-prewrap">前置：${prereqHtml}</div>`;
+    let buyHtml = '';
+    if (!isOwned) {
+      if (souls.balance >= def.cost && statusCls !== 'tt-lock') {
+        buyHtml = `<button class="tt-buy" data-id="${def.id}">解锁 −${def.cost} 灵魂</button>`;
+      } else {
+        buyHtml = `<button class="tt-buy" disabled>${esc(statusText)}</button>`;
+      }
+    }
+    this.skillTreeTip.innerHTML = `<div class="tt-title">${esc(def.name)}</div><div class="tt-type">${typeNames[def.type] || def.type} · ${branchNames[def.branch]}</div><div class="tt-status ${statusCls}">状态：${esc(statusText)}</div><div class="tt-desc">${esc(def.desc)}</div><div class="tt-cost">灵魂 ${isOwned ? '— 已点亮' : '−' + def.cost}</div><div class="tt-prewrap">前置：${prereqHtml}</div>${buyHtml}`;
     const r = card.getBoundingClientRect();
     this.skillTreeTip.style.left = `${r.left + r.width / 2}px`;
     this.skillTreeTip.style.top = `${r.top - 12}px`;
