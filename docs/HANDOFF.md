@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.3 技能树重构为树状图：每分支自上而下 tidy-tree 布局 + 5分支左右并排可平移画布 + 拖拽/滚轮缩放 + world坐标贝塞尔连线；纯表现层无机制改动）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-29（v3.4 技能树UI深度打磨：图标模式+路径高亮+缩放字号自适应+指示器）
 
 ---
 
@@ -109,6 +109,34 @@
 **改动文件**：`src/ui.js`（renderSkillTree 重写为树布局 + 平移缩放控制器；旧 `drawConnections` 重命名为 `_drawConnections` 弃用）、`src/style.css`（`#skilltree-content` 改 flex:1 画布 `overflow:hidden/cursor:grab/touch-action:none`；新增 `.st-world`/`.st-world>.st-links`/`.st-world .altar-card`(absolute 紧凑)/`.st-band-title`/`.st-viewctl`/`.st-ctl-btn`；`.st-links` 去 inset/width/height 改仅视觉）。
 
 **验证**：`/tmp/skilltree_tree_probe.py`（?debug）T1–T8 ALL PASS（39 卡 / 5 标题 / 5 层纵深 span504 / 21 横向位 / 40 连线 / 平移 transform 变化 / 缩放 0.36→0.432 / 购买触发 just-unlocked+5 lk-next / 零报错）；`test_game.py` 全量 ALL PASS 零回归零报错。
+
+---
+
+## 0f. v3.4 技能树 UI 深度打磨（图标模式 / 路径高亮 / 缩放适配）
+
+**触发**：用户参考移动端技能树截图，要求「节点用图标代替、点击才展示说明 + hover 高亮上下游 + 缩放字号自适应」。
+
+**图标模式**：
+- `gen_skilltree_icons.py` 程序化生成 39 个 48×48 像素风图标（`public/assets/sk_*.png`），按分支色（war红/bly紫/nfr蓝/eco金/utl青绿）× 类型形状（gate六边形/stat圆角方/modifier菱形/keystone星形）区分。
+- 已注册 `gen_assets.py` AI_OWNED 防覆盖。
+- 节点卡片 DOM 重构：`<img class="st-icon">` + `<div class="st-text">`（文字层）+ 按钮。
+- 移动端/触屏（`@media max-width:768px` + `.touch-device`）：卡宽缩至 56-58px，`.st-text` 和 `.ac-buy` `display:none`，只显示图标；点击→tooltip 详情。
+
+**路径高亮**：
+- 新方法 `highlightPaths(nodeId)`：BFS 遍历祖先（沿 prereq 向上）+ 后代（沿 children 向下），给相关 SVG path 加 `.lk-highlight`（stroke-width:3 + 双重 drop-shadow glow）。
+- `clearPathHighlight()` 移除所有 `.lk-highlight`。
+- card 的 `mouseenter` 触发 highlight + showTip；`mouseleave` 触发 clear + hideTip；click expanded 也触发。
+- path 元素新增 `data-from` / `data-to` 属性供高亮匹配。
+
+**缩放字号自适应**：
+- `zoomSkillTree()` / `fitSkillTreeView()` 设 CSS 变量 `--st-zoom`（当前缩放比）。
+- 标题/名字/类型/按钮字号用 `clamp(min, calc(base/--st-zoom), max)` 反比缩放。
+
+**缩放百分比指示器**：`.st-zoom-indicator` 绝对定位底部居中，显示 "XX%"，跟随缩放实时更新。
+
+**改动文件**：`src/ui.js`（图标元素+文字层+路径高亮+缩放变量+指示器）、`src/style.css`（图标/紧凑模式/.lk-highlight/字号calc/指示器/分支标题渐变）、`gen_assets.py`（AI_OWNED 追加 39 图标）、`gen_skilltree_icons.py`（新建）、`public/assets/sk_*.png`（39 文件新建）。
+
+**验证**：`skilltree_v34_probe.py` T1–T9 ALL PASS（39 图标 / 39 文件 / 高亮 / 清除 / 指示器 / 缩放机制 / 移动端紧凑 / 购买 / 零报错）；`test_game.py` 全量 ALL PASS 零回归。
 
 ---
 
@@ -403,6 +431,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+3ff5dd2 v3.4 技能树UI深度打磨：图标模式(39节点sk_*.png像素风+移动端紧凑56px) + hover高亮上下游路径(lk-highlight BFS祖先/后代) + 缩放字号自适应(--st-zoom CSS变量calc) + 缩放百分比指示器 | v34探针T1-T9+test_game全PASS零回归
 92d6e56 v3.3 技能树重构为树状图：每分支自上而下tidy-tree布局(按prereq深度分层) + 5分支左右并排可平移画布 + 拖拽平移/滚轮缩放(＋/－/适配) + world坐标贝塞尔连线(40边) | 树状探针T1-T8+test_game全PASS零回归
 47b4d53 v3.2 技能树 UI 打磨：节点详情浮层(hover/点击单真源,含前置✓✗态) + prereq分支内SVG路径连线(lk-done/lk-next/lk-locked三态,流光仅lk-next) + 解锁动画just-unlocked450ms(reduced-motion降级) | 打磨探针T1-T5+test_game全PASS零回归
 692ae11 v3.1 生存向平衡校准：nightBase 软化(1.12/1.22/1.32->1.08/1.16/1.24) + 刷怪地板0.18->0.22 + 血瓶2.5%->3.5% | 模拟器量化后期小怪HP×16.9->×14.5 test_game连跑2次全PASS

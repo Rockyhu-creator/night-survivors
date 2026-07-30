@@ -5,22 +5,27 @@
 
 <arg_value:6124c78e>---
 
-## v3.3（2026-07-29 · `92d6e56`）
+## v3.4（2026-07-29 · `3ff5dd2`）
 
-> 技能树布局重构为真正的**树状图**（用户诉求：v3.2 的 CSS grid 纵横对齐不像技能树、连线乱）。纯表现层、无机制/数值改动。
+> 技能树 UI 深度打磨：图标模式 + 路径高亮 + 缩放适配（参考移动端技能树截图优化）。
 
 ### 新增
-- **树状布局**：每分支是一棵自上而下树（根 gate 在上，子节点按 prereq 深度向下分层，同父节点的子节点 y 取平均的经典 tidy-tree 排布）；5 分支左右并排平铺于一个画布。
-- **可平移 / 缩放画布**：鼠标拖拽平移、滚轮以光标为锚缩放；右上角 ＋/－/适配 按钮（适配一键居中全图）。`prefers-reduced-motion` 降级。
-- **world 坐标连线**：节点改为 `position:absolute` 绝对定位，连线按 world 坐标直接画贝塞尔（不再依赖 grid 中心），40 条边干净对应 40 个 prereq；三态 `lk-owned`(已点亮)/`lk-next`(可解锁流光)/`lk-latent`(暗灰)。
+- **图标模式**：39 个节点各生成 48×48 像素风图标（`sk_*.png`，按分支色×类型形状区分）；节点卡片新增 `<img class="st-icon">` 图标元素；移动端/触屏自动切换紧凑模式（56-58px 卡宽，仅显示图标，文字和按钮隐藏，点击→tooltip 展示详情）。
+- **hover 高亮上下游路径**：鼠标悬停/触摸节点时，BFS 遍历该节点的所有祖先（沿 prereq 向上）和后代（沿 children 向下），相关连线加 `.lk-highlight` 类（3px 宽 + 双重 glow 投影）；离开时自动清除。
+- **缩放字号自适应**：`zoomSkillTree` / `fitSkillTreeView` 设 CSS 变量 `--st-zoom`；标题/名字/类型/按钮字号用 `clamp(min, base/--st-zoom, max)` 反比缩放——放大时字号不膨胀、缩小时保持可读。
+- **缩放百分比指示器**：画布底部居中显示 "XX%"（参考截图风格），实时跟随缩放更新。
 
-### 优化
-- 旧 `drawConnections`（基于 grid 中心、连线乱）标记弃用，连线逻辑内联进 `renderSkillTree` 的 world 空间。
+### 调整
+- 分支标题栏增加渐变底色+2px 底边框，视觉更贴近参考图的深色面板风格。
+- `#skilltree-content` 增加 `overflow-x: hidden` 防止横向溢出。
 
 ### 验证
-- `/tmp/skilltree_tree_probe.py`（?debug）T1–T8 ALL PASS：39 卡 / 5 分支标题 / 5 层纵深(span 504px) + 21 横向位（真树状）/ 40 连线 / 平移 transform 变化 / 缩放 0.36→0.432 / 购买触发 just-unlocked + 5 条 lk-next / 零控制台报错。`test_game.py` 全量 ALL PASS 零回归零报错。
+- `/tmp/skilltree_v34_probe.py` T1–T9 ALL PASS：39 图标加载 / 39 文件存在 / hover 路径高亮 / 离开清除 / 指示器可见 / 缩放机制 / 移动端紧凑模式 / 购买正常 / 零报错。
+- `test_game.py` 全量 ALL PASS 零回归零报错。
 
 ---
+
+## v3.3（2026-07-29 · `92d6e56`）
 
 ## v3.2（2026-07-29 · `47b4d53`）
 
