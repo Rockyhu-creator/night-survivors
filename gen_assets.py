@@ -62,6 +62,20 @@ AI_OWNED = {
     "passive_shieldregen.png", "passive_armor.png", "passive_dodge.png",
     # 技能树入口图标（外部程序化脚本生成，防止被全量生成器覆盖）
     "skilltree_menu.png",
+    # 技能树 39 节点图标（gen_skilltree_icons.py 程序化生成）
+    "sk_war_root.png","sk_war_dmg.png","sk_war_cd.png","sk_war_axe_extra.png",
+    "sk_war_lightning_chain.png","sk_war_holywater_layer.png","sk_war_starfall_crit.png",
+    "sk_war_keystone_omni.png","sk_war_keystone_avalanche.png",
+    "sk_bly_root.png","sk_bly_saint_pulse.png","sk_bly_blood_lifeshield.png",
+    "sk_bly_thunder_chain.png","sk_bly_berserk_rage.png","sk_bly_wanderer_omni.png",
+    "sk_bly_sanguine_lifesteal.png","sk_bly_keystone_apostle.png",
+    "sk_nfr_root.png","sk_nfr_hp.png","sk_nfr_shield.png","sk_nfr_armor.png",
+    "sk_nfr_thorns.png","sk_nfr_nightdr.png","sk_nfr_statusamp.png",
+    "sk_nfr_keystone_endgame.png",
+    "sk_eco_root.png","sk_eco_gain1.png","sk_eco_gain2.png",
+    "sk_eco_gate_nightmare.png","sk_eco_nightmare.png","sk_eco_keystone_hoarder.png",
+    "sk_utl_root.png","sk_utl_cd.png","sk_utl_crit.png","sk_utl_critdmg.png",
+    "sk_utl_magnet.png","sk_utl_dodge.png","sk_utl_regen.png","sk_utl_keystone_efficient.png",
 }
 
 def save(img, name, scale=1):

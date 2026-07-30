@@ -1003,23 +1003,34 @@ export class UIManager {
         card.style.top = `${y}px`;
         card.style.width = `${CARD_W}px`;
         card.className = `altar-card st-${bid} ${isOwned ? 'owned' : ''} ${!prereqOk || !gateOk ? 'locked' : 'available'}${def.id === justUnlocked ? ' just-unlocked' : ''}`;
+        // Icon image (always present; compact/icon mode shows only this)
+        const icon = document.createElement('img');
+        icon.className = 'st-icon';
+        icon.src = `/assets/sk_${def.id}.png`;
+        icon.alt = def.name;
+        icon.draggable = false;
+        // Text layer (hidden in compact/icon mode via CSS)
+        const textLayer = document.createElement('div');
+        textLayer.className = 'st-text';
         const nm = document.createElement('h3'); nm.textContent = def.name;
         const tp = document.createElement('div'); tp.className = 'st-type'; tp.textContent = typeNames[def.type] || def.type;
         const desc = document.createElement('p'); desc.className = 'ac-desc'; desc.textContent = def.desc;
+        textLayer.append(nm, tp, desc);
         const btn = document.createElement('button'); btn.className = 'gothic-btn ac-buy';
         if (isOwned) { btn.textContent = '已解锁'; btn.disabled = true; btn.classList.add('owned-btn'); }
         else if (!prereqOk) { btn.textContent = '前置未解锁'; btn.disabled = true; }
         else if (!gateOk) { btn.textContent = lockMsg; btn.disabled = true; }
         else if (!affordable) { btn.textContent = `👁 ${def.cost}`; btn.disabled = true; }
         else { btn.textContent = `👁 ${def.cost}`; btn.addEventListener('click', (e) => { e.stopPropagation(); if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id); } }); }
-        card.append(nm, tp, desc, btn);
-        card.addEventListener('mouseenter', () => this.showTip(def, card, owned, souls));
-        card.addEventListener('mouseleave', () => this.hideTip());
+        card.append(icon, textLayer, btn);
+        // Hover / tap: tooltip + highlight upstream/downstream paths
+        card.addEventListener('mouseenter', () => { this.showTip(def, card, owned, souls); this.highlightPaths(def.id); });
+        card.addEventListener('mouseleave', () => { this.hideTip(); this.clearPathHighlight(); });
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           if (this.stMoved) return;
-          if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); }
-          else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); }
+          if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); this.clearPathHighlight(); }
+          else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); this.highlightPaths(def.id); }
         });
         world.appendChild(card);
         cards[def.id] = card;
@@ -1043,6 +1054,8 @@ export class UIManager {
         const bx = c.x + CARD_W / 2, by = c.y;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M ${ax} ${ay2} C ${ax} ${(ay2 + by) / 2}, ${bx} ${(ay2 + by) / 2}, ${bx} ${by}`);
+        path.dataset.from = pid;
+        path.dataset.to = def.id;
         let cls = 'lk-latent';
         if (pa.classList.contains('owned') && b.classList.contains('owned')) cls = 'lk-owned';
         else if (pa.classList.contains('owned') && b.classList.contains('available')) cls = 'lk-next';
@@ -1057,6 +1070,10 @@ export class UIManager {
 
     this.skillTreeContentEl.appendChild(world);
     this.stWorld = world; this.stWorldW = maxW; this.stWorldH = maxH;
+    // Zoom indicator (bottom-center)
+    let zi = this.skillTreeContentEl.querySelector('.st-zoom-indicator');
+    if (!zi) { zi = document.createElement('div'); zi.className = 'st-zoom-indicator'; this.skillTreeContentEl.appendChild(zi); }
+    this.stZoomInd = zi;
     requestAnimationFrame(() => this.fitSkillTreeView());
   }
 
@@ -1074,6 +1091,9 @@ export class UIManager {
     this.stTx = (cw - this.stWorldW * this.stScale) / 2;
     this.stTy = Math.max(8, (ch - this.stWorldH * this.stScale) / 2);
     this.applyStTransform();
+    this.skillTreeContentEl.style.setProperty('--st-zoom', this.stScale);
+    if (this.stZoomInd) this.stZoomInd.textContent = `${Math.round(this.stScale * 100)}%`;
+    if (this.stZoomInd) this.stZoomInd.textContent = `${Math.round(this.stScale * 100)}%`;
   }
 
   zoomSkillTree(factor, mx, my) {
@@ -1083,6 +1103,8 @@ export class UIManager {
     this.stTy = my - (my - this.stTy) * k;
     this.stScale = ns;
     this.applyStTransform();
+    // Drive font-size auto-adapt via CSS variable
+    this.skillTreeContentEl.style.setProperty('--st-zoom', ns);
   }
 
   bindSkillTreePan() {
@@ -1196,6 +1218,57 @@ export class UIManager {
 
   hideTip() {
     if (this.skillTreeTip) this.skillTreeTip.classList.remove('show');
+  }
+
+  /** Highlight all ancestor + descendant paths for a node (hover/tap feedback) */
+  highlightPaths(nodeId) {
+    const svg = this.stWorld?.querySelector('.st-links');
+    if (!svg) return;
+    // Build reverse prereq map (child → parents) and forward map (parent → children)
+    const parents = {}, children = {};
+    for (const n of SKILL_TREE) {
+      if (!n.prereq) continue;
+      if (!children[n.id]) children[n.id] = [];
+      for (const p of n.prereq) {
+        if (!parents[n.id]) parents[n.id] = [];
+        parents[n.id].push(p);
+        if (!children[p]) children[p] = [];
+        children[p].push(n.id);
+      }
+    }
+    // Collect all related node IDs via BFS
+    const related = new Set([nodeId]);
+    // Ancestors (follow prereq upward)
+    const queue = [nodeId];
+    const visited = new Set([nodeId]);
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const p of (parents[cur] || [])) {
+        if (!visited.has(p)) { visited.add(p); related.add(p); queue.push(p); }
+      }
+    }
+    // Descendants (follow children downward)
+    queue.push(nodeId);
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const c of (children[cur] || [])) {
+        if (!visited.has(c)) { visited.add(c); related.add(c); queue.push(c); }
+      }
+    }
+    // Add .lk-highlight to paths where either endpoint is in related set
+    for (const path of svg.querySelectorAll('path')) {
+      const from = path.dataset.from;
+      const to = path.dataset.to;
+      if ((from && related.has(from)) || (to && related.has(to))) {
+        path.classList.add('lk-highlight');
+      }
+    }
+  }
+
+  clearPathHighlight() {
+    const svg = this.stWorld?.querySelector('.st-links');
+    if (!svg) return;
+    for (const el of svg.querySelectorAll('.lk-highlight')) el.classList.remove('lk-highlight');
   }
 
   renderBloodline() {
