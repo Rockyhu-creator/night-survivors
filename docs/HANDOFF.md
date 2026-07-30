@@ -476,7 +476,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-[pending] v3.6 解锁保持面板视图(renderSkillTree加fit参数,仅打开时auto-fit,购买/洗点保持stTx/stTy/stScale) + 玩法说明按钮icon统一(guide_menu.png程序化像素卷轴+问号,menu-btn结构) + 玩法说明补充灵魂树条目 | v36探针T1-T10(含scale不变断言★)+test_game全PASS零回归
+446bbc6 v3.6 解锁保持面板视图(renderSkillTree加fit参数,仅打开时auto-fit,购买/洗点保持stTx/stTy/stScale) + 玩法说明按钮icon统一(guide_menu.png程序化像素卷轴+问号,menu-btn结构) + 玩法说明补充灵魂树条目 | v36探针T1-T10(含scale不变断言★)+test_game全PASS零回归
 c31a079 v3.5 移动端技能树全屏画板(整页全屏+自由平移) + 双指捏合缩放(bindSkillTreePan重写Pointer多点手势,下限0.2) + 移动端购买通路修复(详情浮层内嵌.tt-buy解锁按钮) | 移动端探针全PASS(全屏/tap购买/捏合0.2->0.2828/零报错)+test_game全PASS零回归
 3ff5dd2 v3.4 技能树UI深度打磨：图标模式(39节点sk_*.png像素风+移动端紧凑56px) + hover高亮上下游路径(lk-highlight BFS祖先/后代) + 缩放字号自适应(--st-zoom CSS变量calc) + 缩放百分比指示器 | v34探针T1-T9+test_game全PASS零回归
 92d6e56 v3.3 技能树重构为树状图：每分支自上而下tidy-tree布局(按prereq深度分层) + 5分支左右并排可平移画布 + 拖拽平移/滚轮缩放(＋/－/适配) + world坐标贝塞尔连线(40边) | 树状探针T1-T8+test_game全PASS零回归
