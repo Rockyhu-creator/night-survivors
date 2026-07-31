@@ -5,7 +5,7 @@
 
 <arg_value:6124c78e>---
 
-## v3.10（2026-07-31 · `HASH`）
+## v3.10（2026-07-31 · `f486df8`）
 
 > 技能树数据完整性**永久校验护栏**：新增 `scripts/validate_skilltree.mjs`，挂到 `package.json` 的 `validate:skilltree` 与 `prebuild` 钩子，任何「节点 prereq 指向不存在的节点 / 重复 id / 超过 2 前置 / 不可达 / 成环 / gateReq 非法」都会在构建前直接让 build 失败。起因：用户反馈「嗜血渴望(lifesteal) 等节点前置不存在」，经 3 重验证（node 导入 / 全仓 grep / 真实运行时 `buySkillNode` 拓扑解锁仿真）确认当前 v3.9 源码 39 节点 prereq 全部有效、全部可解锁——所见系客户端缓存了修复前的旧 bundle；护栏用于杜绝此类数据断裂再次悄悄溜入。
 
