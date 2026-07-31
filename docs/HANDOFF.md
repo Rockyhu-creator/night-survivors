@@ -539,7 +539,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-HASH v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
+b82d99a v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
 38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
 
 4f7d6d0 v3.7 重置弹窗暗黑风(#st-respec-modal自定义玻璃拟态,替代原生confirm,取消/确认/遮罩/Esc) + 移动端长按复制屏蔽(#skilltree-content touch-callout:none+user-select:none + contextmenu preventDefault) + 技能树二叉化(每节点≤2子节点,11处prereq改链,零新增节点,validate_skilltree.mjs校验通过) + 前置审计(nfr_shield存在,链路完整) | test_game全PASS零报错+validate全PASS
