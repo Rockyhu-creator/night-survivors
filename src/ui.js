@@ -88,6 +88,60 @@ export class UIManager {
     this.stViewCtl = this.buildSkillTreeViewCtl();
     this.skillTreeScreen.appendChild(this.stViewCtl);
     this.bindSkillTreePan();
+    // ── 移动端技能树 v3.9：分支分段控件 + 底部详情抽屉（桌面端不渲染、不介入）──
+    this.stBranch = 'war';               // 移动端当前分支
+    this.stPositions = {};               // 最近一次渲染的节点坐标（focusStNode 用）
+    this.stCardW = 150; this.stCardH = 104;
+    this.stSheetDef = null;              // 抽屉当前展示的节点 def
+    this.stSeg = document.createElement('div');
+    this.stSeg.className = 'st-seg';
+    {
+      const segNames = { war: '征伐', bly: '血裔协同', nfr: '永夜抗性', eco: '灵魂经济', utl: '通用机能' };
+      const segSolid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
+      for (const [bid, label] of Object.entries(segNames)) {
+        const b = document.createElement('button');
+        b.className = 'st-seg-btn';
+        b.dataset.branch = bid;
+        b.textContent = label;
+        b.style.setProperty('--seg-color', segSolid[bid]);
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.stBranch === bid) return;
+          this.stBranch = bid;
+          this.game.audio.uiClick();
+          this.closeStSheet();
+          this.hideTip();
+          this.updateStSeg();
+          this.renderSkillTree(null, true);
+        });
+        this.stSeg.appendChild(b);
+      }
+    }
+    this.skillTreeScreen.appendChild(this.stSeg);
+    this.updateStSeg();
+    // 底部抽屉：遮罩 + sheet（仅 .touch-device 下可见，桌面 CSS display:none）
+    this.stSheetMask = document.createElement('div');
+    this.stSheetMask.className = 'st-sheet-mask';
+    this.stSheetMask.addEventListener('click', () => this.closeStSheet());
+    this.stSheet = document.createElement('div');
+    this.stSheet.className = 'st-sheet';
+    this.stSheet.innerHTML = '<div class="st-sheet-handle"></div><div class="st-sheet-body"></div>';
+    this.stSheetBody = this.stSheet.querySelector('.st-sheet-body');
+    this.stSheet.querySelector('.st-sheet-handle').addEventListener('click', () => this.closeStSheet());
+    // 抽屉内解锁按钮（事件委托）
+    this.stSheet.addEventListener('click', (e) => {
+      const b = e.target.closest('.sh-buy');
+      if (!b || b.disabled) return;
+      const id = b.dataset.id;
+      if (buySkillNode(id).ok) {
+        this.game.audio.uiClick();
+        this.renderSkillTree(id, false); // 解锁保持视图（不 re-fit）
+        const def = SKILL_TREE.find((n) => n.id === id);
+        if (def) this.fillStSheet(def);  // 刷新抽屉内容（余额/状态/按钮态）
+      }
+    });
+    this.skillTreeScreen.appendChild(this.stSheetMask);
+    this.skillTreeScreen.appendChild(this.stSheet);
     window.addEventListener('resize', () => {
       if (this.skillTreeScreen && !this.skillTreeScreen.classList.contains('hidden')) { this.fitSkillTreeView(); this.hideTip(); }
     });
@@ -943,12 +997,22 @@ export class UIManager {
   showSkillTree() {
     this.titleScreen.classList.add('hidden');
     this.skillTreeScreen.classList.remove('hidden');
+    this.updateStSeg();
     this.renderSkillTree(null, true);
   }
 
   hideSkillTree() {
+    this.closeStSheet();
     this.skillTreeScreen.classList.add('hidden');
     this.showTitle();
+  }
+
+  /** 移动端分段控件：同步 active 态（桌面端该控件 CSS 隐藏，无副作用） */
+  updateStSeg() {
+    if (!this.stSeg) return;
+    for (const b of this.stSeg.querySelectorAll('.st-seg-btn')) {
+      b.classList.toggle('active', b.dataset.branch === this.stBranch);
+    }
   }
 
   respecSkillTree() {
@@ -971,7 +1035,11 @@ export class UIManager {
     const branchColor = { war: 'rgba(198,60,60,.85)', bly: 'rgba(142,68,173,.85)', nfr: 'rgba(70,120,210,.85)', eco: 'rgba(201,162,39,.85)', utl: 'rgba(60,180,150,.85)' };
     const solid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
 
-    const CARD_W = 150, CARD_H = 104, COL_W = 190, ROW_H = 126, BAND_GAP = 64, TITLE_OFF = 46;
+    // 移动端（.touch-device 由 main.js 加在 <html>）：单分支竖向链，紧凑尺寸；桌面端原 5-band 常量不变
+    const isMobile = document.documentElement.classList.contains('touch-device');
+    const CARD_W = isMobile ? 58 : 150, CARD_H = isMobile ? 58 : 104,
+          COL_W = isMobile ? 92 : 190, ROW_H = isMobile ? 116 : 126,
+          BAND_GAP = 64, TITLE_OFF = isMobile ? 24 : 46;
 
     const world = document.createElement('div');
     world.className = 'st-world';
@@ -981,9 +1049,10 @@ export class UIManager {
 
     const positions = {};
     const cards = {};
-    let bandX = 0, maxW = 0, maxH = 0;
+    let bandX = isMobile ? 20 : 0, maxW = 0, maxH = 0;
 
-    for (const bid of Object.keys(branchNames)) {
+    const branchIds = isMobile ? [this.stBranch] : Object.keys(branchNames);
+    for (const bid of branchIds) {
       const nodes = SKILL_TREE.filter((n) => n.branch === bid);
       const children = {}; nodes.forEach((n) => { children[n.id] = []; });
       nodes.forEach((n) => (n.prereq || []).forEach((p) => { if (children[p]) children[p].push(n.id); }));
@@ -1000,15 +1069,25 @@ export class UIManager {
         yPos[id] = (yPos[ch[0]] + yPos[ch[ch.length - 1]]) / 2;
       };
       ay(root.id);
+      // 移动端双亲汇聚：多前置节点（如 war_keystone_omni）列号取双亲中点，形成合流视觉
+      if (isMobile) {
+        for (const n of nodes.slice().sort((n1, n2) => (depth[n1.id] || 0) - (depth[n2.id] || 0))) {
+          const ps = (n.prereq || []).filter((p) => p in yPos);
+          if (ps.length >= 2) yPos[n.id] = ps.reduce((s2, p) => s2 + yPos[p], 0) / ps.length;
+        }
+      }
       const maxSlot = Math.max(...nodes.map((n) => yPos[n.id] || 0));
 
-      const title = document.createElement('div');
-      title.className = 'st-band-title';
-      title.style.color = branchColor[bid];
-      title.textContent = branchNames[bid];
-      title.style.left = `${bandX + (maxSlot * COL_W) / 2}px`;
-      title.style.top = `${TITLE_OFF - 38}px`;
-      world.appendChild(title);
+      if (!isMobile) {
+        // 桌面端分支大标题（移动端由分段控件承担分支标识，不渲染）
+        const title = document.createElement('div');
+        title.className = 'st-band-title';
+        title.style.color = branchColor[bid];
+        title.textContent = branchNames[bid];
+        title.style.left = `${bandX + (maxSlot * COL_W) / 2}px`;
+        title.style.top = `${TITLE_OFF - 38}px`;
+        world.appendChild(title);
+      }
 
       for (const def of nodes) {
         const isOwned = owned.has(def.id);
@@ -1053,15 +1132,27 @@ export class UIManager {
         else if (!affordable) { btn.textContent = `👁 ${def.cost}`; btn.disabled = true; }
         else { btn.textContent = `👁 ${def.cost}`; btn.addEventListener('click', (e) => { e.stopPropagation(); if (buySkillNode(def.id).ok) { this.game.audio.uiClick(); this.renderSkillTree(def.id, false); } }); }
         card.append(icon, textLayer, btn);
-        // Hover / tap: tooltip + highlight upstream/downstream paths
-        card.addEventListener('mouseenter', () => { this.showTip(def, card, owned, souls); this.highlightPaths(def.id); });
-        card.addEventListener('mouseleave', () => { this.hideTip(); this.clearPathHighlight(); });
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('button')) return;
-          if (this.stMoved) return;
-          if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); this.clearPathHighlight(); }
-          else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); this.highlightPaths(def.id); }
-        });
+        if (isMobile) {
+          // 移动端：点节点 → 聚焦居中 + 底部抽屉（不走 expand/tooltip）
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            if (this.stMoved) return;
+            this.clearPathHighlight();
+            this.highlightPaths(def.id);
+            this.focusStNode(def.id);
+            this.openStSheet(def);
+          });
+        } else {
+          // 桌面端：hover tooltip + 原地 expand（保持现状）
+          card.addEventListener('mouseenter', () => { this.showTip(def, card, owned, souls); this.highlightPaths(def.id); });
+          card.addEventListener('mouseleave', () => { this.hideTip(); this.clearPathHighlight(); });
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            if (this.stMoved) return;
+            if (card.classList.contains('expanded')) { card.classList.remove('expanded'); this.hideTip(); this.clearPathHighlight(); }
+            else { card.classList.add('expanded'); this.showTip(def, card, owned, souls); this.highlightPaths(def.id); }
+          });
+        }
         world.appendChild(card);
         cards[def.id] = card;
       }
@@ -1100,6 +1191,7 @@ export class UIManager {
 
     this.skillTreeContentEl.appendChild(world);
     this.stWorld = world; this.stWorldW = maxW; this.stWorldH = maxH;
+    this.stPositions = positions; this.stCardW = CARD_W; this.stCardH = CARD_H;
     // Zoom indicator (bottom-center)
     let zi = this.skillTreeContentEl.querySelector('.st-zoom-indicator');
     if (!zi) { zi = document.createElement('div'); zi.className = 'st-zoom-indicator'; this.skillTreeContentEl.appendChild(zi); }
@@ -1118,13 +1210,82 @@ export class UIManager {
     if (this.stWorld) this.stWorld.style.transform = `translate(${this.stTx}px, ${this.stTy}px) scale(${this.stScale})`;
   }
 
-  fitSkillTreeView() {
-    if (!this.stWorldW || !this.stWorldH) return;
+  /** 缩放下限：移动端 0.6（保证 58px 图标卡可读），桌面端维持 0.2 */
+  stMinScale() {
+    return document.documentElement.classList.contains('touch-device') ? 0.6 : 0.2;
+  }
+
+  /** 移动端：把节点平移到视口上半部居中（下半部留给 bottom-sheet），不改缩放 */
+  focusStNode(id) {
+    const p = this.stPositions[id];
+    if (!p) return;
     const c = this.skillTreeContentEl;
     const cw = c.clientWidth, ch = c.clientHeight;
     if (!cw || !ch) return;
+    this.stTx = cw / 2 - (p.x + this.stCardW / 2) * this.stScale;
+    this.stTy = ch * 0.30 - (p.y + this.stCardH / 2) * this.stScale;
+    this.applyStTransform();
+  }
+
+  /** 移动端底部抽屉：填充节点详情并滑入 */
+  openStSheet(def) {
+    this.stSheetDef = def;
+    this.fillStSheet(def);
+    this.stSheetMask.classList.add('show');
+    this.stSheet.classList.add('show');
+  }
+
+  closeStSheet() {
+    this.stSheetDef = null;
+    this.stSheetMask.classList.remove('show');
+    this.stSheet.classList.remove('show');
+    this.clearPathHighlight();
+  }
+
+  fillStSheet(def) {
+    const souls = loadSouls();
+    const owned = new Set(souls.tree);
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const branchNames = { war: '征伐', bly: '血裔协同', nfr: '永夜抗性', eco: '灵魂经济', utl: '通用机能' };
+    const typeNames = { gate: '门槛', stat: '属性', modifier: '机制', keystone: '基石' };
+    const clearedNames = { easy: '轻松', normal: '普通', hard: '噩梦' };
+    const solid = { war: '#c63c3c', bly: '#8e44ad', nfr: '#4678d2', eco: '#c9a227', utl: '#3cb496' };
+    const isOwned = owned.has(def.id);
+    const prereqOk = (def.prereq || []).every((p) => owned.has(p));
+    const gateOk = !(def.gateReq && def.gateReq.cleared && !def.gateReq.cleared.every((c) => souls.cleared.includes(c)));
+    let statusText, statusCls;
+    if (isOwned) { statusText = '已点亮'; statusCls = 'tt-own'; }
+    else if (!prereqOk) { statusText = '前置未解锁'; statusCls = 'tt-lock'; }
+    else if (!gateOk) { statusText = `需通关 ${def.gateReq.cleared.map((c) => clearedNames[c] || c).join('/')}`; statusCls = 'tt-lock'; }
+    else { statusText = souls.balance >= def.cost ? '可解锁 ✓' : '灵魂不足'; statusCls = souls.balance >= def.cost ? 'tt-ok' : 'tt-lock'; }
+    const prereqHtml = (def.prereq && def.prereq.length)
+      ? def.prereq.map((p) => { const pn = SKILL_TREE.find((n) => n.id === p); const ok = owned.has(p); return `<div class="tt-pre"><span class="${ok ? 'tt-dot-on' : 'tt-dot-off'}">${ok ? '●' : '○'}</span> ${esc(pn ? pn.name : p)} <span class="${ok ? 'tt-own' : 'tt-lock'}">${ok ? '已解锁' : '未解锁'}</span></div>`; }).join('')
+      : '<div class="tt-pre tt-lock">无前置 · 分支入口</div>';
+    let buyHtml;
+    if (isOwned) buyHtml = `<button class="sh-buy" disabled>已解锁</button>`;
+    else if (prereqOk && gateOk && souls.balance >= def.cost) buyHtml = `<button class="sh-buy" data-id="${def.id}">解锁 −${def.cost} 灵魂</button>`;
+    else buyHtml = `<button class="sh-buy" disabled>${esc(statusText)}</button>`;
+    this.stSheet.style.setProperty('--branch-color', solid[def.branch] || '#8e44ad');
+    this.stSheetBody.innerHTML =
+      `<div class="sh-head"><img class="sh-icon" src="/assets/sk_${esc(def.id)}.png" alt="" draggable="false" />` +
+      `<div class="sh-title-wrap"><div class="sh-title">${esc(def.name)}</div>` +
+      `<div class="sh-type">${typeNames[def.type] || esc(def.type)} · ${branchNames[def.branch] || esc(def.branch)}</div></div></div>` +
+      `<div class="sh-status ${statusCls}">状态：${esc(statusText)}</div>` +
+      `<div class="sh-desc">${esc(def.desc)}</div>` +
+      `<div class="sh-cost">消耗：👁 ${isOwned ? '— 已点亮' : def.cost}（余额 ${souls.balance}）</div>` +
+      `<div class="sh-prewrap">前置：${prereqHtml}</div>${buyHtml}`;
+  }
+
+  fitSkillTreeView() {
+    if (!this.stWorldW || !this.stWorldH) return;
+    const c = this.skillTreeContentEl;
+    // clientHeight 含 padding；减去 CSS 声明的 padding-bottom（移动端底部浮层安全留白，桌面为 0），
+    // 使默认 fit 后节点不与返回/重置/视图控制按钮重叠
+    const padB = parseFloat(getComputedStyle(c).paddingBottom) || 0;
+    const cw = c.clientWidth, ch = c.clientHeight - padB;
+    if (!cw || !ch) return;
     const s = Math.min(cw / (this.stWorldW + 48), ch / (this.stWorldH + 48), 1) * 0.96;
-    this.stScale = Math.max(0.2, s);
+    this.stScale = Math.max(this.stMinScale(), s); // 移动端钳 0.6（超高分支靠纵向 pan 看全），桌面 0.2
     this.stTx = (cw - this.stWorldW * this.stScale) / 2;
     this.stTy = Math.max(8, (ch - this.stWorldH * this.stScale) / 2);
     this.applyStTransform();
@@ -1134,7 +1295,7 @@ export class UIManager {
   }
 
   zoomSkillTree(factor, mx, my) {
-    const ns = Math.min(2.2, Math.max(0.2, this.stScale * factor));
+    const ns = Math.min(2.2, Math.max(this.stMinScale(), this.stScale * factor));
     const k = ns / this.stScale;
     this.stTx = mx - (mx - this.stTx) * k;
     this.stTy = my - (my - this.stTy) * k;
@@ -1177,7 +1338,7 @@ export class UIManager {
         const p = [...pointers.values()];
         const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
         const mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
-        const ns = Math.min(2.2, Math.max(0.2, pinch.scale * (dist / pinch.dist)));
+        const ns = Math.min(2.2, Math.max(this.stMinScale(), pinch.scale * (dist / pinch.dist)));
         const wx0 = (pinch.mx - pinch.tx) / pinch.scale;
         const wy0 = (pinch.my - pinch.ty) / pinch.scale;
         this.stScale = ns;

@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-30（v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -224,6 +224,27 @@
 **验证**：`npm run build` 成功（URL 形如 `/assets/player.png?v=0f7a8664`）；`test_game.py` 全量 ALL PASS 零控制台报错。
 
 **改动文件**：`vite.config.js`（新增 `buildAssetHashes()` + `__ASSET_38f5eb9ES__` define）、`src/assets.js`（assetUrl/loadOne/LAZY_KEYS/CRITICAL_KEYS/loadAssetsLazy/ensureLazy）、`src/game.js`（关键集完进标题+后台懒加载）、`src/ui.js`（标题头像哈希化 + 三界面 ensureLazy 守卫）。
+
+---
+
+## 0k. v3.9 移动端技能树交互重构（分段控件 + 竖向链 + 底部抽屉）
+
+**触发**：用户反馈「技能树在移动端的体验还是有点问题」，要求参考有技能树手游的移动端做法、保持图标不变、优化移动端交互，允许修改二叉树分叉。
+
+**方案（design-strategist）**：`docs/plans/2026-07-31-skilltree-mobile-redesign.md`——行业参考（原神/星穹铁道天赋树竖向滚动+点击弹详情、暗黑不朽 Paragon 竖向板+分页签、FF14 竖向树+详情面板、绝区零/崩坏3 竖向列+分页签）；提炼移动端最佳实践：竖向优先滚动、分支分页签、点击→底部抽屉、≥44px 热区、点击聚焦居中、最小缩放可读。用户拍板：移动端顶部分段控件 + 底部 bottom-sheet + 桌面保留 5 分支总览、图标与 prereq 不动。
+
+**实现（移动端 `src/ui.js` `.touch-device` 分支；桌面 5-band 总览一字未改）**：
+- **分支分段控件**：构造期建 `.st-seg`（5 分支按钮）挂 `#skilltree-screen`，点选切 `this.stBranch` 并重渲；CSS 基础 `display:none`、仅 `.touch-device` 显示。
+- **单分支竖向链（坐标轴对调）**：`renderSkillTree` 移动端只渲染 `SKILL_TREE.filter(branch===stBranch)`，常量改紧凑（CARD58/COL_W92/ROW_H116/TITLE_OFF24）；`x=列号*COL_W`（兄弟有限横向偏移）、`y=depth*ROW_H`（纵向滚动）；双亲汇聚 keystone 列号取双父中点（合流视觉）。
+- **底部抽屉**：点击节点 → `focusStNode`（平移到视口上 30%）+ `openStSheet`（`.st-sheet` 滑入，含名称/类型/描述/消耗/前置清单/解锁按钮，XSS `esc` 转义）；`.sh-buy` 事件委托 `buySkillNode` 后 `renderSkillTree(id,false)` 保持视图并刷新抽屉。桌面端保留 hover tooltip + 原地 expand。
+- **最小可读缩放**：`stMinScale()` 移动端 0.6 / 桌面 0.2，fit/zoom/pinch 三处统一。
+- **触摸热区**：`.touch-device .st-world .altar-card` 58px（≥44px）。
+
+**底部浮层命中区修复（QA CONCERNS #77）**：`#skilltree-content` 加 `padding-bottom: calc(76px + safe-area)`，`fitSkillTreeView` 扣除该 padding 使默认 fit 节点避开返回/重置/视图控制按钮；`.st-viewctl` 容器 `pointer-events:none`、仅 `.st-ctl-btn` `auto` 透传间隙。
+
+**验证**：`/tmp/skilltree_mobile_v39_probe.py` + `/tmp/skilltree_mobile_v39_qa.py`（14 项全 PASS）+ `/tmp/skilltree_fix_qa.py`（5/5）；`test_game.py` 全量 ALL PASS 零控制台报错（含桌面补 7 条技能树断言）。
+
+**改动文件**：`src/ui.js`（renderSkillTree 移动端分支/竖向坐标/分段控件/.st-seg/.st-sheet/openStSheet/focusStNode/stMinScale）、`src/style.css`（`.st-seg`/`.st-sheet`/`.touch-device #skilltree-content` 底部留白/`.st-viewctl` 透传）、`docs/plans/2026-07-31-skilltree-mobile-redesign.md`（设计文档）。`src/data.js`/图标/`vite.config.js` 未动。
 
 ---
 
@@ -518,6 +539,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+HASH v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
 38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
 
 4f7d6d0 v3.7 重置弹窗暗黑风(#st-respec-modal自定义玻璃拟态,替代原生confirm,取消/确认/遮罩/Esc) + 移动端长按复制屏蔽(#skilltree-content touch-callout:none+user-select:none + contextmenu preventDefault) + 技能树二叉化(每节点≤2子节点,11处prereq改链,零新增节点,validate_skilltree.mjs校验通过) + 前置审计(nfr_shield存在,链路完整) | test_game全PASS零报错+validate全PASS

@@ -5,6 +5,28 @@
 
 <arg_value:6124c78e>---
 
+## v3.9（2026-07-31 · `HASH`）
+
+> 移动端技能树交互重构：参考手游天赋树（原神/星穹铁道/暗黑不朽/FF14/绝区零）做法，把移动端技能树从「5 分支宽幅 fan-out 整树 fit（过小需反复缩放）」改为「顶部分段控件切分支 + 单分支竖向链 + 点击节点弹底部抽屉」。桌面端 5 分支总览不变，图标与节点数不动。
+
+### 新增
+- **移动端分支分段控件**：`.st-seg` 顶部悬浮 5 个分支标签（征伐/血裔协同/永夜抗性/灵魂经济/通用机能），点选即切换并重渲该分支竖向链；桌面端 `display:none` 不介入。
+- **移动端底部详情抽屉**：点击节点从底部滑出 `.st-sheet`（名称/类型/描述/消耗/前置清单/解锁按钮，含 XSS 转义），替代原地 expand/tooltip；解锁经 `.sh-buy` 事件委托走 `buySkillNode`，保持视图。
+
+### 优化
+- **移动端竖向链布局（坐标轴对调）**：depth→纵向滚动、兄弟→有限横向列偏移（紧凑尺寸 COL_W92/CARD58/ROW_H116），二叉分叉最多 2 条并行竖线，宽度钳制单屏，彻底消除横向 fan-out；双亲汇聚 keystone 列号取双父中点（合流视觉）。
+- **点击聚焦居中**：`focusStNode` 把节点平移到视口上半部（让出底部抽屉空间）。
+- **最小可读缩放**：移动端 `stMinScale()` 下限 0.6（桌面仍 0.2），fit 钳底、超高分支靠纵向 pan 看全。
+- **触摸热区**：`.touch-device .st-world .altar-card` 58px 命中区（≥44px）。
+- **底部浮层命中区修复（QA CONCERNS #77）**：`#skilltree-content` 加底部安全留白（`fitSkillTreeView` 扣除该 padding），`.st-viewctl` 容器改 `pointer-events:none`、仅按钮 `auto`，默认 fit 后节点不再被返回/重置/视图控制按钮抢占。
+
+### 验证
+- 设计文档：`docs/plans/2026-07-31-skilltree-mobile-redesign.md`。
+- 移动端探针 `/tmp/skilltree_mobile_v39_probe.py` + 独立 QA `/tmp/skilltree_mobile_v39_qa.py`（14 项全 PASS）+ 修复探针 `/tmp/skilltree_fix_qa.py`（5/5）。
+- `test_game.py` 全量 ALL PASS、零控制台报错（桌面零回归）。
+
+---
+
 ## v3.8（2026-07-30 · `38f5eb9`）
 
 > 资源加载优化：内容哈希精准缓存 + 分级懒加载。根治「每次更新都全量重拉、进度条变慢」——此前所有 ~100+ 张图共用全局 `BUILD_ID` 作 `?v=` 缓存击穿，每次 push 该值必变 → 全部图 URL 同时失效 → 浏览器+CDN 缓存被一次性击穿。

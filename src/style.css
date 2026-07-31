@@ -874,6 +874,9 @@ html, body {
   width: 100% !important; height: 100%;
   margin: 0; border-radius: 0; border: none; background: transparent;
   cursor: grab;
+  /* 底部安全留白：fitSkillTreeView 读取此 padding-bottom 将底部浮层按钮排除出可用区，
+     使默认 fit 后节点整体位于返回/重置/视图控制按钮之上（box-sizing 下不改变 clientHeight，由 JS 减去） */
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 /* 顶部浮层：标题 + 灵魂余额（返回箭头复用 .top-back 左上角） */
 .touch-device #skilltree-screen .altar-title {
@@ -901,8 +904,9 @@ html, body {
 .touch-device .st-viewctl {
   top: auto; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px;
   flex-direction: column; gap: 10px; z-index: 35;
+  pointer-events: none; /* 容器透传：列间隙不抢占被 pan 到下方的节点命中区 */
 }
-.touch-device .st-ctl-btn { width: 46px; height: 46px; font-size: 22px; }
+.touch-device .st-ctl-btn { width: 46px; height: 46px; font-size: 22px; pointer-events: auto; }
 .touch-device .st-zoom-indicator { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }
 /* 详情浮层在触屏端可交互，内嵌解锁按钮（桌面端仍 pointer-events:none，沿用卡片内购买） */
 .touch-device .st-tooltip { pointer-events: auto; }
@@ -1299,3 +1303,77 @@ html, body {
   .stats-grid, .stats-grid.in-result { grid-template-columns: 1fr; }
 }
 
+
+/* ═══ 技能树移动端重构 v3.9：分段控件 + 竖向单分支 + 底部抽屉（桌面端全部隐藏，不影响 5-band 总览）═══ */
+
+/* ── 分支分段控件：仅 .touch-device 显示，顶部悬浮于画板之上 ── */
+.st-seg { display: none; }
+.touch-device .st-seg {
+  display: flex; position: absolute; top: calc(74px + env(safe-area-inset-top, 0px));
+  left: 50%; transform: translateX(-50%); z-index: 35; gap: 3px;
+  padding: 4px; border-radius: 12px; max-width: 96vw;
+  background: rgba(10, 7, 20, .85); border: 1px solid rgba(142, 68, 173, .35);
+  backdrop-filter: blur(6px);
+}
+.st-seg-btn {
+  border: none; background: transparent; color: rgba(200, 192, 216, .72);
+  font-family: var(--body-font); font-size: 11px; letter-spacing: 1px;
+  padding: 9px 8px; border-radius: 9px; cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.st-seg-btn.active {
+  background: color-mix(in srgb, var(--seg-color, #8e44ad) 38%, transparent);
+  color: #fff; font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seg-color, #8e44ad) 70%, transparent);
+}
+
+/* ── 触摸热区兜底：58px 图标卡 ≥44px 命中区 ── */
+.touch-device .st-world .altar-card { min-width: 58px; min-height: 58px; justify-content: center; }
+
+/* ── 底部详情抽屉：仅 .touch-device 使用，桌面端 display:none ── */
+.st-sheet-mask, .st-sheet { display: none; }
+.touch-device .st-sheet-mask {
+  display: block; position: absolute; inset: 0; z-index: 40;
+  background: rgba(4, 2, 10, .55); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease-out;
+}
+.touch-device .st-sheet-mask.show { opacity: 1; pointer-events: auto; }
+.touch-device .st-sheet {
+  display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 41;
+  padding: 8px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-height: 62vh; overflow-y: auto; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(26, 18, 40, .98), rgba(12, 8, 22, .98));
+  border-top: 1px solid var(--branch-color, rgba(142, 68, 173, .55));
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, .6), 0 0 18px color-mix(in srgb, var(--branch-color, #8e44ad) 25%, transparent);
+  transform: translateY(102%); transition: transform .25s ease-out;
+  color: var(--bone); font-family: var(--body-font);
+}
+.touch-device .st-sheet.show { transform: translateY(0); }
+.st-sheet-handle {
+  width: 44px; height: 5px; margin: 4px auto 10px; border-radius: 3px;
+  background: rgba(200, 192, 216, .35); cursor: pointer;
+  /* 扩大把手命中区 */
+  box-sizing: content-box; padding: 6px 30px; background-clip: content-box;
+}
+.st-sheet .sh-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.st-sheet .sh-icon { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; border-radius: 8px; flex-shrink: 0; }
+.st-sheet .sh-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+.st-sheet .sh-type { font-size: 11px; letter-spacing: 2px; color: var(--branch-color, #8e44ad); margin-top: 3px; }
+.st-sheet .sh-status { font-size: 12px; margin-bottom: 6px; }
+.st-sheet .sh-status.tt-own { color: #2ecc71; }
+.st-sheet .sh-status.tt-ok { color: #d4af37; }
+.st-sheet .sh-status.tt-lock { color: #b9aed0; }
+.st-sheet .sh-desc { font-size: 13px; line-height: 1.6; opacity: .8; }
+.st-sheet .sh-cost { font-size: 13px; color: #c9a227; margin-top: 8px; }
+.st-sheet .sh-prewrap { margin-top: 8px; font-size: 12px; opacity: .85; border-top: 1px solid rgba(255, 255, 255, .1); padding-top: 8px; }
+.st-sheet .sh-prewrap .tt-pre { line-height: 1.7; }
+.st-sheet .sh-prewrap .tt-own, .st-sheet .sh-prewrap .tt-dot-on { color: #2ecc71; }
+.st-sheet .sh-prewrap .tt-lock, .st-sheet .sh-prewrap .tt-dot-off { color: #b9aed0; }
+.sh-buy {
+  display: block; margin-top: 14px; width: 100%; padding: 13px 0; border-radius: 10px;
+  border: 1px solid var(--gold); background: rgba(201, 162, 39, .18); color: var(--gold);
+  font-family: var(--body-font); font-size: 14px; letter-spacing: 1px; cursor: pointer;
+}
+.sh-buy:active { background: rgba(201, 162, 39, .32); }
+.sh-buy:disabled { opacity: .5; cursor: default; }
