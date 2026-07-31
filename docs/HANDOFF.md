@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -245,6 +245,20 @@
 **验证**：`/tmp/skilltree_mobile_v39_probe.py` + `/tmp/skilltree_mobile_v39_qa.py`（14 项全 PASS）+ `/tmp/skilltree_fix_qa.py`（5/5）；`test_game.py` 全量 ALL PASS 零控制台报错（含桌面补 7 条技能树断言）。
 
 **改动文件**：`src/ui.js`（renderSkillTree 移动端分支/竖向坐标/分段控件/.st-seg/.st-sheet/openStSheet/focusStNode/stMinScale）、`src/style.css`（`.st-seg`/`.st-sheet`/`.touch-device #skilltree-content` 底部留白/`.st-viewctl` 透传）、`docs/plans/2026-07-31-skilltree-mobile-redesign.md`（设计文档）。`src/data.js`/图标/`vite.config.js` 未动。
+
+---
+
+## 0l. v3.10 技能树数据完整性校验护栏（防 prereq 断裂回归）
+
+**触发**：用户反馈「部分技能节点需要前置但前置不存在（点名嗜血渴望 lifesteal）」，要求整体排查并修复。
+
+**排查（3 重，均基于 v3.9 源码 + 本地 dist）**：① node 真导入 `data.js` 校验 prereq 引用/可达性/≤2/无重复 → 全过；② 全仓 grep 仅 `src/data.js` 一份 SKILL_TREE、dist 未受 git 跟踪且其 `bly_sanguine_lifesteal` 的 `prereq:["bly_thunder_chain"]` 有效；③ **真实运行时仿真**——Playwright 起 dev server + `import('/src/data.js')` 拿真实 `buySkillNode`，拓扑顺序逐个解锁 39 节点 → 全部 "ok"（含噬血渴望）。
+
+**结论**：当前代码无断链 prereq（39 节点全可解锁）；用户所见系**客户端缓存修复前的旧 JS bundle**（浏览器/CF 边缘缓存）。根因/系统缺口：prereq 校验器 `validate_skilltree.mjs` 此前只活在 /tmp、未进仓库 → 改 `data.js` 无回归护栏。
+
+**修复（护栏，本版）**：`scripts/validate_skilltree.mjs`（校验 a 必填字段 / b 唯一 id / c prereq 存在性 / d ≤2 前置 / e 无环+每分支恰一 root+不跨分支+可达 / f gateReq 合法）+ `package.json` 加 `validate:skilltree` 与 `prebuild` 钩子（构建前自动跑，断链直接 build 失败）。反向验证：篡改缺失 id → exit 1（打印 `节点 X → 缺失前置 "Y"`）、`npm run build` 被 prebuild 拦停；环检测补测通过。
+
+**验证**：`node scripts/validate_skilltree.mjs` → `✓ 技能树校验通过：39 节点，无断链/重复/越界/不可达`（exit 0）。`src/data.js` 无改动（working tree 仅 `package.json` +2 script + `scripts/` 新文件）。
 
 ---
 
@@ -539,6 +553,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+HASH v3.10 技能树数据完整性校验护栏：scripts/validate_skilltree.mjs(校验 a必填字段/b唯一id/c-prereq存在性[核心]/d≤2前置/e无环+每分支恰一root+不跨分支+可达/f-gateReq合法) + package.json 加 validate:skilltree 与 prebuild 钩子(断链直接build失败) | 起因用户报"嗜血渴望前置不存在"→3重验证(导入/全仓grep/真实运行时buySkillNode拓扑解锁仿真)确认v3.9源码39节点prereq全有效全可解锁,所见系客户端缓存旧bundle;护栏防复发;反向验证篡改缺失id→exit1+build被拦
 b82d99a v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
 38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
 

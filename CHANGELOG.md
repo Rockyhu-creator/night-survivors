@@ -5,6 +5,24 @@
 
 <arg_value:6124c78e>---
 
+## v3.10（2026-07-31 · `HASH`）
+
+> 技能树数据完整性**永久校验护栏**：新增 `scripts/validate_skilltree.mjs`，挂到 `package.json` 的 `validate:skilltree` 与 `prebuild` 钩子，任何「节点 prereq 指向不存在的节点 / 重复 id / 超过 2 前置 / 不可达 / 成环 / gateReq 非法」都会在构建前直接让 build 失败。起因：用户反馈「嗜血渴望(lifesteal) 等节点前置不存在」，经 3 重验证（node 导入 / 全仓 grep / 真实运行时 `buySkillNode` 拓扑解锁仿真）确认当前 v3.9 源码 39 节点 prereq 全部有效、全部可解锁——所见系客户端缓存了修复前的旧 bundle；护栏用于杜绝此类数据断裂再次悄悄溜入。
+
+### 新增
+- **技能树校验脚本** `scripts/validate_skilltree.mjs`：校验 a 必填字段 / b 唯一 id / c prereq 存在性（核心防护）/ d ≤2 前置 / e 无环+每分支恰一 root+不跨分支+可达 / f gateReq 合法（`cleared` ∈ `DIFFICULTIES`）。`node scripts/validate_skilltree.mjs` 通过则 exit 0，任何问题 exit 1 并打印定位。
+- **package.json 脚本**：`validate:skilltree`（手动跑）、`prebuild`（构建前自动跑，断链直接 build 失败）。
+
+### 修复
+- （预防性）填补「prereq 校验器只活在 /tmp、未进仓库」的系统性缺口——此前改 `src/data.js` 时无回归护栏，是数据断裂反复溜入的根因。
+
+### 验证
+- 干净数据：`node scripts/validate_skilltree.mjs` → `✓ 技能树校验通过：39 节点，无断链/重复/越界/不可达`（exit 0）。
+- 反向验证：篡改为缺失 prereq id → exit 1 并打印 `节点 bly_sanguine_lifesteal → 缺失前置 "bly_nonexistent"`；`npm run build` 被 prebuild 直接拦停。补测环检测亦 exit 1。
+- `src/data.js` 无改动（仅新增脚本 + package.json 两行）。
+
+---
+
 ## v3.9（2026-07-31 · `b82d99a`）
 
 > 移动端技能树交互重构：参考手游天赋树（原神/星穹铁道/暗黑不朽/FF14/绝区零）做法，把移动端技能树从「5 分支宽幅 fan-out 整树 fit（过小需反复缩放）」改为「顶部分段控件切分支 + 单分支竖向链 + 点击节点弹底部抽屉」。桌面端 5 分支总览不变，图标与节点数不动。

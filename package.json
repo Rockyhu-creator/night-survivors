@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "validate:skilltree": "node scripts/validate_skilltree.mjs",
+    "prebuild": "node scripts/validate_skilltree.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
