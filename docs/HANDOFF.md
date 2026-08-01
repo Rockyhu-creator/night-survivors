@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-01（v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -213,7 +213,7 @@
 **触发**：用户反馈「更新后进度条加载比较慢，是否每次更新都全量加载」，根因定位为全局 `BUILD_ID` 缓存击穿导致每次 push 全量重拉。
 
 **① 内容哈希精准缓存（替代全局 `BUILD_ID`）**：
-- `vite.config.js` 在 config 期读 `public/assets/*.png`（142 张），`crypto.createHash('sha256')` 取前 8 位 hex 建 `{文件名:哈希}` 映射，经 `define` 注入 `__ASSET_38f5eb9ES__`（保留 `__BUILD_ID__` 供版本自检）。
+- `vite.config.js` 在 config 期读 `public/assets/*.png`（142 张），`crypto.createHash('sha256')` 取前 8 位 hex 建 `{文件名:哈希}` 映射，经 `define` 注入 `__ASSET_HASHES__`（保留 `__BUILD_ID__` 供版本自检）。
 - `src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）+ `loadOne` 助手；`loadAssets`/`loadAssetsLazy` 共用。`src/ui.js` 标题血裔按钮头像同样走哈希 URL。
 - **效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；仅真正改字节的图重拉。纯代码更新近乎秒开。
 
@@ -223,7 +223,7 @@
 
 **验证**：`npm run build` 成功（URL 形如 `/assets/player.png?v=0f7a8664`）；`test_game.py` 全量 ALL PASS 零控制台报错。
 
-**改动文件**：`vite.config.js`（新增 `buildAssetHashes()` + `__ASSET_38f5eb9ES__` define）、`src/assets.js`（assetUrl/loadOne/LAZY_KEYS/CRITICAL_KEYS/loadAssetsLazy/ensureLazy）、`src/game.js`（关键集完进标题+后台懒加载）、`src/ui.js`（标题头像哈希化 + 三界面 ensureLazy 守卫）。
+**改动文件**：`vite.config.js`（新增 `buildAssetHashes()` + `__ASSET_HASHES__` define）、`src/assets.js`（assetUrl/loadOne/LAZY_KEYS/CRITICAL_KEYS/loadAssetsLazy/ensureLazy）、`src/game.js`（关键集完进标题+后台懒加载）、`src/ui.js`（标题头像哈希化 + 三界面 ensureLazy 守卫）。
 
 ---
 
@@ -289,6 +289,27 @@
 **验证**：桌面重叠探针（1600×1000）父子纵向相交 **0 组**、任意两卡可见碰撞 **0 组** → PASS；卡片高度分布实测 `[157,160]`，`ROW_H=178` 留 18px 余量；全缩放层级（fit 0.2 ~ 放大 2.2）无重叠；移动端常量未变动无回归；`node --check src/ui.js` 语法 OK。
 
 **技能树布局常量现状（桌面 / 移动）**：`CARD_W` 150/58、`CARD_H` **160**/58、`COL_W` 190/92、`ROW_H` **178**/116、`BAND_GAP` 64、`TITLE_OFF` 46/24。改动卡片内文字层级或字号 clamp 时，**必须同步复核 CARD_H/ROW_H**，否则会重现纵向重叠。
+
+---
+
+## 0o. v3.13 技能树重叠常驻回归用例（把探针沉淀为护栏）
+
+**触发**：v3.12 质量门提出的两条非阻塞建议——① `ROW_H=178` 对实测最大卡高 160px **仅余 18px**，这类硬编码布局常量在节点描述文案变长、字号被撑到 clamp 上限时会**静默复发**，且往往要等玩家放大查看才发现；② v3.12 的重叠探针只活在 `/tmp`，**重启即失**，与 v3.10 之前「prereq 校验器只在 /tmp、未进仓库」是同一类系统性缺口。
+
+**落地（本版，不碰 `src/`）**：新增 `tests/skilltree_overlap.py` 常驻回归用例，覆盖 **8 档**——桌面 3 档（1280×800 / 1600×1000 / 1920×1080）+ 真触屏移动端 5 分支全遍历（`has_touch=True, is_mobile=True`，390×844，dsf=3）；`package.json` 加 `test:skilltree`。**刻意不接 `prebuild`/`build`**：该用例依赖 dev server 在 5173 运行，接进构建链会让离线构建失败（挂 prebuild 的是 `validate:skilltree`，纯数据校验、无需浏览器）。
+
+**移动端为何必须遍历 5 分支**：`ui.js` 的 `branchIds = isMobile ? [this.stBranch] : Object.keys(...)` —— 移动端一次只渲染当前分支，只测默认 war 会放过其余 4 支；切换走 `.st-seg-btn[data-branch=...]` 真实点击。
+
+**抗退化设计（三条，都是为了别变成「永远绿的假测试」）**：
+- **行距不硬编码**：从卡片 top 网格取相邻最小正差**反推实测 `ROW_H`**，日后改布局常量测试自动跟上，不会因常量变更而失效。
+- **移动端 `.touch-device` 失真守卫**：若 `<html>` 未带该类名**直接判 FAIL**——防 v3.10/v3.11 那种「以为测了移动端、其实测的是桌面布局」的漏检。
+- **WARNING 语义分级**：余量 <8px 给 WARNING 但不失败（吃紧、尚未重叠），真正重叠才 FAIL 并逐对打印定位。
+
+**验证**：`npm run test:skilltree` → EXIT 0，**8 档全 PASS**。桌面 3 档：39 节点、卡高 157–160px、实测行距 178px、余量 18px、父子纵向相交 **0 组** + 可见碰撞 **0 组**；移动 5 分支（war 9 / bly 8 / nfr 8 / eco 6 / utl 8）：卡高 58px、行距 116px、余量 58px，同为 **0/0**。**mutation 负向对照**：运行时强制撑高卡片至 175px（余量 3px）→ WARNING 仍 PASS（语义正确）；撑到 185px（超 ROW_H 7px）→ **FAIL**，检出 38 组父子相交 + 26 组可见碰撞并逐对定位（如 `war_root → war_dmg 纵向相交 7px`）。
+
+**顺带修正的文档欠账**：`CHANGELOG.md` L6 历史工具残留标记 `<arg_value:...>`（破坏 MD 分隔线渲染）；`__ASSET_HASHES__` define 名笔误 **6 处**（HANDOFF §0j×2 / §11 / §16×2 + CHANGELOG v3.8 条目 1 处，根因 `4cbfb61` 回填哈希时全局替换误伤，代码侧未受污染）；`.gitignore` 补 `__pycache__/`、`*.pyc`。
+
+⚠️ **维护提示**：桌面余量仅 18px。后续若要**加长节点描述文案**，应**先把 `ROW_H` 提到 190+ 再加文案**，而不是等测试报红再回补。
 
 ---
 
@@ -381,6 +402,10 @@ Trae_game/
 │       └── plans/          # 实现计划
 ├── .workbuddy/memory/      # 项目工作记忆（每日日志 + MEMORY.md 长期备忘）
 ├── .trae/documents/        # PRD + 技术架构文档
+├── scripts/
+│   └── validate_skilltree.mjs  # 技能树数据完整性校验（prebuild 钩子）
+├── tests/
+│   └── skilltree_overlap.py    # 技能树重叠回归用例（需 dev server）
 ├── test_game.py            # e2e 自动化测试脚本（Playwright）
 └── gen_assets.py/sh        # 素材生成脚本（见下方红线）
 ```
@@ -573,6 +598,20 @@ git push origin main
 - **130+ 断言**，含「控制台无报错」硬门控（v0.23 起，防止渲染崩溃带病通过）
 - 已知 flaky：`65%血 召唤蝙蝠` 偶发（Boss 血瞬置 0.65 后 600ms 内可能被打下阶段带），复跑可过；`TOTAL FAILURES` 计数偶发误报
 
+### 技能树重叠常驻回归用例（v3.13 新增）
+```bash
+# ⚠️ 前置条件：dev server 必须在 5173 运行（另开终端 npm run dev）——本用例走真实浏览器渲染，无法离线跑
+npm run test:skilltree
+```
+- **覆盖 8 档**：桌面 3 档（1280×800 / 1600×1000 / 1920×1080）+ 真触屏移动端 5 分支全遍历（`has_touch=True, is_mobile=True`，390×844，dsf=3）。
+  - 移动端**必须逐分支切换**：`ui.js` 的 `branchIds = isMobile ? [this.stBranch] : Object.keys(...)` 一次只渲染当前分支，只测默认 war 会放过其余 4 支（war 9 / bly 8 / nfr 8 / eco 6 / utl 8 节点）；切换走 `.st-seg-btn[data-branch=...]` 真实点击。
+- **断言项**：父子纵向相交 **0 组**、任意两卡可见碰撞 **0 组**，并输出节点数、卡高 min/max、实测行距、`ROW_H` 余量。
+- **行距不硬编码**：从卡片 top 网格取相邻最小正差**反推实测 `ROW_H`**，日后改布局常量测试自动跟上，不会因常量变更而失效。
+- **WARNING 语义**：余量 **< 8px 给 WARNING 但不失败**（吃紧、尚未重叠）；真正重叠才 FAIL，且逐对打印定位（如 `war_root → war_dmg 纵向相交 7px`）。
+- **移动端失真守卫**：若 `<html>` 未带 `.touch-device` **直接判 FAIL**——防 v3.10/v3.11 那种「以为测了移动端、其实测的是桌面布局」的漏检。
+- **刻意不接 `prebuild`/`build`**：本用例依赖 dev server，接进构建链会让离线构建失败。挂 prebuild 钩子的是 `validate:skilltree`（纯数据校验，无需浏览器）。
+- ⚠️ **维护提示（重要）**：桌面 `ROW_H=178` 对实测最大卡高 160px **仅余 18px**。若后续要**加长节点描述文案**，应**先把 `ROW_H` 提到 190+ 再加文案**，而不是等测试报红再回补。
+
 ### 浏览器手动测试
 - 桌面：WASD 移动，ESC/P 暂停
 - 移动端：真机访问线上地址（锁竖屏，横持留黑边）
@@ -583,12 +622,15 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-(本次文档提交) docs: v3.12 CHANGELOG + HANDOFF 同步 (指向 1b83ca2) | tag v3.12 指向此提交（自身哈希无法在提交内容中自引用）
+(本次文档提交) docs: v3.13 CHANGELOG + HANDOFF 同步(指向 7898588) + 清除 CHANGELOG 第6行历史工具残留标记 `<arg_value:...>` + 修正 HANDOFF §0j/§11/§16 的 `__ASSET_HASHES__` define 名笔误(4cbfb61 回填哈希时全局替换误伤,HANDOFF 5 处 + CHANGELOG 1 处) | tag v3.13 指向此提交（自身哈希无法在提交内容中自引用）
+7898588 v3.13 技能树重叠常驻回归用例：tests/skilltree_overlap.py(8档:桌面3档1280×800/1600×1000/1920×1080 + 真触屏移动端5分支全遍历390×844dsf3,has_touch+is_mobile) + package.json 加 test:skilltree(刻意不接prebuild/build,依赖dev server在5173) + .gitignore 补 __pycache__//*.pyc | 起因v3.12质量门两条非阻塞建议:ROW_H=178对实测最大卡高160px仅余18px,硬编码布局常量在节点文案变长时会静默复发,故把一次性人工探针沉淀为常驻用例;抗退化设计:行距不硬编码(从卡片top网格取相邻最小正差反推实测ROW_H,改常量自动跟上)+余量<8px给WARNING不失败+移动端.touch-device失真守卫(防v3.10/v3.11那种以为测移动端实测桌面布局的漏检);移动端必遍历5分支因ui.js:1054 branchIds=isMobile?[stBranch]:Object.keys()一次只渲当前分支;实跑EXIT 0八档全PASS(桌面39节点卡高157-160实测行距178余量18,移动端war9/bly8/nfr8/eco6/utl8卡高58行距116余量58,父子纵向相交0组+可见碰撞0组);mutation负向对照175px→WARNING仍PASS、185px→FAIL检出38组父子相交+26组可见碰撞并逐对定位(war_root→war_dmg 相交7px),证明非"永远绿的假测试";未改src/任何产品代码
+ab8d08e docs: v3.12 CHANGELOG + HANDOFF 同步 (指向 1b83ca2) | tag v3.12 指向此提交（自身哈希无法在提交内容中自引用）
 1b83ca2 v3.12 桌面技能树父子纵向重叠修复：renderSkillTree 桌面布局常量校正(CARD_H 104→160 / ROW_H 126→178,匹配卡片真实渲染高度) | 起因v3.11遗留桌面26组父子相邻行纵向相交;真因缩放自适应字号在fit缩放下撑到clamp上限致卡片实高157-160px,而布局常量CARD_H=104/ROW_H=126严重低估,父→子顶边间距(126)<卡片实高(157)每对纵向相交31-34px;移动端三值(58/116/24)及CARD_W/COL_W/BAND_GAP/TITLE_OFF未动,连线起点a.y+CARD_H与世界高度y+CARD_H同常量驱动自动对齐;桌面重叠探针(1600×1000)父子纵向相交0组+任意两卡可见碰撞0组PASS,高度实测[157,160]留18px余量,全缩放层级(0.2~2.2)无重叠,node --check OK
+461a5a5 docs: v3.11 CHANGELOG + HANDOFF 同步 (指向 90629d2) | tag v3.11 指向此提交（自身哈希无法在提交内容中自引用）
 90629d2 v3.11 移动端技能树同层重叠修复：renderSkillTree列分配重写(首前置父严格树消菱形坍缩 + 多前置汇聚节点取双亲中点 + 按深度层量化列号兜底,杜绝同层水平重叠) | 起因用户二次报"永夜庇护前置壁垒护盾不存在/无法解锁"→正确触屏模拟下发现nfr分支nfr_shield与nfr_statusamp完全重叠(133,368)被压住;实为渲染层菱形坍缩(真菱形nfr_keystone_endgame←[nfr_nightdr,nfr_statusamp]),全树共5对同层重叠(nfr1/bly2/eco2);数据层干净(39节点全可解锁);移动端重叠探针5分支全CLEAN+39/39运行时解锁+validate PASS+test_game全PASS零报错
 f486df8 v3.10 技能树数据完整性校验护栏：scripts/validate_skilltree.mjs(校验 a必填字段/b唯一id/c-prereq存在性[核心]/d≤2前置/e无环+每分支恰一root+不跨分支+可达/f-gateReq合法) + package.json 加 validate:skilltree 与 prebuild 钩子(断链直接build失败) | 起因用户报"嗜血渴望前置不存在"→3重验证(导入/全仓grep/真实运行时buySkillNode拓扑解锁仿真)确认v3.9源码39节点prereq全有效全可解锁,所见系客户端缓存旧bundle;护栏防复发;反向验证篡改缺失id→exit1+build被拦
 b82d99a v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
-38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
+38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_HASHES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
 
 4f7d6d0 v3.7 重置弹窗暗黑风(#st-respec-modal自定义玻璃拟态,替代原生confirm,取消/确认/遮罩/Esc) + 移动端长按复制屏蔽(#skilltree-content touch-callout:none+user-select:none + contextmenu preventDefault) + 技能树二叉化(每节点≤2子节点,11处prereq改链,零新增节点,validate_skilltree.mjs校验通过) + 前置审计(nfr_shield存在,链路完整) | test_game全PASS零报错+validate全PASS
 
@@ -714,7 +756,7 @@ a9435b8 feat: eternalwhip 扩展特效 残影光晕+命中火花+主题伤害数
 - **刷新入口**：`data-action="reload"` → `location.reload(true)`。
 
 ### ⚠️ dev server 重启坑（必读）
-`vite.config.js` 是 vite **启动时**读取的，运行中改动**不热加载**。改完必须杀旧 dev server（`lsof -ti tcp:5173 | xargs kill -9`）并重启 `npm run dev`，否则旧 dev server 不识别新 define（含 `__BUILD_ID__` 与 v3.8 新增的 `__ASSET_38f5eb9ES__`），运行时 `ReferenceError: __ASSET_38f5eb9ES__ is not defined` → e2e 崩溃。生产 `vite build` 不受影响（构建时必读 config）。
+`vite.config.js` 是 vite **启动时**读取的，运行中改动**不热加载**。改完必须杀旧 dev server（`lsof -ti tcp:5173 | xargs kill -9`）并重启 `npm run dev`，否则旧 dev server 不识别新 define（含 `__BUILD_ID__` 与 v3.8 新增的 `__ASSET_HASHES__`），运行时 `ReferenceError: __ASSET_HASHES__ is not defined` → e2e 崩溃。生产 `vite build` 不受影响（构建时必读 config）。
 
 ### 验证命令
 - dev 跑 e2e：先重启 dev server 再 `python test_game.py`。

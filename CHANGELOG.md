@@ -3,7 +3,32 @@
 > 本文档专门用于版本管理。**每当发生版本更新时，在此记录当前版本的功能变更记录，统一使用中文书写。**
 > 格式约定：按版本倒序排列（最新在最上），每个版本标注日期与 commit 哈希，下设「新增 / 调整 / 修复 / 优化」分类条目。
 
-<arg_value:6124c78e>---
+---
+
+## v3.13（2026-08-01 · `7898588`）
+
+> 把 v3.12 的一次性人工探针沉淀为**常驻回归用例**。v3.12 用 `CARD_H=160`/`ROW_H=178` 消除了桌面父子纵向重叠，但对实测最大卡高 160px **仅余 18px**——这类硬编码布局常量在日后节点描述文案变长、缩放自适应字号被撑到 clamp 上限时会**静默复发**，且往往只有玩家放大查看时才发现。本版落地 v3.12 质量门提出的两条非阻塞建议：给这条余量装上「会响的警报」，并顺手清掉两处文档污染。
+
+### 新增
+- **技能树重叠常驻回归用例** `tests/skilltree_overlap.py`：覆盖 **8 档**——桌面 3 档（1280×800 / 1600×1000 / 1920×1080）+ 真触屏移动端 5 分支全遍历（`has_touch=True, is_mobile=True`，390×844，dsf=3）。断言「父子纵向相交 0 组」与「任意两卡可见碰撞 0 组」。
+  - **移动端必须遍历 5 分支**：`ui.js:1054` 的 `branchIds = isMobile ? [this.stBranch] : Object.keys(...)`，移动端一次只渲染当前分支，只测默认 war 会放过其余 4 支；切换走 `.st-seg-btn[data-branch=...]` 真实点击。
+  - **抗退化设计**：行距**不硬编码**，从卡片 top 网格取相邻最小正差反推实测 `ROW_H`，日后改常量测试自动跟上；余量 < 8px 给 WARNING（不失败）。
+  - **移动端失真守卫**：若 `<html>` 未带 `.touch-device` 直接判 FAIL——防 v3.10/v3.11 那种「以为测了移动端、其实测的是桌面布局」的漏检。
+- **`package.json` 新增 `test:skilltree` 脚本**：`npm run test:skilltree` 手动运行。**刻意不接 `prebuild`/`build`**——该用例依赖 dev server 在 5173 运行，接进构建链会让离线构建失败。
+
+### 修复
+- **`CHANGELOG.md` 第 6 行历史工具残留标记清除**：`<arg_value:6124c78e>---` → `---`。该前缀系历史工具写入残留，会破坏 Markdown 分隔线渲染（全仓 grep 确认仅此一处）。
+- **`__ASSET_HASHES__` define 名笔误全量修正（6 处）**：`__ASSET_38f5eb9ES__` → `__ASSET_HASHES__`——`docs/HANDOFF.md` **5 处**（§0j 正文、§0j 改动文件清单、§11 提交历史、§16 运行时自检 ×2）+ 本文件 v3.8 条目 **1 处**。根因为 `4cbfb61`「docs: v3.8 CHANGELOG + HANDOFF 同步」回填 commit 哈希时执行了全局替换，把两份文档里的 `HASH` 连带换成短哈希 `38f5eb9`，**是一次误替换的 6 个落点、而非 6 个独立笔误**。代码侧 `vite.config.js:59`、`src/assets.js:122-123`、`src/ui.js:221` 均为正确 define 名，未受污染。其中 §16 那处危害最大：它给出的排障串 `ReferenceError: __ASSET_..._ is not defined` 照抄去 grep 源码永远搜不到。
+- **`.gitignore` 补 `__pycache__/`、`*.pyc`**：新用例运行会产出 `tests/__pycache__/*.pyc` 编译产物，此前未被忽略，存在误提交风险。
+
+### 验证
+- `npm run test:skilltree` → **EXIT 0，8 档全 PASS**。
+  - 桌面 3 档：39 节点、卡高 min/max **157/160px**、实测行距 **178px**、`ROW_H` 余量 **18px**、父子纵向相交 **0 组**、任意两卡可见碰撞 **0 组**。
+  - 移动端 5 分支（war 9 / bly 8 / nfr 8 / eco 6 / utl 8 节点）：卡高 58px、行距 116px、余量 58px，均 **0 组 / 0 组**。
+- **负向对照（mutation 验证，证明不是「永远绿的假测试」）**：运行时强制撑高卡片——
+  - 卡高 **175px**（余量 3px）→ 触发 **WARNING 但仍 PASS**（语义正确：余量吃紧尚未重叠）；
+  - 卡高 **185px**（超 `ROW_H` 7px）→ **FAIL**，检出 **38 组父子相交 + 26 组可见碰撞**并逐对定位（如 `war_root → war_dmg 纵向相交 7px`）。
+- 本版**未改动 `src/` 下任何产品代码**，无运行时回归面。
 
 ## v3.12（2026-08-01 · `1b83ca2`）
 
@@ -71,7 +96,7 @@
 > 资源加载优化：内容哈希精准缓存 + 分级懒加载。根治「每次更新都全量重拉、进度条变慢」——此前所有 ~100+ 张图共用全局 `BUILD_ID` 作 `?v=` 缓存击穿，每次 push 该值必变 → 全部图 URL 同时失效 → 浏览器+CDN 缓存被一次性击穿。
 
 ### 优化
-- **资源 URL 精准缓存击穿（替代全局 `BUILD_ID`）**：`vite.config.js` 在构建期读 `public/assets/*.png`（142 张），对每张图按**文件内容 sha256** 生成 8 位哈希，经 `define` 注入 `__ASSET_38f5eb9ES__`（保留 `__BUILD_ID__` 供版本自检）。`src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）、`loadOne`/`loadAssets` 改用之；`src/ui.js` 标题血裔按钮头像同样走哈希 URL。**效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；只有真正改了字节的图才重拉。纯代码更新时近乎秒开。
+- **资源 URL 精准缓存击穿（替代全局 `BUILD_ID`）**：`vite.config.js` 在构建期读 `public/assets/*.png`（142 张），对每张图按**文件内容 sha256** 生成 8 位哈希，经 `define` 注入 `__ASSET_HASHES__`（保留 `__BUILD_ID__` 供版本自检）。`src/assets.js` 抽 `assetUrl(fn)`（按文件名取内容哈希、缺失回退 BUILD_ID）、`loadOne`/`loadAssets` 改用之；`src/ui.js` 标题血裔按钮头像同样走哈希 URL。**效果**：图内容没变→哈希不变→URL 不变→浏览器/CDN 命中缓存；只有真正改了字节的图才重拉。纯代码更新时近乎秒开。
 - **分级懒加载**：`assets.js` 拆 `LAZY_KEYS`(20) 与 `CRITICAL_KEYS`。进度条只等**关键集**（标题+开局+升级卡片必需：player/passive/art/weapon/敌人/gem/ground/decal/chest/各 menu 图标等）；`loadAssetsLazy()`（模块级 `lazyPromise` 幂等）+ `ensureLazy()` 后台拉取懒加载集（codex_*/altar_*/boss_*/portrait_saint 等 5 张）。`src/game.js` 关键集加载完即进标题、后台跑懒加载；`src/ui.js` 的 `showCodex/showAltar/showBloodline` 入口包 `ensureLazy().then()` 守卫，确保极快点开界面时图已就绪（视觉/逻辑不变）。
 
 ### 验证
