@@ -1037,8 +1037,8 @@ export class UIManager {
 
     // 移动端（.touch-device 由 main.js 加在 <html>）：单分支竖向链，紧凑尺寸；桌面端原 5-band 常量不变
     const isMobile = document.documentElement.classList.contains('touch-device');
-    const CARD_W = isMobile ? 58 : 150, CARD_H = isMobile ? 58 : 104,
-          COL_W = isMobile ? 92 : 190, ROW_H = isMobile ? 116 : 126,
+    const CARD_W = isMobile ? 58 : 150, CARD_H = isMobile ? 58 : 160,
+          COL_W = isMobile ? 92 : 190, ROW_H = isMobile ? 116 : 178,
           BAND_GAP = 64, TITLE_OFF = isMobile ? 24 : 46;
 
     const world = document.createElement('div');
