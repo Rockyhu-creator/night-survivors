@@ -569,7 +569,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
-HASH v3.11 移动端技能树同层重叠修复：renderSkillTree列分配重写(首前置父严格树消菱形坍缩 + 多前置汇聚节点取双亲中点 + 按深度层量化列号兜底,杜绝同层水平重叠) | 起因用户二次报"永夜庇护前置壁垒护盾不存在/无法解锁"→正确触屏模拟下发现nfr分支nfr_shield与nfr_statusamp完全重叠(133,368)被压住;实为渲染层菱形坍缩(真菱形nfr_keystone_endgame←[nfr_nightdr,nfr_statusamp]),全树共5对同层重叠(nfr1/bly2/eco2);数据层干净(39节点全可解锁);移动端重叠探针5分支全CLEAN+39/39运行时解锁+validate PASS+test_game全PASS零报错
+90629d2 v3.11 移动端技能树同层重叠修复：renderSkillTree列分配重写(首前置父严格树消菱形坍缩 + 多前置汇聚节点取双亲中点 + 按深度层量化列号兜底,杜绝同层水平重叠) | 起因用户二次报"永夜庇护前置壁垒护盾不存在/无法解锁"→正确触屏模拟下发现nfr分支nfr_shield与nfr_statusamp完全重叠(133,368)被压住;实为渲染层菱形坍缩(真菱形nfr_keystone_endgame←[nfr_nightdr,nfr_statusamp]),全树共5对同层重叠(nfr1/bly2/eco2);数据层干净(39节点全可解锁);移动端重叠探针5分支全CLEAN+39/39运行时解锁+validate PASS+test_game全PASS零报错
 f486df8 v3.10 技能树数据完整性校验护栏：scripts/validate_skilltree.mjs(校验 a必填字段/b唯一id/c-prereq存在性[核心]/d≤2前置/e无环+每分支恰一root+不跨分支+可达/f-gateReq合法) + package.json 加 validate:skilltree 与 prebuild 钩子(断链直接build失败) | 起因用户报"嗜血渴望前置不存在"→3重验证(导入/全仓grep/真实运行时buySkillNode拓扑解锁仿真)确认v3.9源码39节点prereq全有效全可解锁,所见系客户端缓存旧bundle;护栏防复发;反向验证篡改缺失id→exit1+build被拦
 b82d99a v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
 38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错
