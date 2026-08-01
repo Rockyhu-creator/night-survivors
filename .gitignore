@@ -4,3 +4,5 @@ dist/
 .DS_Store
 .workbuddy/
 .ai_passive_raw
+__pycache__/
+*.pyc

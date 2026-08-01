@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "validate:skilltree": "node scripts/validate_skilltree.mjs",
+    "test:skilltree": "/Users/a34481/.workbuddy/binaries/python/envs/default/bin/python tests/skilltree_overlap.py",
     "prebuild": "node scripts/validate_skilltree.mjs",
     "build": "vite build",
     "preview": "vite preview"
