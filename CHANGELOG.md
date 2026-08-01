@@ -5,6 +5,14 @@
 
 <arg_value:6124c78e>---
 
+## v3.11（2026-07-31 · `HASH`）
+
+> 修复移动端技能树**同层节点重叠**（双亲汇聚/菱形分叉导致兄弟节点坍缩到同一列、完全重叠）。实测 nfr 分支 `壁垒护盾(nfr_shield)` 被 `nfr_statusamp` 压在下方，玩家点不到看不到，误以为「前置不存在/无法解锁」；同类重叠全树共 5 对（nfr1/bly2/eco2）。数据层无误（39 节点全可解锁，前序 3 重验证已证）。
+
+### 修复
+- **`src/ui.js` `renderSkillTree` 列分配重写**：以「首前置父」构建严格树消除菱形坍缩；多前置汇聚节点列号取双亲中点（合流视觉、水平分离）；按深度层逐层量化列号为互不相同整数（安全阀，杜绝同层水平重叠）。`children`(连线) 与 `data.js`/图标未动。
+- 移动端重叠探针（390×844 真触屏）5 分支全 CLEAN；运行时 `buySkillNode` 拓扑解锁 39/39 全 ok；`validate_skilltree.mjs` PASS；`test_game.py` 全量 ALL PASS 零报错（桌面零回归）。
+
 ## v3.10（2026-07-31 · `f486df8`）
 
 > 技能树数据完整性**永久校验护栏**：新增 `scripts/validate_skilltree.mjs`，挂到 `package.json` 的 `validate:skilltree` 与 `prebuild` 钩子，任何「节点 prereq 指向不存在的节点 / 重复 id / 超过 2 前置 / 不可达 / 成环 / gateReq 非法」都会在构建前直接让 build 失败。起因：用户反馈「嗜血渴望(lifesteal) 等节点前置不存在」，经 3 重验证（node 导入 / 全仓 grep / 真实运行时 `buySkillNode` 拓扑解锁仿真）确认当前 v3.9 源码 39 节点 prereq 全部有效、全部可解锁——所见系客户端缓存了修复前的旧 bundle；护栏用于杜绝此类数据断裂再次悄悄溜入。

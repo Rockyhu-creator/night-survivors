@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-07-31（v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -259,6 +259,22 @@
 **修复（护栏，本版）**：`scripts/validate_skilltree.mjs`（校验 a 必填字段 / b 唯一 id / c prereq 存在性 / d ≤2 前置 / e 无环+每分支恰一 root+不跨分支+可达 / f gateReq 合法）+ `package.json` 加 `validate:skilltree` 与 `prebuild` 钩子（构建前自动跑，断链直接 build 失败）。反向验证：篡改缺失 id → exit 1（打印 `节点 X → 缺失前置 "Y"`）、`npm run build` 被 prebuild 拦停；环检测补测通过。
 
 **验证**：`node scripts/validate_skilltree.mjs` → `✓ 技能树校验通过：39 节点，无断链/重复/越界/不可达`（exit 0）。`src/data.js` 无改动（working tree 仅 `package.json` +2 script + `scripts/` 新文件）。
+
+---
+
+## 0m. v3.11 移动端技能树同层节点重叠修复（列分配重写）
+
+**触发**：用户二次反馈「永夜庇护(nfr_nightdr) 前置壁垒护盾(nfr_shield) 根本没有/无法解锁」，要求仔细排查。
+
+**诊断转折**：初次用「手动往 document 注入 `.touch-device`」模拟触屏，结果 `htmlClass=""` 类根本没生效 → 走的是**桌面布局**，nfr 节点出现 `nfr_shield(180,411)` 与 `nfr_statusamp(180,411)` 完全重叠（桌面 bug 被遗漏）。改用 Playwright `has_touch=True, is_mobile=True` 正确模拟触屏后，`.touch-device` 真生效、分段控件可见、分支可切。
+
+**真因（渲染层，非数据层）**：`renderSkillTree` 的 `ay`/`yPos` 列分配算法，对**双亲汇聚(菱形)**——某节点有 2 前置、且两前置各自唯一子节点都是该汇聚节点——会让两前置坍缩到同一列 → 同深度层、同列、完全重叠。实测 nfr 分支 `nfr_shield` 与 `nfr_statusamp` 都渲染在 (133,368)，后者压住前者，玩家点不到看不到 → 误以为「前置不存在」。实际菱形为 `nfr_keystone_endgame ← [nfr_nightdr, nfr_statusamp]`（非原先以为的 nightdr）。同类碰撞还存在于 bly 2 对、eco 2 对，共 5 对同层重叠。数据层干净（前序 3 重验证已证 39 节点全可解锁）。
+
+**修复（本版，`src/ui.js` 仅 1063–1087 行）**：① 用「**首前置父**」构建 `sChildren` 严格树做列分配（消菱形）；② 多前置汇聚节点列号取双亲中点（合流视觉、与双亲水平分离）；③ 按深度层逐层把列号量化成互不相同的整数（**安全阀**，彻底杜绝同层水平重叠）。`children`(全量，供连线)、`data.js`/图标未动。
+
+**验证**：移动端重叠探针（390×844, has_touch+is_mobile）5 分支**全 CLEAN**（nfr_shield 现 (88,368) vs statusamp (265,368) 已分离）；运行时 `buySkillNode` 拓扑解锁 39/39 ok；`validate_skilltree.mjs` PASS；`test_game.py` ALL PASS 零报错（桌面零回归）。
+
+**遗留（非本版范围，建议单开）**：桌面 1440×900 仍有 26 组「父子相邻行纵向」相交（基线 52 组，已减半、无回归），属卡片文字层实高 > 行距的 CSS/ROW_H 问题，与列分配无关。
 
 ---
 
@@ -553,6 +569,7 @@ git push origin main
 ## 11. 最近 commit 历史（最新在前）
 
 ```
+HASH v3.11 移动端技能树同层重叠修复：renderSkillTree列分配重写(首前置父严格树消菱形坍缩 + 多前置汇聚节点取双亲中点 + 按深度层量化列号兜底,杜绝同层水平重叠) | 起因用户二次报"永夜庇护前置壁垒护盾不存在/无法解锁"→正确触屏模拟下发现nfr分支nfr_shield与nfr_statusamp完全重叠(133,368)被压住;实为渲染层菱形坍缩(真菱形nfr_keystone_endgame←[nfr_nightdr,nfr_statusamp]),全树共5对同层重叠(nfr1/bly2/eco2);数据层干净(39节点全可解锁);移动端重叠探针5分支全CLEAN+39/39运行时解锁+validate PASS+test_game全PASS零报错
 f486df8 v3.10 技能树数据完整性校验护栏：scripts/validate_skilltree.mjs(校验 a必填字段/b唯一id/c-prereq存在性[核心]/d≤2前置/e无环+每分支恰一root+不跨分支+可达/f-gateReq合法) + package.json 加 validate:skilltree 与 prebuild 钩子(断链直接build失败) | 起因用户报"嗜血渴望前置不存在"→3重验证(导入/全仓grep/真实运行时buySkillNode拓扑解锁仿真)确认v3.9源码39节点prereq全有效全可解锁,所见系客户端缓存旧bundle;护栏防复发;反向验证篡改缺失id→exit1+build被拦
 b82d99a v3.9 移动端技能树交互重构：顶部分段控件(5分支切页签) + 单分支竖向链(depth纵向/兄弟横向偏移,紧凑尺寸,消除fan-out) + 底部抽屉(.st-sheet含解锁按钮,XSS转义) + 最小缩放0.6 + 58px热区 + 底部浮层命中区修复(pointer-events透传) | 设计docs/plans/2026-07-31-skilltree-mobile-redesign.md + 移动端探针14项全PASS + test_game全PASS零报错(桌面零回归)
 38f5eb9 v3.8 资源加载优化：内容哈希精准缓存(替代全局BUILD_ID,按文件内容sha256注入__ASSET_38f5eb9ES__,未改动的图命中缓存,更新后近乎秒开) + 分级懒加载(拆CRITICAL_KEYS/LAZY_KEYS(20张codex/altar/boss/portrait),进度条只等关键集,loadAssetsLazy后台幂等拉取,ensureLazy守卫三界面) | test_game全PASS零报错

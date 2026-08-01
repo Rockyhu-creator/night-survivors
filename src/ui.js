@@ -1060,21 +1060,29 @@ export class UIManager {
       const depth = {};
       const cd = (id, d) => { depth[id] = Math.max(depth[id] || 0, d); (children[id] || []).forEach((c) => cd(c, d + 1)); };
       cd(root.id, 0);
-      const yPos = {}; let slot = 0;
-      const ay = (id) => {
+      // 列分配：以"首前置父"构建严格树，规避双亲汇聚(菱形)导致同层兄弟抢占同列而完全重叠。
+      // 仅用每个节点的【第一个前置】作为布局父边，使整支成为无环严格树；连线仍用全量 children 绘制。
+      const sChildren = {}; nodes.forEach((n) => { sChildren[n.id] = []; });
+      nodes.forEach((n) => { const p = (n.prereq || [])[0]; if (p && sChildren[p]) sChildren[p].push(n.id); });
+      const yPos = {}; let leaf = 0;
+      const allocCol = (id) => {
         if (id in yPos) return;
-        const ch = children[id] || [];
-        if (!ch.length) { yPos[id] = slot; slot += 1; return; }
-        ch.forEach(ay);
+        const ch = sChildren[id] || [];
+        if (!ch.length) { yPos[id] = leaf; leaf += 1; return; }
+        ch.forEach(allocCol);
         yPos[id] = (yPos[ch[0]] + yPos[ch[ch.length - 1]]) / 2;
       };
-      ay(root.id);
-      // 移动端双亲汇聚：多前置节点（如 war_keystone_omni）列号取双亲中点，形成合流视觉
-      if (isMobile) {
-        for (const n of nodes.slice().sort((n1, n2) => (depth[n1.id] || 0) - (depth[n2.id] || 0))) {
-          const ps = (n.prereq || []).filter((p) => p in yPos);
-          if (ps.length >= 2) yPos[n.id] = ps.reduce((s2, p) => s2 + yPos[p], 0) / ps.length;
-        }
+      allocCol(root.id);
+      // 多前置(≥2)汇聚节点：列号取各前置中点（合流视觉），与双亲水平分离
+      for (const n of nodes.slice().sort((n1, n2) => (depth[n1.id] || 0) - (depth[n2.id] || 0))) {
+        const ps = (n.prereq || []).filter((p) => p in yPos);
+        if (ps.length >= 2) yPos[n.id] = ps.reduce((s2, p) => s2 + yPos[p], 0) / ps.length;
+      }
+      // 安全阀：按深度层逐层把列号量化成互不相同的整数，彻底杜绝同层节点水平重叠
+      const byDepth = {};
+      for (const n of nodes) { const d = depth[n.id] || 0; (byDepth[d] = byDepth[d] || []).push(n.id); }
+      for (const d of Object.keys(byDepth)) {
+        byDepth[d].sort((a, b) => yPos[a] - yPos[b]).forEach((id, i) => { yPos[id] = i; });
       }
       const maxSlot = Math.max(...nodes.map((n) => yPos[n.id] || 0));
 
