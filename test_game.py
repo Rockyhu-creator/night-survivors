@@ -181,11 +181,15 @@ with sync_playwright() as p:
         b.hp = b.maxHp * 0.65;
       }
     }""")
-    page.wait_for_timeout(1500)
-    dismiss_upgrades(page)
     # 稳健判定：直接校验「65% 阶段技能已触发」(rt[0]=true)，而非净蝙蝠数（蝙蝠会被玩家武器消耗，净数不稳定）
-    page.wait_for_timeout(300)
-    summon65 = page.evaluate("() => { const b = window.__game.enemies.activeBoss; return !!(b && b.skillRuntime[0] && b.skillRuntime[0].triggered); }")
+    # 边等边清升级：升级面板一冒出来就 dismiss，模拟不会长时间停摆；成功（rt[0] 置真）即提前退出，最长 4s（20×200ms）
+    summon65 = False
+    for _ in range(20):
+        dismiss_upgrades(page)
+        page.wait_for_timeout(200)
+        if page.evaluate("() => { const b = window.__game.enemies.activeBoss; return !!(b && b.skillRuntime[0] && b.skillRuntime[0].triggered); }"):
+            summon65 = True
+            break
     expect('65%血 召唤蝙蝠', summon65)
 
     # 打到 35% 触发弹幕（重置技能运行时 + 钉 0.35；校验 Boss 弹幕「曾经」生成过）
