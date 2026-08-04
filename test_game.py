@@ -198,6 +198,8 @@ with sync_playwright() as p:
         if (n > window.__projPeak) window.__projPeak = n;
       }, 16);
     }""")
+    # 钉血前先清掉可能挂起的升级面板，确保钉血动作本身不是在暂停态下做的
+    dismiss_upgrades(page)
     page.evaluate("""() => {
       const b = window.__game.enemies.activeBoss;
       if (b) {
@@ -205,8 +207,13 @@ with sync_playwright() as p:
         b.hp = b.maxHp * 0.35;
       }
     }""")
-    page.wait_for_timeout(2000)
-    dismiss_upgrades(page)
+    # 边等边清升级：升级面板一冒出来就 dismiss，模拟不会长时间停摆；
+    # 成功（峰值>0）即提前退出，正常路径比固定 2000ms 还快；最长 4s（20×200ms）
+    for _ in range(20):
+        dismiss_upgrades(page)
+        page.wait_for_timeout(200)
+        if page.evaluate("() => window.__projPeak > 0"):
+            break
     projectile_seen = page.evaluate("""() => {
       clearInterval(window.__projWatch);
       return window.__projPeak > 0;
@@ -447,13 +454,13 @@ with sync_playwright() as p:
     expect('黎明圣印不再复用 blade 贴图', not crossKind['hasBlade'])
     page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.weapons.projectiles.length = 0; }")
 
-    # --- 血瓶掉率下调：约 2.5%（远低于旧的 7%）---
+    # --- 血瓶掉率：v3.1 校准为 3.5%（原 2.5% 偏紧、原 7% 过高）；门槛 <5% 守回归 ---
     potion = page.evaluate("""() => {
       const g = window.__game;
       g.state = 'playing';
       g.enemies.enemies = [];
       g.pickups.gems.length = 0;
-      const N = 600; let potions = 0;
+      const N = 3000; let potions = 0;
       for (let i = 0; i < N; i++) {
         const before = g.pickups.gems.length;
         g.onEnemyKilled({ isBoss: false, x: 100, y: 100, expValue: 1, hp: 1 });
@@ -463,7 +470,7 @@ with sync_playwright() as p:
       }
       return { potions, N };
     }""")
-    expect('血瓶掉率约2.5%(<5%, 防回归0.07)', potion['potions'] < potion['N'] * 0.05)
+    expect('血瓶掉率3.5%(<5%, 防回归7%)', potion['potions'] < potion['N'] * 0.05)
     page.evaluate("() => { window.__game.pickups.gems.length = 0; }")
 
     # --- 新配方进化：武器满级+被动 → 神器（武器丰富化，2026-07-23）---
