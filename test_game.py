@@ -142,11 +142,23 @@ with sync_playwright() as p:
     expect('获得神器 圣洁吞噬', page.evaluate("() => window.__game.weapons.hasArtifact('devour')"))
     expect('原武器 圣水洗礼 被替换', page.evaluate("() => !window.__game.weapons.hasWeapon('holywater')"))
 
-    # --- Boss 战：3 分钟 血色男爵 ---
+    # --- Boss 战：v4.0 P2 新时间线（90 血月先驱 → 180 血色男爵，Boss 串行化） ---
     dismiss_upgrades(page)
-    page.evaluate("() => { window.__game.time = 181; }")
+    # ① 教学 Boss 血月先驱（90s，v4.0 P2 新增）
+    page.evaluate("() => { window.__game.time = 91; }")
     page.wait_for_timeout(1200)
-    boss_spawned = page.evaluate("() => window.__game.enemies.enemies.some(e => e.isBoss)")
+    expect('新Boss 血月先驱 生成(90s)', page.evaluate("() => window.__game.enemies.enemies.some(e => e.isBoss && e.type && e.type.id === 'herald')"))
+    expect('登场警告显示"血月先驱"', page.evaluate("() => document.getElementById('warn-name').textContent") == '血月先驱')
+    expect('A1 新Boss 实例用 boss_* 精灵(§8.2 占位复用)', page.evaluate("""() => window.__game.enemies.enemies.some(e => e.isBoss && e.type && e.type.id === 'herald' && e.type.sprite.startsWith('boss_'))"""))
+    # ② 原 Boss 血色男爵（180s）：移除先驱并清 activeBoss 后跳到 181，让其正常解锁生成
+    page.evaluate("""() => {
+      const g = window.__game;
+      g.enemies.enemies = g.enemies.enemies.filter(e => !e.isBoss);
+      g.enemies.activeBoss = null;
+      g.time = 181;
+    }""")
+    page.wait_for_timeout(1200)
+    boss_spawned = page.evaluate("() => window.__game.enemies.enemies.some(e => e.isBoss && e.type && e.type.id === 'baron')")
     warn_shown = page.evaluate("() => document.getElementById('warn-name').textContent")
     expect('Boss 生成', boss_spawned)
     expect('登场警告显示"血色男爵"', warn_shown == '血色男爵')

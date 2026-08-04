@@ -196,7 +196,7 @@ export const DAMAGE_MIN       = 1;     // 防御减免后的保底伤害
 export const ENEMY_TYPES = {
   bat: {
     id: 'bat', name: '夜行蝙蝠', sprite: 'bat', hp: 12, speed: 95, damage: 8, exp: 1,
-    radius: 12, spriteSize: 34, knockResist: 0, unlockAt: 0, weight: 3,
+    radius: 12, spriteSize: 34, knockResist: 0, unlockAt: 0, weight: 3, lateWeight: 4,
   },
   skeleton: {
     id: 'skeleton', name: '骷髅', sprite: 'skeleton', hp: 34, speed: 52, damage: 14, exp: 2,
@@ -204,7 +204,7 @@ export const ENEMY_TYPES = {
   },
   slime: {
     id: 'slime', name: '史莱姆', sprite: 'slime', hp: 90, speed: 30, damage: 20, exp: 5,
-    radius: 18, spriteSize: 54, knockResist: 0.7, unlockAt: 120, weight: 1,
+    radius: 18, spriteSize: 54, knockResist: 0.7, unlockAt: 120, weight: 1, lateWeight: 2,
   },
   elite: {
     id: 'elite', name: '精英', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,

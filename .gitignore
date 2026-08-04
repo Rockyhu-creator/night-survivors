@@ -3,6 +3,7 @@ node_modules/
 dist/
 .DS_Store
 .workbuddy/
+.cache/
 .ai_passive_raw
 __pycache__/
 *.pyc

@@ -235,11 +235,13 @@ export class EnemyManager {
 
   pickType() {
     const t = this.game.time;
+    const late = t >= NIGHT_START;
+    const w = (e) => (late ? (e.lateWeight ?? e.weight) : e.weight);
     const pool = Object.values(ENEMY_TYPES).filter((e) => e.weight > 0 && t >= e.unlockAt);
-    const total = pool.reduce((s, e) => s + e.weight, 0);
+    const total = pool.reduce((s, e) => s + w(e), 0);
     let roll = Math.random() * total;
     for (const e of pool) {
-      roll -= e.weight;
+      roll -= w(e);
       if (roll <= 0) return e;
     }
     return pool[0];
