@@ -19,6 +19,8 @@
         <div id="timer">00:00</div>
         <div id="kill-count">☠ 0</div>
       </div>
+      <!-- 威胁等级徽标（v4.0 P1）：显性展示本局 TL 称谓，让"变强→夜更深"可感知可解释 -->
+      <div id="threat-badge" class="hidden"><span id="threat-tier">薄暮</span><span id="threat-value">TL 0</span></div>
       <div id="loadout"></div>
       <div id="boss-bar-wrap" class="hidden">
         <div id="boss-name"></div>
@@ -41,6 +43,19 @@
             <button class="diff-btn" data-diff="hard">永夜</button>
           </div>
           <p id="diff-desc" class="diff-desc">标准难度,挑战与乐趣并存</p>
+        </div>
+        <!-- 威胁等级面板（v4.0 P1）：局外投入自动折算 + 玩家可下调(新手兜底)/可加码(换回报) -->
+        <div id="threat-select">
+          <p class="diff-label">威胁等级 · 与永夜的契约</p>
+          <div class="threat-row">
+            <button id="btn-threat-down" class="threat-step" type="button" aria-label="降低威胁等级">−</button>
+            <div class="threat-core">
+              <span id="threat-name" class="threat-name">薄暮</span>
+              <span id="threat-num" class="threat-num">TL 0</span>
+            </div>
+            <button id="btn-threat-up" class="threat-step" type="button" aria-label="提高威胁等级">＋</button>
+          </div>
+          <p id="threat-desc" class="threat-desc">尚未与永夜结契 · 灵魂 ×1.00 · 经验 ×1.00</p>
         </div>
         <button id="btn-start" class="gothic-btn">开始狩猎</button>
         <div id="best-record" class="best-record hidden"></div>

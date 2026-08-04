@@ -79,6 +79,14 @@ export function grantAchievement(id) {
 // 2026-07 难度下修 [PLACEHOLDER 待真机验证]：原三档敌人成长斜率远超玩家离散升级的成长，
 // 中期形成"清不动→吃不到经验→更打不动"的死亡螺旋。全面放缓 hp/dmg/spawn 线性曲线。
 // 2026-07-24 终局平衡：三难度保持结构一致(同机制同公式)，仅数值区分(见 GDD §6)。
+// 2026-08-04 v4.0 P1 威胁等级 TL 反制（design §1.3 / §1.4）[待真机校准]：
+//   ① 基线再平衡（候选 C 辅助手段）：仅 normal/hard 上调 hpSlope/dmgSlope/spawnMul/nightBase，
+//      easy 完全不动（easy 存在意义是新手上手，任何上调都是净损失）。
+//      normal 在 TL=0 时相对 v3.14 仅 +7.3%（t=720s/4神器口径），新手曲线基本原样保留。
+//   ② 新增 tlHpK/tlDmgK/tlSpawnK/tlNightK：TL 只缩放【已有的四条难度斜率】，
+//      不新增乘区 —— 避免与 nightMult/artifactMult 形成三重指数相乘（design §1.2 候选 B 关键取舍）。
+//   ③ tlMax=TL_auto(局外投入折算)封顶；wagerMax=玩家开局主动加码上限。
+//      hard 的 tlMax=12 依赖 statScale 的放大倍数硬上限兜底（见 entities.js statScale 与 §8.1）。
 export const DIFFICULTIES = {
   easy: {
     id: 'easy', name: '夜行者', desc: '敌人较弱,节奏舒缓,适合休闲上手',
@@ -86,22 +94,80 @@ export const DIFFICULTIES = {
     nightBase: 1.08, artifactCounter: 0.08, bossHpMul: 0.7, affixMul: 0.5,
     packMin: 4, packMax: 6, expMul: 1.0, soulMul: 0.8,
     bossSkillCdMul: 1.3, // 高难<1 缩短 Boss 技能 CD、低难>1 延长
+    // TL 缩放系数（easy 最低，保护新手）[待真机校准]
+    tlHpK: 0.04, tlDmgK: 0.025, tlSpawnK: 0.015, tlNightK: 0.005,
+    tlMax: 6, wagerMax: 3,
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
-    hpSlope: 0.26, dmgSlope: 0.14, spawnMul: 0.70, bossCalm: 0.5, bossGapMul: 1.0,
-    nightBase: 1.16, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
+    // hpSlope 0.26→0.28 / dmgSlope 0.14→0.15 / spawnMul 0.70→0.74 / nightBase 1.16→1.17 [待真机校准]
+    hpSlope: 0.28, dmgSlope: 0.15, spawnMul: 0.74, bossCalm: 0.5, bossGapMul: 1.0,
+    nightBase: 1.17, artifactCounter: 0.15, bossHpMul: 1.0, affixMul: 1.0,
     packMin: 6, packMax: 10, expMul: 1.0, soulMul: 1.0,
     bossSkillCdMul: 1.0,
+    // TL 缩放系数 [待真机校准]：TL=10 → hpSlope 0.448 / dmgSlope 0.21 / spawnMul 0.925 / nightBase 1.25
+    tlHpK: 0.06, tlDmgK: 0.04, tlSpawnK: 0.025, tlNightK: 0.008,
+    tlMax: 10, wagerMax: 5,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
-    hpSlope: 0.38, dmgSlope: 0.18, spawnMul: 0.85, bossCalm: 0.7, bossGapMul: 0.85,
-    nightBase: 1.24, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.20,
+    // hpSlope 0.38→0.44 / dmgSlope 0.18→0.21 / spawnMul 0.85→0.95 / nightBase 1.24→1.27 [待真机校准]
+    // hard 玩家定义上就是老玩家，基线可以更硬（design §1.2 推荐结论：C 只对 hard 明显上调）
+    hpSlope: 0.44, dmgSlope: 0.21, spawnMul: 0.95, bossCalm: 0.7, bossGapMul: 0.85,
+    nightBase: 1.27, artifactCounter: 0.25, bossHpMul: 1.4, affixMul: 1.20,
     packMin: 6, packMax: 10, expMul: 1.3, soulMul: 1.5,
     bossSkillCdMul: 0.75,
+    // TL 缩放系数（最高档）[待真机校准]
+    tlHpK: 0.075, tlDmgK: 0.05, tlSpawnK: 0.035, tlNightK: 0.010,
+    tlMax: 12, wagerMax: 5,
   },
 };
+
+// ---------- v4.0 P1：威胁等级 Threat Level（局外投入的显性反制）----------
+// 设计依据 design §1.2 候选 B / §1.3 / §1.4。核心取舍：
+//   · TL 只缩放已有斜率，不新增乘区；
+//   · TL=0 必须与「基线」逐位等价（statScale 内走短路分支），新手零感知；
+//   · 硬上限只钳制「TL 引入的放大倍数」而非绝对倍率 —— 这样才能同时满足
+//     「TL=0 等价旧版」与「TL 极限不爆炸」两个约束（对 design §8.1 绝对上限口径的修正，
+//      绝对上限会在 hard/t=900/6神器 的 TL=0 场景就被触发，反而改变了既有玩法）。
+export const TL_SOUL_PER_LEVEL = 1200;      // 每投入 1200 灵魂到技能树 → TL_auto +1（满树 13750 ≈ 11 级）[待真机校准]
+export const TL_SOUL_MUL_PER_LEVEL = 0.05;  // 灵魂回报 ×(1 + 0.05×TL) [待真机校准]（§8.1 提示必要时降到 0.035）
+export const TL_EXP_MUL_PER_LEVEL = 0.02;   // 经验回报 ×(1 + 0.02×TL) [待真机校准]
+export const TL_HP_AMP_CAP = 2.20;          // TL 对敌人 HP 的最大放大倍数（相对同时刻 TL=0 基线）[待真机校准]
+export const TL_DMG_AMP_CAP = 1.80;         // TL 对敌人伤害的最大放大倍数 [待真机校准]
+export const TL_SPAWN_MUL_CAP = 1.60;       // spawnMul 缩放后的绝对上限，防刷怪间隔塌到地板 [待真机校准]
+
+// TL → 叙事称谓（design §1.2 UI 呈现表）。叙事化而非数值化：
+// 玩家投入的不是"点数"，是"与永夜的契约"——你越深入这套力量体系，永夜越认得你。
+export const TL_TIERS = [
+  { min: 12, name: '终焉', color: '#c0392b' },
+  { min: 9,  name: '永夜', color: '#8e44ad' },
+  { min: 6,  name: '血月', color: '#e74c3c' },
+  { min: 3,  name: '深夜', color: '#5b6ea8' },
+  { min: 0,  name: '薄暮', color: '#7a6a8e' },
+];
+
+export function threatTier(tl) {
+  const v = Math.max(0, Math.floor(tl || 0));
+  for (const t of TL_TIERS) if (v >= t.min) return t;
+  return TL_TIERS[TL_TIERS.length - 1];
+}
+
+// 已投入技能树的灵魂总额（按已购节点 cost 求和；洗点后 tree[] 被清空 → 自然回落）
+export function treeInvestedSouls(souls) {
+  const owned = souls?.tree;
+  if (!owned || owned.length === 0) return 0;
+  let sum = 0;
+  for (const n of SKILL_TREE) if (owned.includes(n.id)) sum += n.cost || 0;
+  return sum;
+}
+
+// TL_auto = clamp(floor(技能树投入 / 1200), 0, diff.tlMax)
+export function computeAutoThreat(diff, souls) {
+  const cap = diff?.tlMax ?? 0;
+  if (cap <= 0) return 0;
+  return Math.max(0, Math.min(cap, Math.floor(treeInvestedSouls(souls) / TL_SOUL_PER_LEVEL)));
+}
 
 // 终局时间节点（秒）
 export const NIGHT_START = 540;   // 9 分钟：永夜加深触发

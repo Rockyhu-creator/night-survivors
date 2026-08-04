@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite, drawAffixBadge, ensureLazy } from './assets.js';
 
@@ -36,6 +36,16 @@ export class UIManager {
     this.timerEl = document.getElementById('timer');
     this.killEl = document.getElementById('kill-count');
     this.loadoutEl = document.getElementById('loadout');
+    // 威胁等级 TL（v4.0 P1）：HUD 徽标 + 开局面板。全部 null-guard，
+    // 防微信 X5 等缓存旧 HTML 时每帧访问空引用拖垮 HUD（沿用 #shield-bar 既有做法）。
+    this.threatBadgeEl = document.getElementById('threat-badge');
+    this.threatTierEl = document.getElementById('threat-tier');
+    this.threatValueEl = document.getElementById('threat-value');
+    this.threatNameEl = document.getElementById('threat-name');
+    this.threatNumEl = document.getElementById('threat-num');
+    this.threatDescEl = document.getElementById('threat-desc');
+    this.threatDownBtn = document.getElementById('btn-threat-down');
+    this.threatUpBtn = document.getElementById('btn-threat-up');
     this.titleScreen = document.getElementById('title-screen');
     this.gameoverScreen = document.getElementById('gameover-screen');
     this.bestRecordEl = document.getElementById('best-record');
@@ -211,6 +221,8 @@ export class UIManager {
     const souls = loadSouls();
     this.soulBalanceEl.classList.remove('hidden');
     this.soulBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    // 威胁等级面板（v4.0 P1）：每次回主界面重刷（技能树刚花完灵魂 → TL_auto 需同步）
+    this.refreshThreatPanel();
     // 血裔：标题按钮显示当前选定血裔 + 角色头像图标
     const bl = BLOODLINES.find((b) => b.id === getSelectedBloodline()) || BLOODLINES[0];
     if (this.bloodlineBtnEl) {
@@ -233,6 +245,43 @@ export class UIManager {
     try { localStorage.setItem('ns_guide_seen', '1'); } catch (_) { /* 禁用则跳过 */ }
   }
 
+  // ---------- 威胁等级 TL（v4.0 P1）----------
+  // 开局面板：显示称谓 + TL 值 + 回报，并按可调区间禁用 ±。
+  // 下调兜底（Autonomy 保障）：TL_auto 可一路调回 0，玩家永远不会因为买了技能而卡关。
+  refreshThreatPanel() {
+    const g = this.game;
+    if (!this.threatNameEl) return;
+    const tl = g.refreshThreat();
+    const tier = threatTier(tl);
+    this.threatNameEl.textContent = tier.name;
+    this.threatNameEl.style.color = tier.color;
+    this.threatNumEl.textContent = `TL ${tl}  (自动 ${g.threatAuto}${g.threatWager >= 0 ? ' +' : ' '}${g.threatWager})`;
+    const soulPct = Math.round((g.threatSoulMul() - 1) * 100);
+    const expPct = Math.round((g.threatExpMul() - 1) * 100);
+    this.threatDescEl.textContent = tl === 0
+      ? '尚未与永夜结契 · 敌人强度基准'
+      : `永夜认得你 · 敌人更强 · 灵魂 +${soulPct}% · 经验 +${expPct}%`;
+    if (this.threatDownBtn) this.threatDownBtn.disabled = tl <= 0;
+    if (this.threatUpBtn) this.threatUpBtn.disabled = g.threatWager >= (g.difficulty.wagerMax || 0);
+  }
+
+  adjustThreat(delta) {
+    this.game.adjustThreat(delta);
+    this.refreshThreatPanel();
+  }
+
+  // HUD 徽标：TL=0 隐藏（新手零打扰），>0 常显称谓 + 数值
+  refreshThreatBadge() {
+    if (!this.threatBadgeEl) return;
+    const tl = this.game.threatLevel || 0;
+    if (tl <= 0) { this.threatBadgeEl.classList.add('hidden'); return; }
+    const tier = threatTier(tl);
+    this.threatBadgeEl.classList.remove('hidden');
+    this.threatBadgeEl.style.setProperty('--tl-color', tier.color);
+    this.threatTierEl.textContent = tier.name;
+    this.threatValueEl.textContent = `TL ${tl}`;
+  }
+
   startGame() {
     this.titleScreen.classList.add('hidden');
     this.gameoverScreen.classList.add('hidden');
@@ -240,6 +289,7 @@ export class UIManager {
     this.hud.classList.remove('hidden');
     this.hideLootBeacon();
     this.refreshLoadout();
+    this.refreshThreatBadge(); // TL 本局已定档，只在开局刷一次，不进每帧 update
   }
 
   update(dt) {

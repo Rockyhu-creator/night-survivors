@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN, TL_HP_AMP_CAP, TL_DMG_AMP_CAP, TL_SPAWN_MUL_CAP } from './data.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
@@ -185,28 +185,46 @@ export class EnemyManager {
     this.enemyProjectiles = [];
   }
 
+  // v4.0 P1：TL 缩放后的有效刷怪倍率（spawnMul 越大 → interval 越小 → 刷得越密）。
+  // 绝对上限 TL_SPAWN_MUL_CAP 防止 interval 塌到地板（interval 自身还有 0.22s 下限 + ENEMY_CAP 兜底）。
+  effSpawnMul() {
+    const diff = this.game.difficulty;
+    const tl = this.game.threatLevel || 0;
+    if (tl <= 0) return diff.spawnMul;
+    return Math.min(TL_SPAWN_MUL_CAP, diff.spawnMul * (1 + (diff.tlSpawnK || 0) * tl));
+  }
+
   statScale(isBoss = false) {
     const t = this.game.time;
     const diff = this.game.difficulty;
-    const linear = {
-      hp: 1 + (t / 60) * diff.hpSlope,
-      speed: 1 + Math.min(0.5, (t / 60) * 0.06),
-      damage: 1 + (t / 60) * diff.dmgSlope,
-    };
+    const speed = 1 + Math.min(0.5, (t / 60) * 0.06);
     // 永夜加深（9 分钟后指数增长）：敌人 HP/伤害 = 线性 × nightBase^D × (1 + 神器数×artifactCounter×D)
     // 速度不乘永夜指数，避免后期怪变成不可风筝的子弹
     // 非 Boss（小怪/精英）永夜伤害指数减半（D/2），避免后期指数秒杀；Boss 保持全额威慑
     const D = Math.max(0, (t - NIGHT_START) / 60);
     const exp = isBoss ? D : D / 2;
-    const nightMult = Math.pow(diff.nightBase, exp);
     const artifacts = this.game.player.weapons.filter((w) => w.artifact).length;
     const artifactMult = 1 + diff.artifactCounter * artifacts * D;
-    const endMult = nightMult * artifactMult;
-    return {
-      hp: linear.hp * endMult,
-      speed: linear.speed,
-      damage: linear.damage * endMult,
-    };
+    // ---- 基线（TL=0）：与 v3.14 完全同构，仅难度常量按 §1.3 再平衡 ----
+    const baseNight = Math.pow(diff.nightBase, exp) * artifactMult;
+    const baseHp = (1 + (t / 60) * diff.hpSlope) * baseNight;
+    const baseDamage = (1 + (t / 60) * diff.dmgSlope) * baseNight;
+    // v4.0 P1 威胁等级 TL（design §1.2 候选 B）：只缩放已有的三条斜率 + 永夜底数，不新增乘区。
+    // TL=0 走短路分支 → 与基线逐位等价，未投入技能树的新手零感知。
+    const tl = this.game.threatLevel || 0;
+    if (tl <= 0) return { hp: baseHp, speed, damage: baseDamage };
+    const hpSlopeEff = diff.hpSlope * (1 + (diff.tlHpK || 0) * tl);
+    const dmgSlopeEff = diff.dmgSlope * (1 + (diff.tlDmgK || 0) * tl);
+    const nightBaseEff = diff.nightBase + (diff.tlNightK || 0) * tl;
+    const tlNight = Math.pow(nightBaseEff, exp) * artifactMult;
+    const tlHp = (1 + (t / 60) * hpSlopeEff) * tlNight;
+    const tlDamage = (1 + (t / 60) * dmgSlopeEff) * tlNight;
+    // 硬上限（§8.1 三重乘区爆炸缓解）：钳制「TL 相对同时刻基线的放大倍数」，而非绝对倍率。
+    // 绝对上限(如 hp≤80×)会在 hard/t=900/6神器 的 TL=0 场景就误触发 → 改变既有玩法，故不采用。
+    // baseHp/baseDamage 恒 ≥ 1×正数，不会除零。
+    const ampHp = Math.min(TL_HP_AMP_CAP, tlHp / baseHp);
+    const ampDamage = Math.min(TL_DMG_AMP_CAP, tlDamage / baseDamage);
+    return { hp: baseHp * ampHp, speed, damage: baseDamage * ampDamage };
   }
 
   pickType() {
@@ -439,7 +457,8 @@ export class EnemyManager {
         }
       }
     }
-    const interval = Math.max(0.22, 0.9 - t / 160) / diff.spawnMul;
+    // v4.0 P1：刷怪倍率走 effSpawnMul()（TL=0 时 === diff.spawnMul，行为不变）
+    const interval = Math.max(0.22, 0.9 - t / 160) / this.effSpawnMul();
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer += interval;

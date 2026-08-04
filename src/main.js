@@ -46,8 +46,13 @@ document.querySelectorAll('.diff-btn').forEach((btn) => {
     const id = btn.dataset.diff;
     game.setDifficulty(id);
     diffDesc.textContent = DIFFICULTIES[id].desc;
+    game.ui.refreshThreatPanel(); // tlMax/wagerMax 随难度变，面板需同步重刷
   });
 });
+
+// 威胁等级 ±1（v4.0 P1）：向下可一路调回 0（新手兜底），向上到 diff.wagerMax（加码换回报）
+document.getElementById('btn-threat-down').addEventListener('click', () => game.ui.adjustThreat(-1));
+document.getElementById('btn-threat-up').addEventListener('click', () => game.ui.adjustThreat(1));
 
 document.getElementById('btn-start').addEventListener('click', () => game.startRun());
 document.getElementById('btn-retry').addEventListener('click', () => game.startRun());

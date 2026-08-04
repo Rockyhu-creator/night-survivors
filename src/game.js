@@ -1,4 +1,4 @@
-import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement, computeAutoThreat, threatTier, TL_SOUL_MUL_PER_LEVEL, TL_EXP_MUL_PER_LEVEL } from './data.js';
 import { loadAssets, loadAssetsLazy, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
@@ -41,6 +41,11 @@ export class Game {
     this.totalSouls = 0;
     this.difficulty = DIFFICULTIES.normal;
     this.bloodline = 'wanderer';
+    // v4.0 P1 威胁等级 TL：threatAuto=局外投入折算(只读)，threatWager=玩家开局偏移(可负=下调兜底)，
+    // threatLevel=最终生效值（statScale / effSpawnMul / 灵魂经验回报统一读它）。
+    this.threatAuto = 0;
+    this.threatWager = 0;
+    this.threatLevel = 0;
     // 相机纵向锚点：0.5=居中；竖屏下由 resize() 改为 0.42（玩家偏上，避免手指遮挡下方视野）
     this.cameraAnchorY = 0.5;
     this.groundPattern = null;
@@ -188,12 +193,39 @@ export class Game {
 
   showTitle() {
     this.state = 'title';
+    this.refreshThreat();
     this.ui.showTitle();
   }
 
   setDifficulty(id) {
     this.difficulty = DIFFICULTIES[id] || DIFFICULTIES.normal;
+    this.refreshThreat(); // tlMax/wagerMax 随难度变 → 重新折算并夹紧玩家偏移
   }
+
+  // ---------- v4.0 P1 威胁等级 TL ----------
+  // 重算 TL_auto（读 localStorage 技能树投入）并把玩家偏移夹回合法区间。
+  // 下界 -threatAuto（可完全下调回 0 = 新手保护兜底，玩家永不因买技能而卡关）；
+  // 上界 +wagerMax（主动加码换灵魂/经验回报）。
+  refreshThreat() {
+    this.threatAuto = computeAutoThreat(this.difficulty, loadSouls());
+    const lo = -this.threatAuto;
+    const hi = this.difficulty.wagerMax || 0;
+    this.threatWager = Math.max(lo, Math.min(hi, this.threatWager | 0));
+    this.threatLevel = Math.max(0, this.threatAuto + this.threatWager);
+    return this.threatLevel;
+  }
+
+  // 开局面板 ±1 调整：返回调整后的最终 TL
+  adjustThreat(delta) {
+    this.threatWager = (this.threatWager | 0) + delta;
+    return this.refreshThreat();
+  }
+
+  // TL 回报乘区（design §1.2「把惩罚变成交易」）：与难度代价 1:1 线性对应，
+  // 避免 wager 成为主导策略（§8.5 红线）。下调 TL 时同比例衰减，天然满足"按 实际TL/满TL 衰减"。
+  threatSoulMul() { return 1 + TL_SOUL_MUL_PER_LEVEL * this.threatLevel; }
+  threatExpMul() { return 1 + TL_EXP_MUL_PER_LEVEL * this.threatLevel; }
+  threatTierName() { return threatTier(this.threatLevel).name; }
 
   // 选择血裔（仅在已解锁时生效）。返回是否成功
   setBloodline(id) {
@@ -239,6 +271,9 @@ export class Game {
     for (const n of SKILL_TREE) {
       if (soulsNow.tree.includes(n.id)) n.apply(this);
     }
+    // v4.0 P1：本局 TL 定档（局外投入折算 + 玩家开局偏移），供 statScale / effSpawnMul / 回报读取。
+    // 放在技能树注入之后：TL 反制的正是这一批局外增益，两者同源同帧敲定。
+    this.refreshThreat();
     // 增益可能抬高 maxHp，同步回满血避免开局残血
     this.player.hp = this.player.maxHp;
     this.ui.startGame();
@@ -352,8 +387,8 @@ export class Game {
   }
 
   gainExp(amount) {
-    // 经验缩放：难度补偿(expMul) × 时间缩放(expScaleForTime) × 玩家 expMul(祭坛等)
-    const mul = (this.player.expMul || 1) * expScaleForTime(this.time) * this.difficulty.expMul;
+    // 经验缩放：难度补偿(expMul) × 时间缩放(expScaleForTime) × 玩家 expMul(祭坛等) × TL 回报(v4.0 P1)
+    const mul = (this.player.expMul || 1) * expScaleForTime(this.time) * this.difficulty.expMul * this.threatExpMul();
     this.player.exp += amount * mul;
   }
 
@@ -416,6 +451,7 @@ export class Game {
   // 结算灵魂：按坚持时间进度与等级。（坚持时间/硬上限）×500 + 等级×1
   // 通关时 time≈GAME_HARD_CAP(900) → 约 500 + 等级；中途阵亡按实际存活时间折算。
   // 保留难度倍率 soulMul 与祭坛投资 soulGainMul 乘区；首通收敛为一次性奖励。
+  // v4.0 P1 追加 TL 回报乘区（×1.05/级）：TL 越高夜越深，灵魂回报越厚。
   computeSoulReward(_win = false) {
     const r = SOUL_REWARDS;
     let reward = Math.floor((this.time / GAME_HARD_CAP) * 500) + this.player.level * 1;
@@ -426,7 +462,7 @@ export class Game {
       reward += r.firstClear[this.difficulty.id] || 0;
       saveSouls(souls);
     }
-    return Math.floor(reward * (this.soulGainMul || 1) * this.difficulty.soulMul);
+    return Math.floor(reward * (this.soulGainMul || 1) * this.difficulty.soulMul * this.threatSoulMul());
   }
 
   gameOver(reason = 'defeat') {
