@@ -147,10 +147,20 @@ export const TL_TIERS = [
   { min: 0,  name: '薄暮', color: '#7a6a8e' },
 ];
 
-export function threatTier(tl) {
+export function threatTier(tl, diffId) {
   const v = Math.max(0, Math.floor(tl || 0));
-  for (const t of TL_TIERS) if (v >= t.min) return t;
-  return TL_TIERS[TL_TIERS.length - 1];
+  let tier = TL_TIERS[TL_TIERS.length - 1];
+  for (const t of TL_TIERS) {
+    if (v >= t.min) { tier = t; break; }
+  }
+  // v4.0 P2 尾：难度感知（design §1.2「终焉 仅 hard 可达」）。
+  // normal/easy 即使 TL 拉满（tlMax + wagerMax 可超 12）也只显示到 永夜，杜绝称谓漂移。
+  // diffId 缺省（如 P1 探针）则保持原行为不封顶。
+  if (diffId && diffId !== 'hard' && tier.name === '终焉') {
+    const cap = TL_TIERS.find((t) => t.name === '永夜');
+    if (cap) tier = cap;
+  }
+  return tier;
 }
 
 // 已投入技能树的灵魂总额（按已购节点 cost 求和；洗点后 tree[] 被清空 → 自然回落）
@@ -212,6 +222,46 @@ export const ENEMY_TYPES = {
     radius: 26, spriteSize: 96, knockResist: 1.0, unlockAt: 600, weight: 1,
     immuneKnockback: true,
   },
+  // ---------- v4.0 P2 新小怪（纯数据层；差异化行为留 P3）[待真机校准] ----------
+  // 精灵复用现有资产（design §8.2 美术硬约束：禁止新增 PNG）。行为钩子（cluster/ranged/
+  // frontalArmor/trail/healAura/splitOnDeath）为 P3 占位，本版 spawn 仅按 weight/unlockAt
+  // 调度为默认追击；数值全部 [待真机校准]。
+  rat_swarm: {
+    id: 'rat_swarm', name: '尸鼠群', sprite: 'bat', hp: 6, speed: 130, damage: 5, exp: 1,
+    radius: 10, spriteSize: 30, knockResist: 0, unlockAt: 20, weight: 3, lateWeight: 4,
+    cluster: 3, // P3：成簇 ×3 生成（复用 pack/cluster 机制）
+  },
+  spitter: {
+    id: 'spitter', name: '腐唾者', sprite: 'slime', hp: 28, speed: 40, damage: 12, exp: 3,
+    radius: 13, spriteSize: 40, knockResist: 0.1, unlockAt: 75, weight: 2,
+    ranged: true, // P3：远程吐弹、保持距离（小怪单发弹幕，复用现有弹幕池）
+  },
+  bone_knight: {
+    id: 'bone_knight', name: '骸骨骑士', sprite: 'skeleton', hp: 180, speed: 58, damage: 26, exp: 10,
+    radius: 14, spriteSize: 42, knockResist: 0.3, unlockAt: 200, weight: 2,
+    frontalArmor: { arcCos: -0.5, mul: 0.30 }, // P3：正面 120° 减伤 70%（点积判向）
+    affixBan: ['bulwark'], // 与 bulwark 同机制叠加几乎无敌（design §5.4）
+  },
+  plague_bearer: {
+    id: 'plague_bearer', name: '疫病携带者', sprite: 'slime', hp: 150, speed: 34, damage: 18, exp: 8,
+    radius: 16, spriteSize: 50, knockResist: 0.4, unlockAt: 260, weight: 1,
+    trail: true, // P3：行走留毒径、死亡大池（hazards[] 池）
+  },
+  siren: {
+    id: 'siren', name: '哀嚎女妖', sprite: 'skeleton', hp: 210, speed: 46, damage: 20, exp: 12,
+    radius: 15, spriteSize: 46, knockResist: 0.3, unlockAt: 320, weight: 1,
+    healAura: true, // P3：治疗友军 12%×3（治疗+光束渲染）
+  },
+  revenant: {
+    id: 'revenant', name: '复仇残躯', sprite: 'skeleton', hp: 240, speed: 44, damage: 24, exp: 14,
+    radius: 16, spriteSize: 52, knockResist: 0.5, unlockAt: 400, weight: 1,
+    splitOnDeath: 2, // P3：死亡分裂 ×2（复用 volatile 钩子生成 revenant_shard）
+  },
+  // 分裂产物：weight 0 → 永不从刷怪池出现，仅由 revenant.splitOnDeath 生成（P3）
+  revenant_shard: {
+    id: 'revenant_shard', name: '残躯碎片', sprite: 'skeleton', hp: 60, speed: 70, damage: 12, exp: 3,
+    radius: 10, spriteSize: 28, knockResist: 0, unlockAt: 400, weight: 0,
+  },
 };
 if (typeof window !== 'undefined') window.__enemyTypes = ENEMY_TYPES;
 
@@ -227,9 +277,33 @@ export const AFFIXES = {
     blastRadius: 140, blastDamage: 35,
   },
   shielded: {
-    id: 'shielded', name: '护盾', expMul: 2, color: '#3498db',
+    id: 'shielded', name: '护盾', expMul: 2, color: '#3498db', minTime: 60,
     // 受到的伤害 ×0.3（正面180°减伤70%的完整版留 PLACEHOLDER，先用全时减伤简化）
     dmgTakenMul: 0.3,
+  },
+  // ---------- v4.0 P2 新词缀（纯数据层；效果由 P3 行为层读取）[待真机校准] ----------
+  // minTime：分时段解锁（design §5.1，零成本把词缀变成"时间轴内容"）。
+  // affixBan：怪种级互斥黑名单（design §5.4，防止组合爆炸产生不可战胜怪）。
+  // 注：本版 rollSingleAffix 已支持 minTime + affixBan 过滤（entities.js）。
+  swift: {
+    id: 'swift', name: '疾行', expMul: 1.5, color: '#2ecc71', minTime: 30,
+    speedMul: 1.55, // P3：移动速度 ×1.55
+  },
+  regen: {
+    id: 'regen', name: '再生', expMul: 1.8, color: '#27ae60', minTime: 150,
+    regenPct: 0.04, // P3：每秒回 4% maxHp，受击后 1.5s 暂停
+  },
+  leech: {
+    id: 'leech', name: '汲取', expMul: 1.9, color: '#8e44ad', minTime: 210,
+    leechPct: 0.5, // P3：接触玩家造成伤害的 50% 回自身
+  },
+  bulwark: {
+    id: 'bulwark', name: '壁垒', expMul: 2.0, color: '#95a5a6', minTime: 300,
+    frontalArmor: { arcCos: -0.34, mul: 0.25 }, // P3：正面减伤 75%（复用 bone_knight 点积判向）
+  },
+  frost: {
+    id: 'frost', name: '霜蚀', expMul: 1.7, color: '#5ad1e6', minTime: 240,
+    slowOnHit: { value: 0.35, duration: 2.0 }, // P3：接触玩家减速 35%/2s（需玩家侧 slow debuff）
   },
 };
 
@@ -891,6 +965,18 @@ export function unlockInCollection(id) {
 
 // ---------- Boss ----------
 export const BOSSES = [
+  // ---------- v4.0 P2 新 Boss（仅用现有 6 种 skill type：summon/barrage/dash/
+  // summon_barrage/dash_barrage/enrage，无新增 type）。全部 [待真机校准]。----------
+  // ★ 血月先驱（教学型小 Boss，90s）：游戏中第一次出现弹幕，刻意"打不死你但教会你"
+  {
+    id: 'herald', name: '血月先驱', sprite: 'boss_baron' /* [待美术] 复用 baron 立绘占位，P3 替换为 boss_herald（§8.2 禁新增 PNG） */, unlockAt: 90,
+    hp: 700, speed: 40, damage: 26, exp: 60,
+    radius: 28, spriteSize: 104, knockResist: 0.90,
+    skills: [
+      { at: 0.80, cooldown: 7, type: 'summon', enemyType: 'bat', count: 3 },
+      { at: 0.45, cooldown: 6, type: 'barrage', count: 5, speed: 120, damage: 12, waves: 1 },
+    ],
+  },
   {
     id: 'baron', name: '血色男爵', sprite: 'boss_baron', unlockAt: 180,
     hp: 1800, speed: 38, damage: 40, exp: 120,
@@ -900,6 +986,17 @@ export const BOSSES = [
       { at: 0.4, cooldown: 5, type: 'barrage', count: 8, speed: 150, damage: 20, waves: 3 },
     ],
   },
+  // ★ 腐血炼金术士（场地污染 Boss，270s）：召唤 plague_bearer 铺满毒池，打得越久场地越小
+  {
+    id: 'alchemist', name: '腐血炼金术士', sprite: 'boss_queen' /* [待美术] 复用 queen 立绘占位，P3 替换为 boss_alchemist */, unlockAt: 270,
+    hp: 3000, speed: 36, damage: 46, exp: 200,
+    radius: 34, spriteSize: 132, knockResist: 0.98,
+    skills: [
+      { at: 0.85, cooldown: 6, type: 'summon', enemyType: 'plague_bearer', count: 3 },
+      { at: 0.55, cooldown: 5.5, type: 'summon_barrage', enemyType: 'spitter', count: 2, barrageCount: 9, speed: 145, damage: 22, waves: 2 },
+      { at: 0.25, cooldown: 7, type: 'enrage', speedMul: 1.5, once: true },
+    ],
+  },
   {
     id: 'queen', name: '苍白女王', sprite: 'boss_queen', unlockAt: 360,
     hp: 4500, speed: 42, damage: 55, exp: 300,
@@ -907,6 +1004,17 @@ export const BOSSES = [
     skills: [
       { at: 0.6, cooldown: 5, type: 'dash', speedMul: 4.2, duration: 0.5, damage: 20 },
       { at: 0.3, cooldown: 5, type: 'summon_barrage', enemyType: 'skeleton', count: 3, barrageCount: 10, speed: 160, damage: 24, waves: 3 },
+    ],
+  },
+  // ★ 骨戈战将（综合考试 Boss，450s）：全游戏冷却最短冲锋 + 正面减伤骸骨骑士
+  {
+    id: 'warlord', name: '骨戈战将', sprite: 'boss_overlord' /* [待美术] 复用 overlord 立绘占位，P3 替换为 boss_warlord */, unlockAt: 450,
+    hp: 6200, speed: 44, damage: 60, exp: 400,
+    radius: 36, spriteSize: 142, knockResist: 0.98,
+    skills: [
+      { at: 0.80, cooldown: 5.5, type: 'summon', enemyType: 'bone_knight', count: 3 },
+      { at: 0.50, cooldown: 4.5, type: 'dash', speedMul: 4.8, duration: 0.55, damage: 26 },
+      { at: 0.30, cooldown: 6, type: 'summon_barrage', enemyType: 'bone_knight', count: 2, barrageCount: 10, speed: 165, damage: 28, waves: 3 },
     ],
   },
   {

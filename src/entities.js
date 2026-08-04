@@ -174,6 +174,10 @@ export class EnemyManager {
     this.bossSpawned = new Set();
     this.activeBoss = null;
     this.enemyProjectiles = [];
+    // v4.0 P2 Boss 串行化：同一时刻仅一只 Boss。当前 Boss 存活时到点的下一只入队，
+    // 待其死亡后延迟 15s（bossReleasableAt）再释放队首。
+    this.pendingBosses = [];
+    this.bossReleasableAt = 0;
   }
 
   reset() {
@@ -183,6 +187,8 @@ export class EnemyManager {
     this.bossSpawned = new Set();
     this.activeBoss = null;
     this.enemyProjectiles = [];
+    this.pendingBosses = [];
+    this.bossReleasableAt = 0;
   }
 
   // v4.0 P1：TL 缩放后的有效刷怪倍率（spawnMul 越大 → interval 越小 → 刷得越密）。
@@ -276,11 +282,17 @@ export class EnemyManager {
     }
   }
 
-  // 随机词缀（非 pack，单怪属性型）。概率 = 0.20 × 难度 affixMul
-  rollSingleAffix() {
+  // 随机词缀（非 pack，单怪属性型）。概率 = 0.26 × 难度 affixMul（v4.0 P2：0.20→0.26）
+  // v4.0 P2：支持 minTime 分时段解锁 + affixBan 怪种互斥（design §5.3 / §5.4）
+  rollSingleAffix(type) {
     const diff = this.game.difficulty;
-    if (Math.random() > 0.20 * diff.affixMul) return null;
-    const keys = Object.keys(AFFIXES).filter((k) => k !== 'pack');
+    const t = this.game.time;
+    if (Math.random() > 0.26 * diff.affixMul) return null;
+    const ban = (type && type.affixBan) || [];
+    const keys = Object.keys(AFFIXES).filter(
+      (k) => k !== 'pack' && !ban.includes(k) && t >= (AFFIXES[k].minTime || 0),
+    );
+    if (keys.length === 0) return null;
     return keys[Math.floor(Math.random() * keys.length)];
   }
 
@@ -442,18 +454,33 @@ export class EnemyManager {
         if (this.enemies[i].isBoss) this.enemies.splice(i, 1);
       }
       this.activeBoss = null;
+      // v4.0 P2 Boss 串行化：化身登场即清空积压队列，避免旧 Boss 在终局后冒出
+      this.pendingBosses.length = 0;
+      this.bossReleasableAt = 0;
       const avatarDef = BOSSES.find((d) => d.id === 'avatar');
       this.activeBoss = this.spawnBoss(avatarDef);
       this.game.onBossSpawn?.(avatarDef);
     }
     // 终局已触发则不再生成其他 Boss（避免 time 跳变时早期 Boss 一次性全刷）
     if (!this.bossSpawned.has('avatar')) {
+      // v4.0 P2 Boss 串行化：先释放排队的 Boss（当前无 Boss 且已过死亡后 15s 缓冲）
+      if (this.pendingBosses.length > 0 && !this.activeBoss && t >= this.bossReleasableAt) {
+        const def = this.pendingBosses.shift();
+        this.activeBoss = this.spawnBoss(def);
+        this.game.onBossSpawn?.(def);
+      }
+      // 检查新到点的 Boss：到点的若当前已有 Boss 存活则入队（pending），否则立即生成
       for (const def of BOSSES) {
+        if (def.id === 'avatar') continue; // 终局单独处理
         const unlockAt = Math.round(def.unlockAt * diff.bossGapMul);
         if (t >= unlockAt && !this.bossSpawned.has(def.id)) {
-          this.bossSpawned.add(def.id);
-          this.activeBoss = this.spawnBoss(def);
-          this.game.onBossSpawn?.(def);
+          this.bossSpawned.add(def.id); // 标记已处理，避免重复入队
+          if (!this.activeBoss && t >= this.bossReleasableAt) {
+            this.activeBoss = this.spawnBoss(def);
+            this.game.onBossSpawn?.(def);
+          } else {
+            this.pendingBosses.push(def);
+          }
         }
       }
     }
@@ -468,7 +495,8 @@ export class EnemyManager {
         if (Math.random() < 0.20 * diff.affixMul) {
           this.spawnPack(this.pickType(), scale); // 狼群波次
         } else {
-          this.spawnAt(this.pickType(), scale, this.rollSingleAffix());
+          const type = this.pickType();
+          this.spawnAt(type, scale, this.rollSingleAffix(type));
         }
         const extra = t > 120 ? 2 : (t > 60 ? 1 : 0);
         const adjustedExtra = Math.round(extra * bossCalm);
@@ -476,7 +504,8 @@ export class EnemyManager {
           if (Math.random() < 0.20 * diff.affixMul) {
             this.spawnPack(this.pickType(), scale);
           } else {
-            this.spawnAt(this.pickType(), scale, this.rollSingleAffix());
+            const type = this.pickType();
+            this.spawnAt(type, scale, this.rollSingleAffix(type));
           }
         }
       }
@@ -635,6 +664,8 @@ export class EnemyManager {
         this.game.onEnemyKilled(e);
         if (e.isBoss) {
           if (this.activeBoss === e) this.activeBoss = null;
+          // v4.0 P2 Boss 串行化：当前 Boss 死亡 → 15s 后释放排队的下一只要
+          this.bossReleasableAt = this.game.time + 15;
           this.game.onBossKilled?.(e);
         } else if (e.type === ENEMY_TYPES.elite) {
           this.game.pickups.dropChest(e.x, e.y);
@@ -783,15 +814,16 @@ export class EnemyManager {
         ctx.fill();
       }
       // 词缀 / 精英标识层（不换主体 sprite，仅渲染提示）
+      // v4.0 P2：放宽到任意带 affixDef 的词缀（含 5 个新词缀），统一走椭圆光环 + affixDef.color；
+      // 仅 volatile 保留射线特例。对旧三词缀（pack/shielded/volatile）逐字节等价。
       const t = this.game.time;
-      if (e.affix === 'volatile' || e.affix === 'shielded' || e.affix === 'pack') {
-        const affixColor = (e.affixDef && e.affixDef.color)
-          || (e.affix === 'volatile' ? '#e67e22' : (e.affix === 'pack' ? '#f1c40f' : '#3498db'));
+      if (e.affix && e.affixDef) {
+        const affixColor = e.affixDef.color || '#ffffff';
         const pulse = e.affix === 'volatile'
           ? 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * Math.PI * 3))    // ~1.5Hz
           : (e.affix === 'pack'
             ? 0.18 + 0.18 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.2)) // 狼群：淡金慢闪
-            : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6))); // 护盾 ~0.8Hz
+            : 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * Math.PI * 1.6))); // 护盾/新词缀 ~0.8Hz
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = Math.min(1, pulse + (e.flash > 0 ? 0.4 : 0));
         ctx.strokeStyle = affixColor;

@@ -252,7 +252,7 @@ export class UIManager {
     const g = this.game;
     if (!this.threatNameEl) return;
     const tl = g.refreshThreat();
-    const tier = threatTier(tl);
+    const tier = threatTier(tl, this.game.difficulty?.id);
     this.threatNameEl.textContent = tier.name;
     this.threatNameEl.style.color = tier.color;
     this.threatNumEl.textContent = `TL ${tl}  (自动 ${g.threatAuto}${g.threatWager >= 0 ? ' +' : ' '}${g.threatWager})`;
@@ -275,7 +275,7 @@ export class UIManager {
     if (!this.threatBadgeEl) return;
     const tl = this.game.threatLevel || 0;
     if (tl <= 0) { this.threatBadgeEl.classList.add('hidden'); return; }
-    const tier = threatTier(tl);
+    const tier = threatTier(tl, this.game.difficulty?.id);
     this.threatBadgeEl.classList.remove('hidden');
     this.threatBadgeEl.style.setProperty('--tl-color', tier.color);
     this.threatTierEl.textContent = tier.name;

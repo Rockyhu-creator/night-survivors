@@ -225,7 +225,8 @@ export class Game {
   // 避免 wager 成为主导策略（§8.5 红线）。下调 TL 时同比例衰减，天然满足"按 实际TL/满TL 衰减"。
   threatSoulMul() { return 1 + TL_SOUL_MUL_PER_LEVEL * this.threatLevel; }
   threatExpMul() { return 1 + TL_EXP_MUL_PER_LEVEL * this.threatLevel; }
-  threatTierName() { return threatTier(this.threatLevel).name; }
+  // v4.0 P2 尾：难度感知（design §1.2「终焉 仅 hard 可达」）；normal/easy 即使 TL 拉满也只到 永夜
+  threatTierName() { return threatTier(this.threatLevel, this.difficulty?.id).name; }
 
   // 选择血裔（仅在已解锁时生效）。返回是否成功
   setBloodline(id) {
