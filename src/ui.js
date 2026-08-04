@@ -838,7 +838,7 @@ export class UIManager {
         }
         const desc = document.createElement('p');
         desc.className = 'cc-hint';
-        desc.textContent = isAffix ? (t.lore || '') : (info.desc || '');
+        desc.textContent = isAffix ? (t.lore || '') : (typeof info === 'string' ? info : (info.desc || ''));
         card.append(img, name, stats, desc);
         grid.appendChild(card);
       }

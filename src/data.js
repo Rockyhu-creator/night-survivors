@@ -119,30 +119,30 @@ export const DAMAGE_MIN       = 1;     // 防御减免后的保底伤害
 
 export const ENEMY_TYPES = {
   bat: {
-    name: '夜行蝙蝠', sprite: 'bat', hp: 12, speed: 95, damage: 8, exp: 1,
+    id: 'bat', name: '夜行蝙蝠', sprite: 'bat', hp: 12, speed: 95, damage: 8, exp: 1,
     radius: 12, spriteSize: 34, knockResist: 0, unlockAt: 0, weight: 3,
   },
   skeleton: {
-    name: '骷髅', sprite: 'skeleton', hp: 34, speed: 52, damage: 14, exp: 2,
+    id: 'skeleton', name: '骷髅', sprite: 'skeleton', hp: 34, speed: 52, damage: 14, exp: 2,
     radius: 14, spriteSize: 42, knockResist: 0.3, unlockAt: 45, weight: 2,
   },
   slime: {
-    name: '史莱姆', sprite: 'slime', hp: 90, speed: 30, damage: 20, exp: 5,
+    id: 'slime', name: '史莱姆', sprite: 'slime', hp: 90, speed: 30, damage: 20, exp: 5,
     radius: 18, spriteSize: 54, knockResist: 0.7, unlockAt: 120, weight: 1,
   },
   elite: {
-    name: '精英', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
+    id: 'elite', name: '精英', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
     radius: 26, spriteSize: 96, knockResist: 0.95, unlockAt: 180, weight: 0,
   },
   // 后期新怪（永夜阶段解锁）
   shadow_hunter: {
-    name: '暗影猎手', sprite: 'shadow_hunter', hp: 120, speed: 80, damage: 25, exp: 8,
+    id: 'shadow_hunter', name: '暗影猎手', sprite: 'shadow_hunter', hp: 120, speed: 80, damage: 25, exp: 8,
     radius: 14, spriteSize: 40, knockResist: 0.2, unlockAt: 540, weight: 2,
     // 行为：进入 250px 后蓄力 dashCharge 秒，再以 dashSpeed×速度冲刺
     dashRange: 250, dashCharge: 0.5, dashSpeed: 3,
   },
   gargoyle: {
-    name: '石像鬼', sprite: 'gargoyle', hp: 500, speed: 20, damage: 22, exp: 15,
+    id: 'gargoyle', name: '石像鬼', sprite: 'gargoyle', hp: 500, speed: 20, damage: 22, exp: 15,
     radius: 26, spriteSize: 96, knockResist: 1.0, unlockAt: 600, weight: 1,
     immuneKnockback: true,
   },

@@ -479,40 +479,15 @@ export class EnemyManager {
       const dx = player.x - e.x;
       const dy = player.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
+      // 行为分发表（P0 抽象）：Boss 冲锋(dash 技能)独立于敌人类型行为，先拦截；
+      // 其余敌人走 behaviors[e.type.id]，未注册则 defaultChase（同质寻路）。运行时行为逐字节等价。
       if (e.isBoss && e.dashing > 0) {
         e.x += e.dashVx * dt;
         e.y += e.dashVy * dt;
         e.dashing -= dt;
-      } else if (e.dashState === 'dashing') {
-        // 暗影猎手冲刺中：高速直线冲
-        e.x += e.dashVx * dt;
-        e.y += e.dashVy * dt;
-        e.dashTimer -= dt;
-        if (e.dashTimer <= 0) e.dashState = 'idle';
-      } else if (e.dashState === 'charging') {
-        // 蓄力中：原地不动
-        e.dashTimer -= dt;
-        if (e.dashTimer <= 0) {
-          e.dashState = 'dashing';
-          e.dashTimer = 0.35;
-          e.dashVx = (dx / dist) * e.speed * e.dashSpeed;
-          e.dashVy = (dy / dist) * e.speed * e.dashSpeed;
-        }
       } else {
-        // 暗影猎手：进入射程后开始蓄力
-        if (e.type.dashSpeed && dist < e.type.dashRange && dist > 1) {
-          e.dashState = 'charging';
-          e.dashTimer = e.type.dashCharge;
-        }
-        if (e.stunTimer > 0) {
-          e.stunTimer -= dt;
-          e.x += e.kx * dt;
-          e.y += e.ky * dt;
-        } else {
-          const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
-          e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
-          e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
-        }
+        const beh = behaviors[e.type.id] || defaultChase;
+        beh(e, dt, this, { dx, dy, dist });
       }
       if (e.isBoss) {
         const cdMul = this.game.difficulty.bossSkillCdMul || 1;
@@ -905,4 +880,82 @@ export class EnemyManager {
       e.burnTimer = Math.max(e.burnTimer || 0, opts.duration || 0);
     }
   }
+}
+
+// ── 敌人行为分发表（P0 抽象重构）────────────────────────────────────────────
+// 设计：每个敌人类型的专属移动/行为抽到 behaviors[typeId](e, dt, mgr, ctx) 函数，
+// 主循环通过 `behaviors[e.type.id] || defaultChase` 分发。新增敌人行为（P2/P3 的
+// siren / void_stalker / blood_titan 等）只需调用 registerBehavior(typeId, fn)，
+// 无需再改 update() 大循环。
+//   ctx = { dx, dy, dist }：玩家相对方向（dist 已做 ||1 兜底），由主循环每敌算一次后传入，
+//     避免每个行为重复开方，且保证与重构前 dx/dy/dist 计算时机逐字节一致。
+//   mgr = EnemyManager 实例（行为内可访问网格/玩家等，留待后续系统行为使用）。
+const behaviors = {
+  // 未特例化类型：同质寻路（行为逐字节等价于重构前 update() 的 else 分支）
+  bat: defaultChase,
+  skeleton: defaultChase,
+  slime: defaultChase,
+  elite: defaultChase,
+  gargoyle: defaultChase,
+  // 暗影猎手：dashState 三态机，作为首个显式 behavior 模板
+  shadow_hunter: shadowHunterBehavior,
+};
+
+// 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
+// 等价于重构前 update() 主循环 else 分支；shadow_hunter 的 dashSpeed guard 对其余类型恒 false，
+// 仅为与原始分支逐字节一致而保留。
+function defaultChase(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  if (e.type.dashSpeed && dist < e.type.dashRange && dist > 1) {
+    e.dashState = 'charging';
+    e.dashTimer = e.type.dashCharge;
+  }
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt;
+    e.x += e.kx * dt;
+    e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+  }
+}
+
+// 暗影猎手：dashState 三态机（idle | charging | dashing），作为首个显式 behavior 模板。
+// 与重构前 update() 的对应分支逐字节等价。
+function shadowHunterBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  if (e.dashState === 'dashing') {
+    e.x += e.dashVx * dt;
+    e.y += e.dashVy * dt;
+    e.dashTimer -= dt;
+    if (e.dashTimer <= 0) e.dashState = 'idle';
+  } else if (e.dashState === 'charging') {
+    e.dashTimer -= dt;
+    if (e.dashTimer <= 0) {
+      e.dashState = 'dashing';
+      e.dashTimer = 0.35;
+      e.dashVx = (dx / dist) * e.speed * e.dashSpeed;
+      e.dashVy = (dy / dist) * e.speed * e.dashSpeed;
+    }
+  } else {
+    if (e.type.dashSpeed && dist < e.type.dashRange && dist > 1) {
+      e.dashState = 'charging';
+      e.dashTimer = e.type.dashCharge;
+    }
+    if (e.stunTimer > 0) {
+      e.stunTimer -= dt;
+      e.x += e.kx * dt;
+      e.y += e.ky * dt;
+    } else {
+      const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+      e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+      e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+    }
+  }
+}
+
+// 注册入口：供后续内容切片（P2/P3）挂载行为，无需再改 update() 大循环。
+export function registerBehavior(typeId, fn) {
+  behaviors[typeId] = fn;
 }
