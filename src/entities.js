@@ -152,7 +152,7 @@ export class Player {
     }
     this.hp -= dmg;
     this.lastHitTime = this.game ? this.game.time : 0;  // 持续打断回盾计时（设计意图）
-    if (this.game) this.game.tookDamage = true;
+    if (dmg > 0 && this.game) this.game.tookDamage = true;
     return dmg;  // 实际扣血量（护盾吸收后）
   }
 

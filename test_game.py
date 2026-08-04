@@ -188,7 +188,16 @@ with sync_playwright() as p:
     summon65 = page.evaluate("() => { const b = window.__game.enemies.activeBoss; return !!(b && b.skillRuntime[0] && b.skillRuntime[0].triggered); }")
     expect('65%血 召唤蝙蝠', summon65)
 
-    # 打到 35% 触发弹幕（重置技能运行时 + 钉 0.35；校验 Boss 弹幕已生成。弹幕为独立投射物，即使 Boss 阵亡仍存续，比净数稳健）
+    # 打到 35% 触发弹幕（重置技能运行时 + 钉 0.35；校验 Boss 弹幕「曾经」生成过）
+    # 页面内峰值采样器：弹幕撞到玩家会被 splice 清空，瞬时采样可能整段错过；
+    # 故在页面内以 16ms 轮询记录历史峰值，断言看峰值而非「此刻是否还在飞」。
+    page.evaluate("""() => {
+      window.__projPeak = 0;
+      window.__projWatch = setInterval(() => {
+        const n = window.__game.enemies.enemyProjectiles.length;
+        if (n > window.__projPeak) window.__projPeak = n;
+      }, 16);
+    }""")
     page.evaluate("""() => {
       const b = window.__game.enemies.activeBoss;
       if (b) {
@@ -196,9 +205,13 @@ with sync_playwright() as p:
         b.hp = b.maxHp * 0.35;
       }
     }""")
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(2000)
     dismiss_upgrades(page)
-    expect('35%血 扇形弹幕', page.evaluate("() => window.__game.enemies.enemyProjectiles.length > 0"))
+    projectile_seen = page.evaluate("""() => {
+      clearInterval(window.__projWatch);
+      return window.__projPeak > 0;
+    }""")
+    expect('35%血 扇形弹幕', projectile_seen)
     page.screenshot(path='/tmp/e2e_boss_fight.png')
 
     # 击杀 Boss → 强化宝箱
