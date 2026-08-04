@@ -581,6 +581,9 @@ export class Game {
     }
 
     this.renderDecals(ctx, cam);
+    // v4.0 P3a-S 地面危害区：层级必须夹在贴花之上、拾取物之下 ——
+    // 放到 pickups 之后会盖住宝箱与经验宝石（半透明填充仍会明显压暗）。
+    this.enemies.renderHazards(ctx, cam);
     this.pickups.render(ctx, cam);
     this.weapons.render(ctx, cam);
     this.enemies.render(ctx, cam);

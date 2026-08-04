@@ -199,6 +199,14 @@ export class EnemyManager {
     this.bossSpawned = new Set();
     this.activeBoss = null;
     this.enemyProjectiles = [];
+    // v4.0 P3a-S 地面危害池（毒径 / 减速网 / 伤害光环共用的公共通道）。
+    // 条目形状：{ x, y, radius, life, dps, slowMul, slowDur, color, tickTimer }
+    //   life     剩余存活秒数，<=0 移除
+    //   dps      每秒伤害（按 0.5s tick 结算，每 tick 扣 dps*0.5）
+    //   slowMul  减速乘区（<1 生效；=1 表示不减速）
+    //   slowDur  单次 tick 施加给玩家的减速持续秒数
+    //   tickTimer 结算累加器，满 0.5s 结一次（见 update() 末尾循环的硬约束注释）
+    this.hazards = [];
     // v4.0 P2 Boss 串行化：同一时刻仅一只 Boss。当前 Boss 存活时到点的下一只入队，
     // 待其死亡后延迟 15s（bossReleasableAt）再释放队首。
     this.pendingBosses = [];
@@ -212,6 +220,7 @@ export class EnemyManager {
     this.bossSpawned = new Set();
     this.activeBoss = null;
     this.enemyProjectiles = [];
+    this.hazards = [];
     this.pendingBosses = [];
     this.bossReleasableAt = 0;
   }
@@ -284,6 +293,18 @@ export class EnemyManager {
     else if (side === 1) { x = cam.ox + w + margin; y = cam.oy + Math.random() * h; }
     else if (side === 2) { x = cam.ox + Math.random() * w; y = cam.oy - margin; }
     else { x = cam.ox + Math.random() * w; y = cam.oy + h + margin; }
+    // v4.0 P3a-S 成簇生成：type.groupSize > 1 时在基准点附近小范围散开刷 N 只。
+    // 缺省（无 groupSize / <=1）走原单只路径，行为逐位不变。
+    // ENEMY_CAP 门控在循环条件里 —— 超上限就少生成，绝不排队（排队会在解除拥堵瞬间雪崩）。
+    const group = type.groupSize | 0;
+    if (group > 1) {
+      for (let i = 0; i < group && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
+        const ox = (Math.random() * 2 - 1) * 28;
+        const oy = (Math.random() * 2 - 1) * 28;
+        this.enemies.push(this.createEnemy(type, scale, x + ox, y + oy, affix));
+      }
+      return;
+    }
     this.enemies.push(this.createEnemy(type, scale, x, y, affix));
   }
 
@@ -467,6 +488,73 @@ export class EnemyManager {
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
         damage, life: 4, radius: 5,
       });
+    }
+  }
+
+  // v4.0 P3a-S 环形弹幕：360° 均匀分布，供后续需要全向压制的单位使用。
+  // 【为何不复用 _fireBarrageWave】上面那个是朝玩家的 ±40° 扇形（spread=40°），
+  //   直接复用会得到错的形状。此处角度按 (i/count)*2π 均匀铺满整圈，与玩家位置无关。
+  // offset 用于多波之间错开相位（默认 0），避免连发时弹丸完全重叠成一条线。
+  // 弹丸对象结构与 _fireBarrageWave 完全一致，共用同一个 enemyProjectiles 池与上限保护。
+  _fireRadialWave(e, count, speed, damage, offset = 0) {
+    if (!(count > 0)) return;
+    // 数量上限保护：超限先丢弃最旧弹幕（与 _fireBarrageWave 同款 oldest-first 回收）
+    while (this.enemyProjectiles.length >= MAX_ENEMY_PROJECTILES) this.enemyProjectiles.shift();
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + offset;
+      this.enemyProjectiles.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        damage, life: 4, radius: 5,
+      });
+    }
+  }
+
+  // v4.0 P3a-S 地面危害区生成入口。统一在这里做上限回收，调用方不必各自处理。
+  // 上限用 oldest-first 丢弃（与弹幕池同款），保证最新生成的危害区一定可见——
+  // 若改成「满了就不生成」，玩家会看到怪死了却没留下毒池，观感像 bug。
+  spawnHazard(x, y, radius, life, opts = {}) {
+    while (this.hazards.length >= CONFIG.HAZARD_CAP) this.hazards.shift();
+    this.hazards.push({
+      x, y, radius, life,
+      dps: opts.dps || 0,
+      slowMul: opts.slowMul != null ? opts.slowMul : 1,
+      slowDur: opts.slowDur || 0,
+      color: opts.color || '#7dcea0',
+      tickTimer: 0,
+    });
+  }
+
+  // v4.0 P3a-S 通用死亡钩子分发。e.type.onDeath 形状：{ type: 'split'|'blast'|'hazard', ... }
+  //   split : { count, enemyType?, speedMul? }  死亡分裂出小怪（缺省沿用死者自身类型）
+  //   blast : { radius, damage, color? }        死亡爆炸（伤害玩家 + 冲击波特效）
+  //   hazard: { radius, life, dps, slowMul, slowDur, color }  死亡留下地面危害区
+  // 【本刀为休眠代码】没有任何 ENEMY_TYPES 条目声明 onDeath，行为逐位不变。
+  _runOnDeath(e, player) {
+    const od = e.type && e.type.onDeath;
+    if (!od) return;
+    if (od.type === 'split') {
+      const type = od.enemyType ? ENEMY_TYPES[od.enemyType] : e.type;
+      if (!type) return;
+      const scale = this.statScale(false);
+      const count = od.count | 0;
+      // 【ENEMY_CAP 硬门控】现有 bossSummon()/词缀分裂都漏了这个检查（既有隐患），
+      //   新代码不把坑扩大：超上限就少生成或不生成，绝不排队。
+      for (let i = 0; i < count && this.enemies.length < CONFIG.ENEMY_CAP; i += 1) {
+        const angle = (i / Math.max(1, count)) * Math.PI * 2 + Math.random() * 0.6;
+        const dist = 24 + Math.random() * 12;
+        this.enemies.push(this.createEnemy(
+          type, scale, e.x + Math.cos(angle) * dist, e.y + Math.sin(angle) * dist,
+        ));
+      }
+    } else if (od.type === 'blast') {
+      const r = od.radius || 0;
+      const bd = Math.hypot(player.x - e.x, player.y - e.y);
+      if (bd < r && player.takeDamage(od.damage || 0)) this.game.onPlayerHit();
+      // 特效无条件播放（与 volatile 词缀同口径：玩家在范围外也要看到爆炸）
+      this.game.fx.spawnExplosion(e.x, e.y, r, od.color || '#ff7a33');
+    } else if (od.type === 'hazard') {
+      this.spawnHazard(e.x, e.y, od.radius || 0, od.life || 0, od);
     }
   }
 
@@ -688,6 +776,11 @@ export class EnemyManager {
           // 爆破死亡特效：范围冲击波 + 火花（无论玩家是否在范围内都播放）
           this.game.fx.spawnExplosion(e.x, e.y, AFFIXES.volatile.blastRadius, '#ff7a33');
         }
+        // v4.0 P3a-S 通用死亡钩子 onDeath（split / blast / hazard 三型）。
+        // 【位置约束】必须留在这个反向索引循环【内部】—— 循环正对 this.enemies 做 splice，
+        //   提到循环外处理会导致索引错乱。这里紧邻 volatile 分支，同属死亡清理块。
+        // 本刀之后没有任何 ENEMY_TYPES 条目声明 onDeath，故这整段是休眠代码。
+        this._runOnDeath(e, player);
         this.game.onEnemyKilled(e);
         if (e.isBoss) {
           if (this.activeBoss === e) this.activeBoss = null;
@@ -728,6 +821,33 @@ export class EnemyManager {
       }
       if (p.life <= 0 || d2 > 800 * 800) {
         this.enemyProjectiles.splice(i, 1);
+      }
+    }
+
+    // v4.0 P3a-S 地面危害池结算（毒径 / 减速网 / 伤害光环共用）
+    // 【0.5s tick 是硬约束，禁止改成逐帧】takeDamageOverTime() 内部每次结算固定减一次 armor，
+    //   逐帧调用会把减伤放大 ~60×：高护甲玩家完全免疫毒池、低护甲玩家瞬秒。
+    //   0.5s 同时与 iframes 时长对齐，口径统一（见 Player.takeDamageOverTime 注释）。
+    const HAZARD_TICK = 0.5;
+    for (let i = this.hazards.length - 1; i >= 0; i -= 1) {
+      const hz = this.hazards[i];
+      hz.life -= dt;
+      if (hz.life <= 0) { this.hazards.splice(i, 1); continue; }
+      hz.tickTimer += dt;
+      if (hz.tickTimer < HAZARD_TICK) continue;
+      hz.tickTimer -= HAZARD_TICK;
+      // 平方距离比较，省一次开方（与上面弹幕循环同款）
+      const dxH = player.x - hz.x, dyH = player.y - hz.y;
+      const touchR = hz.radius + player.radius;
+      if (dxH * dxH + dyH * dyH > touchR * touchR) continue;
+      if (hz.dps > 0) {
+        const dealt = this.game.player.takeDamageOverTime(hz.dps * HAZARD_TICK);
+        if (dealt > 0) this.game.fx.spawnDamageNumber(player.x, player.y - 20, `${Math.round(dealt)}`, hz.color);
+      }
+      if (hz.slowMul < 1) {
+        // 取更强者 + 时长取较大者，与 applyDebuff('slow') 对敌人的口径一致
+        player.slowMul = Math.min(player.slowMul != null ? player.slowMul : 1, hz.slowMul);
+        player.slowTimer = Math.max(player.slowTimer || 0, hz.slowDur || 0);
       }
     }
   }
@@ -789,10 +909,43 @@ export class EnemyManager {
     let best = null;
     let bestD = maxDist;
     for (const e of this.enemies) {
+      // v4.0 P3a-S：untargetable 单位（如后续的潜行态单位）不进自动索敌。
+      // 放在循环第一行是为了顺带跳过 Math.hypot —— 本函数是 O(n) 全表扫描，
+      // 每把自动瞄准武器每次开火都调一次，属热路径。
+      if (e.untargetable) continue;
       const d = Math.hypot(e.x - x, e.y - y);
       if (d < bestD) { bestD = d; best = e; }
     }
     return best;
+  }
+
+  // v4.0 P3a-S 地面危害区渲染：半透明填充 + 描边。
+  // 【禁用 canvas 阴影模糊】项目既有禁令（离屏模糊 pass 成本极高，审计 R1）。
+  //   本文件对该属性保持零命中，护栏靠 grep 字面量巡检，故此处连注释都不写出那个属性名。
+  // 绘制层级由 game.js 决定：贴花之上、拾取物之下（否则会盖住宝箱与经验宝石）。
+  renderHazards(ctx, cam) {
+    if (this.hazards.length === 0) return;
+    ctx.save();
+    for (const hz of this.hazards) {
+      const sx = hz.x - cam.ox;
+      const sy = hz.y - cam.oy;
+      // 屏外剔除：margin 取自身半径，形式抄敌人渲染那行
+      const m = hz.radius + 8;
+      if (sx < -m || sy < -m || sx > CONFIG.LOGICAL_WIDTH + m || sy > CONFIG.LOGICAL_HEIGHT + m) continue;
+      // 将熄时淡出，避免到期瞬间硬切（life<1s 起线性衰减）
+      const fade = Math.min(1, Math.max(0, hz.life));
+      ctx.globalAlpha = 0.22 * fade;
+      ctx.fillStyle = hz.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, hz.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.strokeStyle = hz.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   render(ctx, cam) {
@@ -937,7 +1090,31 @@ export class EnemyManager {
 
   damageEnemy(e, rawDamage, knockX = 0, knockY = 0) {
     // 护盾词缀：受到的伤害 ×dmgTakenMul（完整正背面减伤留 PLACEHOLDER，先用全时减伤）
-    const dmg = rawDamage * (e.dmgTakenMul || 1);
+    let dmg = rawDamage * (e.dmgTakenMul || 1);
+    // v4.0 P3a-S 正面装甲（design rulings §1.6 统一规则）：
+    //   「仅非零 knock 的【有方向直伤】受正面护甲；零向量 / 范围伤害 / DOT 一律全额。」
+    //   这条规则让「AoE 与领域类武器天然无视正面护甲」自动成立，无需逐武器打补丁
+    //   （12 个传 (0,0) 的调用点 + 3 条绕过 hitEnemy 的 DOT 全部自动全额）。
+    // 【必须点积，禁止 atan2】本方法是超热路径（每次命中都调），三角函数开销不可接受。
+    //   knockX/knockY 传入时已归一化，直接与朝向单位向量点积即可。
+    //   dot < arcCos ⇒ 攻击来向与朝向夹角落在正面扇区内（如 arcCos=-0.5 ⇒ 正面 120°）。
+    // 【两道守卫，缺一不可】
+    //   ① 零向量：knock 全零时不做判定（否则 dot 恒 0，会把范围伤害误判进扇区）。
+    //   ② 朝向缺失：e.facingX/facingY 目前【没有任何代码设置】（后续单元的事），
+    //      undefined 参与运算得 NaN，而 NaN 比较恒 false 会静默吞掉伤害——故缺 facing 时也走全额。
+    // ⚠️【休眠靠的是守卫②，不是"没有数据"】与直觉相反：frontalArmor 配置【今天就已存在】——
+    //   P2 已给 ENEMY_TYPES.bone_knight 声明 { arcCos: -0.5, mul: 0.30 }，
+    //   也给 AFFIXES.bulwark 声明 { arcCos: -0.34, mul: 0.25 }（二者被 affixBan 互斥，不会叠加）。
+    //   所以本段是否生效【完全取决于 facing 是否存在】。后续单元一旦给敌人写 facingX/facingY，
+    //   骸骨骑士与壁垒词缀怪会【当场获得正面减伤】——那是预期中的 P3 玩法，但必须显式申报，
+    //   不能当成加 facing 的副作用悄悄发生。改动 facing 的单元请务必连带跑一次伤害基线。
+    if (knockX !== 0 || knockY !== 0) {
+      const fa = (e.type && e.type.frontalArmor) || (e.affixDef && e.affixDef.frontalArmor);
+      if (fa && typeof e.facingX === 'number' && typeof e.facingY === 'number') {
+        const dot = knockX * e.facingX + knockY * e.facingY;
+        if (dot < fa.arcCos) dmg *= fa.mul;
+      }
+    }
     e.hp -= dmg;
     // 白闪冷却门控：仅在冷却结束后才重新点亮，避免持续受击时白闪常驻满格把精灵糊成白色
     if ((e.flashCd || 0) <= 0) {

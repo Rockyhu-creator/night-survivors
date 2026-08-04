@@ -20,6 +20,7 @@ export const CONFIG = {
   MAX_ORBS: 8,           // 环绕法球（warden/sentinel，≤ RL5 建议）
   MAX_SHOCKWAVES: 12,    // 扩张波（maul/cataclysm，常态 1）
   MAX_RUNES: 24,         // 符文陷阱（resolve/absolution，对齐 thunderRunes=24）
+  HAZARD_CAP: 40,        // v4.0 P3a-S 地面危害池（毒径/减速网/伤害光环共用；oldest-first 回收）
   SPLIT_CAP_PER_HIT: 6,  // 分裂弹单次命中迸射碎片封顶（防 pierce 高时爆桶）
   ORBIT_OMEGA: 1.2,      // 法球公转角速度（rad/s）[需真机校准]
 };
