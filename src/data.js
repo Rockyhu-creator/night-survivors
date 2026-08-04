@@ -97,6 +97,8 @@ export const DIFFICULTIES = {
     // TL 缩放系数（easy 最低，保护新手）[待真机校准]
     tlHpK: 0.04, tlDmgK: 0.025, tlSpawnK: 0.015, tlNightK: 0.005,
     tlMax: 6, wagerMax: 3,
+    // v4.0 P3 精英节奏（design §2 难度表）[消费方待实现：精英刷新规则单元]
+    eliteGapBase: 125, eliteGapMin: 50, maxAliveElites: 2,
   },
   normal: {
     id: 'normal', name: '狩猎者', desc: '标准难度,挑战与乐趣并存',
@@ -108,6 +110,8 @@ export const DIFFICULTIES = {
     // TL 缩放系数 [待真机校准]：TL=10 → hpSlope 0.448 / dmgSlope 0.21 / spawnMul 0.925 / nightBase 1.25
     tlHpK: 0.06, tlDmgK: 0.04, tlSpawnK: 0.025, tlNightK: 0.008,
     tlMax: 10, wagerMax: 5,
+    // v4.0 P3 精英节奏（design §2 难度表）[消费方待实现：精英刷新规则单元]
+    eliteGapBase: 105, eliteGapMin: 38, maxAliveElites: 3,
   },
   hard: {
     id: 'hard', name: '永夜', desc: '敌人凶猛,怪潮汹涌,仅限高手',
@@ -120,6 +124,8 @@ export const DIFFICULTIES = {
     // TL 缩放系数（最高档）[待真机校准]
     tlHpK: 0.075, tlDmgK: 0.05, tlSpawnK: 0.035, tlNightK: 0.010,
     tlMax: 12, wagerMax: 5,
+    // v4.0 P3 精英节奏（design §2 难度表）[消费方待实现：精英刷新规则单元]
+    eliteGapBase: 92, eliteGapMin: 32, maxAliveElites: 4,
   },
 };
 
@@ -207,8 +213,39 @@ export const ENEMY_TYPES = {
     radius: 18, spriteSize: 54, knockResist: 0.7, unlockAt: 120, weight: 1, lateWeight: 2,
   },
   elite: {
-    id: 'elite', name: '精英', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
-    radius: 26, spriteSize: 96, knockResist: 0.95, unlockAt: 180, weight: 0,
+    id: 'elite', name: '血狱典狱长', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
+    radius: 26, spriteSize: 96, knockResist: 0.95, unlockAt: 150, weight: 0,
+    isElite: true, eliteWeight: 3, eliteColor: '#d4af37',
+  },
+  // ---------- v4.0 P3 新精英（纯数据层；刷新规则与差异化行为留后续单元）----------
+  // 判定口径：「是不是精英」一律读 e.type.isElite（数据层），【绝不写实例 e.isElite】——
+  //   weapons.js:_retributionAwaken 有个 `e.isBoss || e.isElite` 的死分支，实例上一写就会
+  //   静默激活它（精英从「残血秒杀」变成「扣 15% 最大生命」），构成未申报的既有玩法变更。
+  // weight 必须为 0：>0 会被 pickType() 当普通杂兵抽到，精英直接沦为路边怪。
+  //   精英之间的相对权重走独立的 eliteWeight 字段，由后续刷新器消费。
+  // sprite 是【复用键】不是同名 PNG：文生图管线降级中，硬约束禁止新增 PNG，
+  //   故 掠夺者→shadow_hunter（同为冲刺型）、导体→elite（同源，靠光环紫色区分）、
+  //   巨像→gargoyle（同为免疫击退的石质肉盾）。精灵键写错会静默降级成紫色实心圆
+  //   （不抛异常不打日志），故 test_game.py 有一条全量资产存在性断言兜底。
+  // eliteColor 由渲染层的脉动光环消费——elite_conduit 与 elite 共用同一张图，
+  //   光环色是玩家区分二者的唯一手段。
+  // 本单元【不声明任何机制字段】（onLowHp/dashRange/barrage/allyBuff/frontalArmor 等）：
+  //   声明了没人读的字段比不声明更糟（P2 的 lateWeight 前车之鉴）。
+  //   immuneKnockback 是例外——现有代码已支持（gargoyle 在用）。
+  elite_reaver: {
+    id: 'elite_reaver', name: '裂魂掠夺者', sprite: 'shadow_hunter', hp: 520, speed: 72, damage: 38, exp: 45,
+    radius: 22, spriteSize: 84, knockResist: 0.85, unlockAt: 240, weight: 0,
+    isElite: true, eliteWeight: 3, eliteColor: '#e74c3c',
+  },
+  elite_conduit: {
+    id: 'elite_conduit', name: '永夜导体', sprite: 'elite', hp: 700, speed: 30, damage: 30, exp: 55,
+    radius: 24, spriteSize: 90, knockResist: 0.90, unlockAt: 380, weight: 0,
+    isElite: true, eliteWeight: 2, eliteColor: '#8e44ad',
+  },
+  elite_colossus: {
+    id: 'elite_colossus', name: '腐骸巨像', sprite: 'gargoyle', hp: 1400, speed: 16, damage: 48, exp: 80,
+    radius: 34, spriteSize: 118, knockResist: 1.0, unlockAt: 500, weight: 0,
+    isElite: true, eliteWeight: 2, eliteColor: '#6b8e23', immuneKnockback: true,
   },
   // 后期新怪（永夜阶段解锁）
   shadow_hunter: {

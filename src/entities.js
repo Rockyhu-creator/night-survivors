@@ -694,14 +694,14 @@ export class EnemyManager {
           // v4.0 P2 Boss 串行化：当前 Boss 死亡 → 15s 后释放排队的下一只要
           this.bossReleasableAt = this.game.time + 15;
           this.game.onBossKilled?.(e);
-        } else if (e.type === ENEMY_TYPES.elite) {
+        } else if (e.type.isElite) {
           this.game.pickups.dropChest(e.x, e.y);
         }
         this.enemies.splice(i, 1);
         continue;
       }
       const far = Math.hypot(e.x - player.x, e.y - player.y);
-      if (far > RECYCLE_RADIUS && e.type !== ENEMY_TYPES.elite && !e.isBoss) {
+      if (far > RECYCLE_RADIUS && !e.type.isElite && !e.isBoss) {
         // 传送到玩家前方视野边缘,避免白走
         const angle = Math.random() * Math.PI * 2;
         e.x = player.x + Math.cos(angle) * (CONFIG.LOGICAL_WIDTH / 2 + 80);
@@ -826,7 +826,7 @@ export class EnemyManager {
           ctx.scale(1 / Math.sqrt(sq), sq);
         } else if (e.type === ENEMY_TYPES.skeleton) {
           ctx.rotate(Math.sin(t * 4 + ph) * 0.06);
-        } else if (e.type === ENEMY_TYPES.elite || e.isBoss) {
+        } else if (e.type.isElite || e.isBoss) {
           ctx.scale(1, 1 + Math.sin(t * 5 + ph) * 0.03);
         } else if (e.type === ENEMY_TYPES.bat) {
           ctx.scale(1 + Math.sin(t * 18 + ph) * 0.14, 1 + Math.cos(t * 18 + ph) * 0.08);
@@ -877,11 +877,14 @@ export class EnemyManager {
         ctx.globalCompositeOperation = 'source-over';
       }
       // P2：精英脉动光环（高威胁信号，不重画主体）
-      if (e.type === ENEMY_TYPES.elite) {
+      // v4.0 P3：判定改读数据层 e.type.isElite；光环色参数化为 e.type.eliteColor
+      //   —— elite_conduit 与 elite 共用同一张精灵图，光环色是玩家区分二者的唯一手段。
+      //   `|| '#d4af37'` 兜底保证任何漏填 eliteColor 的类型行为不变。
+      if (e.type.isElite) {
         const pulse = 0.2 + 0.2 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2));
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = pulse;
-        ctx.strokeStyle = '#d4af37';
+        ctx.strokeStyle = e.type.eliteColor || '#d4af37';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, 0, e.radius * 1.15, e.radius * 1.15, 0, 0, Math.PI * 2);

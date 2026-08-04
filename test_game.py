@@ -610,6 +610,11 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     expect('怪物图鉴 含 Boss 分组与卡片', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('血色男爵')"))
     expect('怪物图鉴 含石像鬼', page.evaluate("() => document.getElementById('codex-monsters').innerHTML.includes('石像鬼')"))
+    # v4.0 P3：精灵键写错会静默降级成紫色实心圆（不抛异常不打日志），故做全量资产存在性断言。
+    # 新精英 sprite 走复用键（shadow_hunter/elite/gargoyle），一旦有人按设计文档写成
+    # 不存在的 elite_reaver/elite_conduit/elite_colossus，这条会立刻报警。
+    expect('全部敌人精灵资产存在', page.evaluate(
+        "() => Object.values(window.__enemyTypes).every(t => !!window.__assets[t.sprite])"))
     # 永夜化身卡时间文案回归（ui.js 改用 t.id 匹配 avatar）：应显示「终局 12 分降临」而非「首现 1666分」
     expect('怪物图鉴 永夜化身卡显示「终局 12 分降临」', page.evaluate("""() => {
         const cards = [...document.querySelectorAll('#codex-monsters-content .codex-card')];
