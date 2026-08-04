@@ -56,12 +56,14 @@ export class Player {
     this.maxWeapons = CONFIG.MAX_WEAPONS;
     this.maxPassives = CONFIG.MAX_PASSIVES;
     this.iframes = 0;
+    this.slowTimer = 0;               // 减速 debuff 剩余时长（秒）；0 = 无减速（P3-0c）
+    this.slowMul = 1;                 // 减速乘区（<1 变慢）；到期复位为 1 防陈旧残留
     this.facing = 1;
     this.walkTime = 0;
     this.moving = false;
   }
 
-  get speed() { return this.baseSpeed * this.speedMul; }
+  get speed() { return this.baseSpeed * this.speedMul * (this.slowTimer > 0 ? this.slowMul : 1); }
   get magnetRange() { return this.baseMagnet * this.magnetMul; }
 
   // 暴击结算：返回 { damage, isCrit }。所有「对敌伤害」必须先经此函数（含 DOT 每 tick）。
@@ -84,6 +86,7 @@ export class Player {
       if (axis.x !== 0) this.facing = axis.x > 0 ? 1 : -1;
     }
     this.iframes = Math.max(0, this.iframes - dt);
+    if (this.slowTimer > 0) { this.slowTimer -= dt; if (this.slowTimer <= 0) this.slowMul = 1; }  // P3-0c：减速计时递减+到期复位，口径与敌人侧 L594 一致
     // 血色再生：持续回血（封顶 maxHp），死亡后不再回
     if (this.regenRate > 0 && this.hp > 0) {
       this.hp = Math.min(this.maxHp, this.hp + this.regenRate * dt);
@@ -129,6 +132,28 @@ export class Player {
     this.iframes = 0.5;
     if (navigator.vibrate) navigator.vibrate(50);
     return true;
+  }
+
+  // 持续伤害通道（毒池/灼烧等 DOT）。与 takeDamage() 减免链路逐项一致，但 deliberate 不碰 iframes/闪避/thorns/震动：
+  //  · 不读/不写 iframes —— 否则站在毒池里持续刷新无敌帧，「危险区」反而变「安全区」（审计 R5 必踩坑）
+  //  · 不触发闪避（DOT 不该被 dodge roll 拦）
+  //  · 无 source 参数 → 不触发 thorns 反伤
+  //  · 不调 navigator.vibrate（每 tick 震一次会吵死）
+  // 调用约定：调用方按 **0.5s tick** 调用，**禁止逐帧调用**——
+  //   armor 每次结算固定减一次，逐帧会把减伤放大 ~60×，高甲免毒、低甲瞬秒；0.5s 与 iframes 时长对齐，口径统一。
+  // 返回实际扣血量（护盾吸收后），便于调用方做伤害数字 FX。
+  takeDamageOverTime(amount) {
+    const nightDR = (this.game && this.game.time >= NIGHT_START) ? (1 - (this.nightDmgReduction || 0)) : 1;
+    let dmg = Math.max(DAMAGE_MIN, (amount - this.armor)) * (this.damageTakenMul || 1) * (this.absolutionDR || 1) * nightDR;
+    if (this.shield > 0) {
+      const absorbed = Math.min(this.shield, dmg);
+      this.shield -= absorbed;
+      dmg -= absorbed;
+    }
+    this.hp -= dmg;
+    this.lastHitTime = this.game ? this.game.time : 0;  // 持续打断回盾计时（设计意图）
+    if (this.game) this.game.tookDamage = true;
+    return dmg;  // 实际扣血量（护盾吸收后）
   }
 
   render(ctx, cam) {
@@ -889,18 +914,22 @@ export class EnemyManager {
         ctx.restore();
       }
     }
+    ctx.save();  // 弹幕批量绘制：save/restore 提到循环外（逐颗 save 纯浪费）
     for (const p of this.enemyProjectiles) {
       const sx = p.x - cam.ox;
       const sy = p.y - cam.oy;
-      ctx.save();
+      if (sx < -16 || sy < -16 || sx > CONFIG.LOGICAL_WIDTH + 16 || sy > CONFIG.LOGICAL_HEIGHT + 16) continue;  // 屏外剔除（margin 16，弹丸半径远小于敌人）
+      // 发光弹：双层 arc 替代辉光模糊（成本 ~1/20，保留辨识度，杜绝离屏模糊 pass，审计 R1）
+      ctx.fillStyle = 'rgba(255,107,107,0.35)';
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.radius * 1.8, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#e74c3c';
-      ctx.shadowColor = '#ff6b6b';
-      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(sx, sy, p.radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
     }
+    ctx.restore();
   }
 
   damageEnemy(e, rawDamage, knockX = 0, knockY = 0) {
