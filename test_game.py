@@ -173,6 +173,32 @@ with sync_playwright() as p:
     }""")
     expect('P3a-2 revenant 死亡分裂×2', p3a2['shards'] == 2)
     expect('P3a-2 siren 治疗友军(残血回血)', p3a2['healed'] is True)
+    # P3a-3 回归：plague_bearer 须有 trail 参数 + onDeath.hazard 死亡大池
+    p3a3_cfg = page.evaluate("""() => {
+      const pb = window.__enemyTypes.plague_bearer;
+      return {
+        trailOk: !!(pb && pb.trailCd && pb.trailRadius && pb.trailDps),
+        deathPool: !!(pb && pb.onDeath && pb.onDeath.type === 'hazard' && pb.onDeath.radius >= 60),
+      };
+    }""")
+    expect('P3a-3 plague_bearer 毒径参数齐备', p3a3_cfg['trailOk'] is True)
+    expect('P3a-3 plague_bearer 死亡大毒池声明', p3a3_cfg['deathPool'] is True)
+    # P3a-3 运行时：行走留毒径(hazards>0) + 死亡生成大毒池(radius>=60)
+    p3a3 = page.evaluate("""() => {
+      const g = window.__game; g.state = 'playing';
+      const scale = g.enemies.statScale(false);
+      g.enemies.hazards.length = 0;
+      const pb = g.enemies.createEnemy(window.__enemyTypes.plague_bearer, scale, 0, 0);
+      pb.speed = 0; // 钉住，毒径堆原地便于计数
+      g.enemies.enemies.push(pb);
+      for (let i = 0; i < 20; i += 1) g.enemies.update(0.1); // ~2s → 多个毒径
+      const trailCount = g.enemies.hazards.length;
+      pb.hp = 0; g.enemies.update(0.1); // 触发死亡大池
+      const deathPool = g.enemies.hazards.some(h => h.radius >= 60);
+      return { trailCount, deathPool };
+    }""")
+    expect('P3a-3 plague_bearer 行走留毒径(hazards>0)', p3a3['trailCount'] > 0)
+    expect('P3a-3 plague_bearer 死亡大毒池(radius>=60)', p3a3['deathPool'] is True)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')

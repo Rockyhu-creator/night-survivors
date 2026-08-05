@@ -287,6 +287,8 @@ export const ENEMY_TYPES = {
     id: 'plague_bearer', name: '疫病携带者', sprite: 'slime', hp: 150, speed: 34, damage: 18, exp: 8,
     radius: 16, spriteSize: 50, knockResist: 0.4, unlockAt: 260, weight: 1,
     trail: true, // P3：行走留毒径、死亡大池（hazards[] 池）
+    trailCd: 0.6, trailRadius: 26, trailLife: 3, trailDps: 8, trailColor: '#7dcea0', // P3a-3：毒径参数 [待真机校准]
+    onDeath: { type: 'hazard', radius: 60, life: 5, dps: 12, color: '#6fcf6f' }, // P3a-3：死亡大毒池
   },
   siren: {
     id: 'siren', name: '哀嚎女妖', sprite: 'skeleton', hp: 210, speed: 46, damage: 20, exp: 12,

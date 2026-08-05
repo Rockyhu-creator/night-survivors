@@ -1195,6 +1195,8 @@ const behaviors = {
   spitter: spitterBehavior,
   // 哀嚎女妖：同质追击 + 周期性治疗友军（P3a-2）
   siren: sirenBehavior,
+  // 疫病携带者：同质追击 + 周期性脚下留毒径（P3a-3）
+  plague_bearer: plagueBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
@@ -1308,5 +1310,25 @@ function sirenBehavior(e, dt, mgr, ctx) {
         if (healed >= max) break;
       }
     }
+  }
+}
+
+// 疫病携带者（P3a-3）：同质追击 + 周期性在脚下留毒径（hazards[] 池）。
+// 死亡大池由 data.js onDeath.hazard 钩子（P3a-S _runOnDeath）生成，无需行为代码。
+function plagueBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt; e.x += e.kx * dt; e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+  }
+  e.trailTimer = (e.trailTimer === undefined) ? (e.type.trailCd || 0.6) : e.trailTimer - dt;
+  if (e.trailTimer <= 0) {
+    e.trailTimer = e.type.trailCd || 0.6;
+    mgr.spawnHazard(e.x, e.y, e.type.trailRadius || 26, e.type.trailLife || 3, {
+      dps: e.type.trailDps || 8, color: e.type.trailColor || '#7dcea0',
+    });
   }
 }
