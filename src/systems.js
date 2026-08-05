@@ -264,6 +264,24 @@ export class FXSystem {
     });
   }
 
+  // v4.0 P3b-5b：侧/背命中全额伤害时的教学飘字（青色强调，引导绕背输出）。
+  // 仅命中「带正面装甲且朝向已设定」的敌人侧/背时触发，避免对无装甲目标刷屏。
+  spawnWeakFloat(x, y, amount) {
+    if (this._frameN >= 14) return;
+    this._frameN += 1;
+    if (this.numbers.length > 120) this.numbers.shift();
+    this.numbers.push({
+      x: x + (Math.random() * 2 - 1) * 8,
+      y,
+      text: String(amount),
+      color: '#5ef0ff',
+      isCrit: true,
+      weak: true,
+      life: 0.95,
+      vy: -72,
+    });
+  }
+
   spawnSparks(x, y, color, count) {
     // L2: 每帧至多 40 个粒子，配合下方硬上限避免单帧爆量
     count = Math.min(count, 40 - this._frameP);
@@ -356,7 +374,7 @@ export class FXSystem {
     ctx.textAlign = 'center';
     for (const n of this.numbers) {
       ctx.globalAlpha = Math.min(1, n.life * 3);
-      const label = n.isCrit ? `暴击 ${n.text}` : n.text;
+      const label = n.weak ? `背 ${n.text}` : (n.isCrit ? `暴击 ${n.text}` : n.text);
       ctx.font = n.isCrit ? 'bold 17px "Press Start 2P", monospace' : 'bold 13px "Press Start 2P", monospace';
       ctx.fillStyle = '#000';
       ctx.fillText(label, n.x - cam.ox + 1, n.y - cam.oy + 1);

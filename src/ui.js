@@ -291,6 +291,9 @@ export class UIManager {
     this.lootLabel = document.getElementById('loot-label');
     if (this.lootLabel) this.lootLabel.textContent = '宝箱';
     this._lootInset = 46; // 边缘箭头距屏幕边的内缩（CSS px）
+    // 精英指引（v4.0 P3b-5b）：屏外边缘箭头 + 屏内头顶血条的 DOM 池（惰性创建，按索引复用）
+    this.eliteBeaconsHost = document.getElementById('elite-beacons');
+    this._eliteSlots = [];
     this.spawnTitleBats();
     this.guideCloseBtn.addEventListener('click', () => { this.game.audio.uiClick(); this.hideGuide(); });
   }
@@ -435,6 +438,7 @@ export class UIManager {
     }
     this.updateBossBar();
     this.updateLootBeacon();
+    this.updateEliteBeacons();
   }
 
   // 战利品指引：每帧定位最近的未拾取宝箱，屏外给边缘方向箭头、屏内给精确脉冲环
@@ -502,6 +506,80 @@ export class UIManager {
 
   hideLootBeacon() {
     if (this.lootBeacon) this.lootBeacon.classList.add('hidden');
+  }
+
+  // 精英指引（v4.0 P3b-5b）：每帧为屏幕外精英生成紫色边缘箭头、为屏内精英生成头顶血条。
+  // 复用 loot-beacon 同款世界→屏幕坐标映射（除以 LOGICAL 尺寸，非 canvas.width，避免高分屏错位）。
+  updateEliteBeacons() {
+    const g = this.game;
+    if (g.state !== 'playing') {
+      if (this._eliteSlots) for (const s of this._eliteSlots) s.wrap.classList.add('hidden');
+      return;
+    }
+    const cam = g.camera, canvas = g.canvas;
+    if (!cam || !canvas || !this.eliteBeaconsHost) return;
+    const rect = canvas.getBoundingClientRect();
+    const sx = rect.width / CONFIG.LOGICAL_WIDTH, sy = rect.height / CONFIG.LOGICAL_HEIGHT;
+    const m = this._lootInset;
+    const left = rect.left + m, right = rect.right - m, top = rect.top + m, bottom = rect.bottom - m;
+    const elites = (g.enemies && g.enemies.enemies) ? g.enemies.enemies.filter((e) => e && e.type && e.type.isElite) : [];
+    const barList = [], arrowList = [];
+    elites.forEach((e, i) => {
+      let slot = this._eliteSlots[i];
+      if (!slot) { slot = this._makeEliteSlot(); this._eliteSlots[i] = slot; }
+      const cssX = rect.left + (e.x - cam.ox) * sx;
+      const cssY = rect.top + (e.y - cam.oy) * sy;
+      const onX = cssX >= left && cssX <= right;
+      const onY = cssY >= top && cssY <= bottom;
+      if (onX && onY) {
+        // 屏内：头顶血条
+        slot.arrow.classList.add('hidden');
+        slot.wrap.classList.remove('hidden');
+        slot.bar.classList.remove('hidden');
+        const ratio = Math.max(0, Math.min(1, e.hp / e.maxHp));
+        slot.fill.style.width = `${ratio * 100}%`;
+        slot.bar.style.left = `${cssX}px`;
+        slot.bar.style.top = `${cssY - 22}px`;
+        barList.push({ id: e.type.id, ratio });
+      } else {
+        // 屏外/贴边：边缘方向箭头
+        slot.bar.classList.add('hidden');
+        slot.wrap.classList.remove('hidden');
+        slot.arrow.classList.remove('hidden');
+        const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+        let dx = cssX - cx, dy = cssY - cy;
+        if (dx === 0 && dy === 0) dx = 0.001;
+        const sx2 = dx > 0 ? right - cx : cx - left;
+        const sy2 = dy > 0 ? bottom - cy : cy - top;
+        const t = Math.min(Math.abs(sx2 / dx), Math.abs(sy2 / dy));
+        const ax = cx + dx * t, ay = cy + dy * t;
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        slot.arrow.style.left = `${ax}px`;
+        slot.arrow.style.top = `${ay}px`;
+        slot.arrow.style.setProperty('--ea-rot', `${angle}deg`);
+        arrowList.push({ id: e.type.id });
+      }
+    });
+    for (let i = elites.length; i < this._eliteSlots.length; i += 1) this._eliteSlots[i].wrap.classList.add('hidden');
+    window.__hudDebug = { bars: barList, arrows: arrowList };
+  }
+
+  _makeEliteSlot() {
+    const wrap = document.createElement('div');
+    wrap.className = 'elite-beacon hidden';
+    const arrow = document.createElement('img');
+    arrow.className = 'elite-arrow';
+    arrow.src = '/assets/loot_arrow.png'; // 复用宝箱箭头资源，CSS 染紫区分
+    arrow.alt = '';
+    const bar = document.createElement('div');
+    bar.className = 'elite-hpbar';
+    const fill = document.createElement('div');
+    fill.className = 'elite-hpbar-fill';
+    bar.appendChild(fill);
+    wrap.appendChild(arrow);
+    wrap.appendChild(bar);
+    this.eliteBeaconsHost.appendChild(wrap);
+    return { wrap, arrow, bar, fill };
   }
 
   flashVignette() {

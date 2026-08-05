@@ -1117,6 +1117,55 @@ with sync_playwright() as p:
     expect('P3b-5a ≥100杀解锁T2(tier≥2)', bool(codex.get('hint100')) and codex['hint100']['tier'] >= 2)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ===== P3b-5b RED：游戏内 HUD（精英边缘箭头 / 头顶血条 / 侧背暴击飘字）=====
+    # 单 evaluate 原子注入 + 直接调 updateEliteBeacons + 读 __hudDebug，避免 rAF 干扰。
+    hud = page.evaluate("""() => {
+      const g = window.__game;
+      if (!g || !g.enemies || !g.ui) return {};
+      const ET = window.__enemyTypes;
+      const t = JSON.parse(JSON.stringify(ET['elite_colossus']));
+      const cam = g.camera || { ox: 0, oy: 0 };
+      const prevState = g.state;
+      g.state = 'playing';
+      try {
+        const cx = cam.ox + 640, cy = cam.oy + 360;
+        const onE = { type: t, isElite: true, hp: t.hp, maxHp: t.hp, radius: t.radius || 16, x: cx, y: cy, facingX: 1, facingY: 0, knockResist: 0 };
+        g.enemies.enemies = [ onE ];
+        if (typeof g.ui.updateEliteBeacons === 'function') g.ui.updateEliteBeacons();
+        else window.__hudDebug = { bars: [], arrows: [] };
+        const hd = window.__hudDebug || { bars: [], arrows: [] };
+        const onBar = hd.bars || [], onArrow = hd.arrows || [];
+        const fullRatio = onBar.length ? onBar[0].ratio : -1;
+        onE.hp = t.hp * 0.5;
+        if (typeof g.ui.updateEliteBeacons === 'function') g.ui.updateEliteBeacons();
+        const halfRatio = (window.__hudDebug && window.__hudDebug.bars && window.__hudDebug.bars.length) ? window.__hudDebug.bars[0].ratio : -1;
+        onE.x = cam.ox + 6000;
+        if (typeof g.ui.updateEliteBeacons === 'function') g.ui.updateEliteBeacons();
+        const offArrows = (window.__hudDebug && window.__hudDebug.arrows) ? window.__hudDebug.arrows : [];
+        const offBars = (window.__hudDebug && window.__hudDebug.bars) ? window.__hudDebug.bars : [];
+        // 侧背命中暴击级飘字：knock 同向 facing → dot>=arcCos → 全额侧背 → 触发 weak float
+        if (g.fx) { g.fx.numbers.length = 0; g.fx._frameN = 0; }
+        const we = { type: t, hp: t.hp, maxHp: t.hp, radius: t.radius || 16, x: 0, y: 0, facingX: 1, facingY: 0, knockResist: 0 };
+        g.enemies.damageEnemy(we, 100, 1, 0);
+        const weak = g.fx ? g.fx.numbers.some(n => n.weak === true) : false;
+        return {
+          onBarCount: onBar.length, onArrowCount: onArrow.length, fullRatio, halfRatio,
+          offArrowCount: offArrows.length, offBarCount: offBars.length, weak,
+        };
+      } finally {
+        g.state = prevState;
+        g.enemies.enemies = [];
+      }
+    }""")
+    expect('P3b-5b 屏内精英头顶血条可见', hud.get('onBarCount') == 1)
+    expect('P3b-5b 屏内精英不显示边缘箭头', hud.get('onArrowCount') == 0)
+    expect('P3b-5b 满血血条比例≈1', abs(hud.get('fullRatio') - 1) < 0.01)
+    expect('P3b-5b 半血血条比例≈0.5', abs(hud.get('halfRatio') - 0.5) < 0.05)
+    expect('P3b-5b 屏外精英显示边缘箭头', hud.get('offArrowCount') == 1)
+    expect('P3b-5b 屏外精英不显示血条', hud.get('offBarCount') == 0)
+    expect('P3b-5b 侧背命中触发暴击级飘字', hud.get('weak') is True)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

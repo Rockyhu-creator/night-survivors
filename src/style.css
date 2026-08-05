@@ -1163,6 +1163,57 @@ html, body {
   #loot-ring { animation: none; }
 }
 
+/* ===== 精英指引（v4.0 P3b-5b）：屏外紫色边缘箭头 + 屏内头顶血条 ===== */
+#elite-beacons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 24;            /* 略低于 loot-beacon(25)，宝箱优先 */
+  overflow: hidden;
+}
+.elite-beacon { position: absolute; inset: 0; pointer-events: none; }
+.elite-beacon.hidden { display: none; }
+.elite-arrow {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  transform-origin: 50% 50%;
+  filter:
+    drop-shadow(0 0 6px rgba(176, 124, 255, .95))
+    drop-shadow(0 0 2px rgba(142, 68, 173, .8));
+  image-rendering: pixelated;
+  pointer-events: none;
+  animation: elite-arrow-pulse 1s ease-in-out infinite;
+}
+@keyframes elite-arrow-pulse {
+  0%, 100% { opacity: .55; transform: translate(-50%, -50%) rotate(var(--ea-rot, 0deg)) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) rotate(var(--ea-rot, 0deg)) scale(1.18); }
+}
+.elite-hpbar {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 1px solid rgba(176, 124, 255, .9);
+  border-radius: 3px;
+  background: rgba(10, 6, 18, .7);
+  box-shadow: 0 0 6px rgba(176, 124, 255, .6);
+  overflow: hidden;
+  pointer-events: none;
+}
+.elite-hpbar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #b07cff, #e0c3ff);
+  box-shadow: 0 0 6px rgba(176, 124, 255, .8);
+  transition: width 80ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .elite-arrow { animation: none; }
+  .elite-hpbar-fill { transition: none; }
+}
+
 /* ===== 运行时版本自检：更新横幅 + 加载幕（v0.31，沿用既有视觉令牌，零新色零新字体） ===== */
 #update-prompt {
   position: absolute; top: 0; left: 0; right: 0;

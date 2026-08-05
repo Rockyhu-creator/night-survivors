@@ -1192,7 +1192,13 @@ export class EnemyManager {
       const fa = (e.type && e.type.frontalArmor) || (e.affixDef && e.affixDef.frontalArmor);
       if (fa && typeof e.facingX === 'number' && typeof e.facingY === 'number') {
         const dot = knockX * e.facingX + knockY * e.facingY;
-        if (dot < fa.arcCos) dmg *= fa.mul;
+        if (dot < fa.arcCos) {
+          dmg *= fa.mul;
+        } else {
+          // v4.0 P3b-5b：侧/背命中（全额）→ 教学飘字，引导绕背输出
+          // （仅带正面装甲且朝向已设定时触发；无装甲目标不打扰）
+          if (this.game && this.game.fx) this.game.fx.spawnWeakFloat(e.x, e.y - e.radius, Math.round(dmg));
+        }
       }
     }
     e.hp -= dmg;
