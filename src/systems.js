@@ -33,6 +33,13 @@ export class PickupSystem {
       this.gems.push({ x: x + (Math.random() * 2 - 1) * 14, y: y + (Math.random() * 2 - 1) * 14, value: def.min, def, magnet: false, vx: 0, vy: 0, bob: Math.random() * Math.PI * 2, life: 20, birth: 0.35 });
       return;
     }
+    // D3 裁决：精英击杀保底掉 1 颗 gemGold(GEM_DEFS[3].min=25)，并从 exp 扣除 → 净经验不通胀
+    // （杜绝「精英经验随名义 exp 收缩」；普通怪走下方分级逻辑不受影响）。
+    if (enemyType && enemyType.isElite) {
+      const def = GEM_DEFS[3]; // gemGold 金宝石
+      this.gems.push({ x: x + (Math.random() * 2 - 1) * 14, y: y + (Math.random() * 2 - 1) * 14, value: def.min, def, magnet: false, vx: 0, vy: 0, bob: Math.random() * Math.PI * 2, life: 20, birth: 0.35 });
+      expValue -= def.min; // 扣 25，下方 let rest = expValue 自动继承
+    }
     let rest = expValue;
     while (rest > 0) {
       // 接近上限：把剩余经验合并成一颗红宝石，避免数组无限增长（经验不丢）

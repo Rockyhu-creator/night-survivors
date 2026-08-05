@@ -1032,6 +1032,57 @@ with sync_playwright() as p:
     expect('elite_conduit 不自我加速(=1)', abs(condBuff['selfBuff'] - 1) < 0.001)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ---- P3b-4 精英保底金宝石 + 巨像双宝箱（D3 裁决 + 难度方案 L554）----
+    # D3：精英击杀保底掉 1 颗 gemGold(价值=GEM_DEFS[3].min=25)，且从 exp 里扣除 → 净经验不通胀。
+    # 用合成低 exp(<25) 隔离分支差异：当前代码把精英当普通怪走分级掉落，低 exp 精英不掉 gemGold、
+    # 总经验=exp(不保底)；加分支后低 exp 精英仍保底 1 金 + 总经验=25。
+    eliteDrop = page.evaluate("""() => {
+      const g = window.__game;
+      g.pickups.gems = [];
+      g.pickups.drop(0, 0, 5, window.__enemyTypes.elite_colossus);
+      const gold = g.pickups.gems.filter(x => x.def && x.def.key === 'gemGold');
+      const total = g.pickups.gems.reduce((s, x) => s + (x.value || 0), 0);
+      return { goldCount: gold.length, goldVal: gold.length ? gold[0].value : 0, total: +total.toFixed(3) };
+    }""")
+    expect('P3b-4 精英保底 gemGold×1(价值25)', eliteDrop['goldCount'] == 1 and eliteDrop['goldVal'] == 25)
+    expect('P3b-4 低exp精英保底总经验=25(不随exp<25收缩)', eliteDrop['total'] == 25)
+
+    # 对照：非精英低 exp 不掉 gemGold、总经验=exp（分支不污染普通怪）
+    normDrop = page.evaluate("""() => {
+      const g = window.__game;
+      g.pickups.gems = [];
+      g.pickups.drop(0, 0, 5, window.__enemyTypes.bone_knight);
+      const gold = g.pickups.gems.filter(x => x.def && x.def.key === 'gemGold');
+      const total = g.pickups.gems.reduce((s, x) => s + (x.value || 0), 0);
+      return { goldCount: gold.length, total: +total.toFixed(3) };
+    }""")
+    expect('P3b-4 非精英低exp不掉gemGold(对照)', normDrop['goldCount'] == 0)
+    expect('P3b-4 非精英总经验=exp(5)', normDrop['total'] == 5)
+
+    # 巨像死掉双宝箱；非巨像精英仍掉 1 宝箱（死亡块 isElite 分支特例）
+    colChest = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.pickups.gems = [];
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.elite_colossus, scale, 0, 0);
+      g.enemies.enemies.push(e); e.hp = 0;
+      g.enemies.update(0.016);
+      return g.pickups.gems.filter(x => x.chest).length;
+    }""")
+    expect('P3b-4 elite_colossus 死掉双宝箱(2)', colChest == 2)
+
+    revChest = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.pickups.gems = [];
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.elite_reaver, scale, 0, 0);
+      g.enemies.enemies.push(e); e.hp = 0;
+      g.enemies.update(0.016);
+      return g.pickups.gems.filter(x => x.chest).length;
+    }""")
+    expect('P3b-4 非colossus精英仍掉1宝箱(对照)', revChest == 1)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

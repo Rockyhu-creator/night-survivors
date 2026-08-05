@@ -838,7 +838,9 @@ export class EnemyManager {
           this.bossReleasableAt = this.game.time + 15;
           this.game.onBossKilled?.(e);
         } else if (e.type.isElite) {
+          // 腐骸巨像 = 最高价值精英 → 死掉双宝箱（难度方案 L554）；其余精英 1 宝箱
           this.game.pickups.dropChest(e.x, e.y);
+          if (e.type.id === 'elite_colossus') this.game.pickups.dropChest(e.x, e.y);
         }
         this.enemies.splice(i, 1);
         continue;
