@@ -538,9 +538,16 @@ export class UIManager {
         slot.bar.classList.remove('hidden');
         const ratio = Math.max(0, Math.min(1, e.hp / e.maxHp));
         slot.fill.style.width = `${ratio * 100}%`;
+        // v4.0 P4-1 精英悬赏：头顶血条附赏金数额（非精英 e.bounty 未定义 → 隐藏）
+        if (e.bounty) {
+          slot.bountyEl.textContent = `悬赏 ${e.bounty}`;
+          slot.bountyEl.classList.remove('hidden');
+        } else {
+          slot.bountyEl.classList.add('hidden');
+        }
         slot.bar.style.left = `${cssX}px`;
         slot.bar.style.top = `${cssY - 22}px`;
-        barList.push({ id: e.type.id, ratio });
+        barList.push({ id: e.type.id, ratio, bounty: e.bounty || 0 });
       } else {
         // 屏外/贴边：边缘方向箭头
         slot.bar.classList.add('hidden');
@@ -575,11 +582,14 @@ export class UIManager {
     bar.className = 'elite-hpbar';
     const fill = document.createElement('div');
     fill.className = 'elite-hpbar-fill';
+    const bountyEl = document.createElement('span');
+    bountyEl.className = 'elite-bounty hidden';
     bar.appendChild(fill);
+    bar.appendChild(bountyEl);
     wrap.appendChild(arrow);
     wrap.appendChild(bar);
     this.eliteBeaconsHost.appendChild(wrap);
-    return { wrap, arrow, bar, fill };
+    return { wrap, arrow, bar, fill, bountyEl };
   }
 
   flashVignette() {

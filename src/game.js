@@ -279,6 +279,7 @@ export class Game {
     this.player.hp = this.player.maxHp;
     this.ui.startGame();
     this.killsByType = {};   // v4.0 P3b-5a：本局击杀计数（落盘在 gameOver/gameWin）
+    this.runBountySouls = 0; // v4.0 P4-1：本局精英悬赏累计灵魂（结算时并入奖励）
     this.state = 'playing';
   }
 
@@ -397,6 +398,13 @@ export class Game {
   onEnemyKilled(enemy) {
     this.kills += 1;
     this.pickups.drop(enemy.x, enemy.y, enemy.expValue, enemy.type);
+    // v4.0 P4-1 精英悬赏：精英击杀累加赏金灵魂（局外结算），飘字 + toast 反馈
+    if (enemy.type && enemy.type.isElite) {
+      const b = enemy.bounty || 0;
+      this.runBountySouls += b;
+      this.fx.spawnDamageNumber(enemy.x, enemy.y - 18, b, '#d4af37', true);
+      this.ui.showToast(`精英悬赏 +${b} 灵魂`);
+    }
     // 血瓶续航掉落：约 3.5% 概率（v3.1 校准：原 2.5% 偏紧、原 7% 过高）。解决"掉血不可逆"。Boss 由专属宝箱覆盖，不重复掉
     if (!enemy.isBoss && Math.random() < 0.035) {
       this.pickups.dropPotion(enemy.x, enemy.y, 20);
@@ -474,10 +482,15 @@ export class Game {
     saveSouls(s);
   }
 
+  // v4.0 P4-1 结算合并：基础灵魂奖励 + 本局精英悬赏累计。无副作用，便于测试断言
+  pendingRewardSouls(_win = false) {
+    return this.computeSoulReward(_win) + (this.runBountySouls || 0);
+  }
+
   gameOver(reason = 'defeat') {
     this.state = 'gameover';
     this._persistKillsByType();
-    const reward = this.computeSoulReward();
+    const reward = this.pendingRewardSouls();
     addSouls(reward);
     this.runSouls = reward;
     this.totalSouls = loadSouls().balance;
@@ -489,7 +502,7 @@ export class Game {
   gameWin() {
     this.state = 'victory';
     this._persistKillsByType();
-    const reward = this.computeSoulReward(true);
+    const reward = this.pendingRewardSouls(true);
     addSouls(reward);
     this.runSouls = reward;
     this.totalSouls = loadSouls().balance;

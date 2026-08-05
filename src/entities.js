@@ -13,6 +13,9 @@ const REND_HARVEST_HP = 4;
 const ELITE_TYPES = Object.values(ENEMY_TYPES).filter((e) => e.isElite);
 // 最早精英解锁时间：刷新器门控起点（t >= 此值才开始刷精英）
 const ELITE_START_AT = ELITE_TYPES.length ? Math.min(...ELITE_TYPES.map((e) => e.unlockAt)) : Infinity;
+// v4.0 P4-1 精英悬赏：赏金 = round(exp * BOUNTY_MUL)，与精英经验锚定、不通胀。
+// 典狱长40/掠夺者45/导体55/巨像80 → 赏金 20/22/27/40（局外灵魂，结算时随 computeSoulReward 合并）。
+const BOUNTY_MUL = 0.5;
 
 export class Player {
   constructor() { this.reset(); }
@@ -384,6 +387,8 @@ export class EnemyManager {
       slowTimer: 0,
       slowMul: 1,
     };
+    // v4.0 P4-1 精英悬赏：精英实例挂 bounty（普通数字字段，非 isElite 实例标记，不踩红线）
+    if (type.isElite) e.bounty = Math.round(type.exp * BOUNTY_MUL);
     return e;
   }
 

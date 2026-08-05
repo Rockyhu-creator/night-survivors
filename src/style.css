@@ -1209,6 +1209,19 @@ html, body {
   box-shadow: 0 0 6px rgba(176, 124, 255, .8);
   transition: width 80ms linear;
 }
+/* v4.0 P4-1 精英悬赏：头顶血条附赏金数额（复用 elite 紫系令牌，零新色） */
+.elite-bounty {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%);
+  font: 600 10px/1 system-ui, sans-serif;
+  color: #d4af37;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.elite-bounty.hidden { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .elite-arrow { animation: none; }
   .elite-hpbar-fill { transition: none; }

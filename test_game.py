@@ -1166,6 +1166,64 @@ with sync_playwright() as p:
     expect('P3b-5b 侧背命中触发暴击级飘字', hud.get('weak') is True)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ===== P4-1 精英悬赏 (RED) =====
+    # ① createEnemy 给精英挂 bounty = round(exp * 0.5)；典狱长 exp=40 → 20
+    p4 = page.evaluate("""() => {
+      const et = window.__enemyTypes;
+      const warden = et.elite;
+      const e = window.__game.enemies.createEnemy(warden, {hp:1,speed:1,damage:1}, 400, 300);
+      return { exp: warden.exp, bounty: e.bounty };
+    }""")
+    expect('P4-1 精英挂 bounty=round(exp*0.5)', p4.get('bounty') == 20)
+    # ② 精英击杀累加 game.runBountySouls
+    p4b = page.evaluate("""() => {
+      const et = window.__enemyTypes;
+      const e = window.__game.enemies.createEnemy(et.elite, {hp:1,speed:1,damage:1}, 400, 300);
+      const before = window.__game.runBountySouls || 0;
+      window.__game.onEnemyKilled(e);
+      return { before, after: window.__game.runBountySouls || 0, bounty: e.bounty };
+    }""")
+    expect('P4-1 精英击杀累加 runBountySouls', (p4b.get('after') - p4b.get('before')) == 20)
+    # ③ 非精英击杀不累加（对照）
+    p4c = page.evaluate("""() => {
+      const et = window.__enemyTypes;
+      const e = window.__game.enemies.createEnemy(et.bat, {hp:1,speed:1,damage:1}, 400, 300);
+      const before = window.__game.runBountySouls || 0;
+      window.__game.onEnemyKilled(e);
+      return { before, after: window.__game.runBountySouls || 0 };
+    }""")
+    expect('P4-1 非精英击杀不累加(对照)', (p4c.get('after') - p4c.get('before')) == 0)
+    # ④ 结算合并 pendingRewardSouls() = computeSoulReward() + runBountySouls
+    # 注意：computeSoulReward 含一次性首通奖励副作用，须用二次调用的幂等基准比对
+    p4d = page.evaluate("""() => {
+      try {
+        const B = window.__game.runBountySouls || 0;
+        const pend = (typeof window.__game.pendingRewardSouls === 'function')
+          ? window.__game.pendingRewardSouls() : undefined;
+        const base = window.__game.computeSoulReward(); // 二次调用：首通已入账，幂等
+        return { base: base, pend: pend, B: B };
+      } catch(err) { return { base: null, pend: null, B: 0, err: String(err) }; }
+    }""")
+    expect('P4-1 结算合并 runBountySouls 至 pending', p4d.get('pend') == (p4d.get('base') + p4d.get('B')))
+    # ⑤ 精英头顶血条显示赏金数额（直接驱动 UI 渲染，确定性，不影响既有状态）
+    p4e = page.evaluate("""() => {
+      const g = window.__game;
+      const prevState = g.state;
+      g.state = 'playing';
+      const et = window.__enemyTypes;
+      const c = g.camera;
+      const e = g.enemies.createEnemy(et.elite, {hp:1,speed:1,damage:1}, c.ox + 480, c.oy + 270);
+      g.enemies.enemies.push(e);
+      g.ui.updateEliteBeacons();
+      const bars = (window.__hudDebug && window.__hudDebug.bars) || [];
+      const bar = bars.find(b => b.id === 'elite');
+      g.enemies.enemies = [];
+      g.state = prevState;
+      return bar ? bar.bounty : null;
+    }""")
+    expect('P4-1 精英头顶血条显示赏金', p4e == 20)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});
