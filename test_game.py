@@ -980,6 +980,58 @@ with sync_playwright() as p:
     expect('elite 召唤后 enemies 增 4', lowRun['added'] == 4)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ---- 永夜导体环形弹幕 + 加速光环（P3b-3④）----
+    condDecl = page.evaluate("""() => {
+      const g = window.__game;
+      const c = window.__enemyTypes.elite_conduit;
+      return { hasBarrage: !!(c.barrage && c.barrage.cd && c.barrage.count && c.barrage.speed && c.barrage.damage),
+               hasBuff: !!(c.allyBuff && c.allyBuff.radius && c.allyBuff.speedMul),
+               speedMul: c.allyBuff ? c.allyBuff.speedMul : null, radius: c.allyBuff ? c.allyBuff.radius : null };
+    }""")
+    expect('elite_conduit 声明 barrage 字段', condDecl['hasBarrage'] is True)
+    expect('elite_conduit 声明 allyBuff 字段', condDecl['hasBuff'] is True)
+    expect('elite_conduit allyBuff.speedMul=1.25', abs(condDecl['speedMul'] - 1.25) < 0.001)
+    expect('elite_conduit allyBuff.radius=180', condDecl['radius'] == 180)
+
+    # 运行时：导体应在 ~3s 内发至少一次环形弹幕（enemyProjectiles 出现）
+    condBarrage = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      g.enemies.enemyProjectiles.length = 0;
+      const scale = g.enemies.statScale(false);
+      const c = g.enemies.createEnemy(window.__enemyTypes.elite_conduit, scale, 0, 0);
+      c.hp = c.maxHp = 100000;
+      g.enemies.enemies.push(c);
+      g.player.x = 800; g.player.y = 0; // 玩家放远：弹幕辐射后留存可观测（贴身会被同帧吃掉）
+      let maxProj = 0;
+      for (let i = 0; i < 220; i++) { // ~3.5s，覆盖首个 3s 周期
+        g.enemies.update(0.016);
+        if (g.enemies.enemyProjectiles.length > maxProj) maxProj = g.enemies.enemyProjectiles.length;
+      }
+      return { maxProj };
+    }""")
+    expect('elite_conduit 运行时发射环形弹幕(弹幕>0)', condBarrage['maxProj'] > 0)
+    page.evaluate("() => { window.__game.enemies.enemies = []; window.__game.enemies.enemyProjectiles.length = 0; }")
+
+    # 运行时：范围内非精英杂兵获 +25% 加速；其它精英与导体自身不加速（用户决议）
+    condBuff = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const c = g.enemies.createEnemy(window.__enemyTypes.elite_conduit, scale, 0, 0);
+      c.hp = c.maxHp = 100000;
+      const mob = g.enemies.createEnemy(window.__enemyTypes.bat, scale, 50, 0);          // 50px 内，非精英(应加速)
+      const elite = g.enemies.createEnemy(window.__enemyTypes.elite_colossus, scale, 50, 0); // 50px 内，真精英(应跳过)
+      g.enemies.enemies.push(c, mob, elite);
+      g.player.x = 0; g.player.y = 0;
+      g.enemies.update(0.016); // 预扫描在该帧施加 _speedMul
+      return { mobBuff: mob._speedMul, eliteBuff: elite._speedMul, selfBuff: c._speedMul };
+    }""")
+    expect('elite_conduit 范围内杂兵获+25%加速(_speedMul=1.25)', abs(condBuff['mobBuff'] - 1.25) < 0.001)
+    expect('elite_conduit 不加速其它真精英(elite_colossus=1)', abs(condBuff['eliteBuff'] - 1) < 0.001)
+    expect('elite_conduit 不自我加速(=1)', abs(condBuff['selfBuff'] - 1) < 0.001)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

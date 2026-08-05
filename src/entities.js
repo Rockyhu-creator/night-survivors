@@ -669,6 +669,18 @@ export class EnemyManager {
     const grid = this._grid;
     const now = t;
 
+    // 永夜导体加速光环预扫描（P3b-3④）：每帧先统一复位 _speedMul，再对范围内非精英友军打加速标记。
+    // 集中处理（不污染各 behavior 的移动代码）；defaultChase / shadowHunterBehavior 移动时乘 (e._speedMul || 1)。
+    for (const e of this.enemies) e._speedMul = 1;
+    for (const c of this.enemies) {
+      const ab = c.type.allyBuff;
+      if (!ab) continue;
+      for (const a of this.enemiesNear(c.x, c.y, ab.radius)) {
+        if (a.type.isElite) continue; // 不加速其它精英（用户决议：仅杂兵+暗影猎手）
+        a._speedMul = ab.speedMul;
+      }
+    }
+
     for (const e of this.enemies) {
       const dx = player.x - e.x;
       const dy = player.y - e.y;
@@ -1235,6 +1247,8 @@ const behaviors = {
   // 腐骸巨像：复用 bone_knight 的 facing+frontalArmor 机制（P3b-3① / D1·D2）——类型驱动，
   //   渲染 140° 弧线自动（entities.js:1104 读 e.type.frontalArmor），turnRate 0.6 取自数据层。
   elite_colossus: boneKnightBehavior,
+  // 永夜导体：同质追击 + 周期环形弹幕 + 加速光环（P3b-3④）；光环由 update() 预扫描施加
+  elite_conduit: conduitBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
@@ -1252,8 +1266,9 @@ function defaultChase(e, dt, mgr, ctx) {
     e.y += e.ky * dt;
   } else {
     const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
-    e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
-    e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+    const spd = e.speed * (e._speedMul || 1); // P3b-3④：导体加速光环（预扫描每帧置 1，无 buff 逐字节等价）
+    e.x += (dx / dist) * spd * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * spd * slowFactor * dt + e.ky * dt;
   }
 }
 
@@ -1291,8 +1306,9 @@ function shadowHunterBehavior(e, dt, mgr, ctx) {
       e.y += e.ky * dt;
     } else {
       const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
-      e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
-      e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+      const spd = e.speed * (e._speedMul || 1); // P3b-3④：导体加速光环（预扫描每帧置 1，无 buff 逐字节等价）
+      e.x += (dx / dist) * spd * slowFactor * dt + e.kx * dt;
+      e.y += (dy / dist) * spd * slowFactor * dt + e.ky * dt;
     }
   }
 }
@@ -1374,6 +1390,31 @@ function plagueBehavior(e, dt, mgr, ctx) {
     mgr.spawnHazard(e.x, e.y, e.type.trailRadius || 26, e.type.trailLife || 3, {
       dps: e.type.trailDps || 8, color: e.type.trailColor || '#7dcea0',
     });
+  }
+}
+
+// 永夜导体（P3b-3④）：同质追击（与 defaultChase 等价，移动乘 _speedMul 吃加速光环）+
+//   周期环形弹幕（复用 P3a-S _fireRadialWave，360° 均匀，8 发）。加速光环本身由 update() 预扫描统一施加，
+//   本 behavior 不重复处理；导体自身是精英，预扫描跳过它，故其 _speedMul 恒 1（不自我加速）。
+function conduitBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt;
+    e.x += e.kx * dt;
+    e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    const spd = e.speed * (e._speedMul || 1);
+    e.x += (dx / dist) * spd * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * spd * slowFactor * dt + e.ky * dt;
+  }
+  const br = e.type.barrage;
+  if (br) {
+    e.barrageTimer = (e.barrageTimer === undefined) ? (br.cd || 3) : e.barrageTimer - dt;
+    if (e.barrageTimer <= 0) {
+      e.barrageTimer = br.cd || 3;
+      mgr._fireRadialWave(e, br.count || 8, br.speed || 140, br.damage || 18);
+    }
   }
 }
 

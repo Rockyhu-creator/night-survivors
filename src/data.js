@@ -247,6 +247,10 @@ export const ENEMY_TYPES = {
   elite_conduit: {
     id: 'elite_conduit', name: '永夜导体', sprite: 'elite', hp: 700, speed: 30, damage: 30, exp: 55,
     radius: 24, spriteSize: 90, knockResist: 0.90, unlockAt: 380, weight: 0,
+    // P3b-3④：每 3s 发 8 发环形弹幕（复用 P3a-S _fireRadialWave）；给 180px 内非精英友军 +25% 移速
+    //   （加速光环由 update() 预扫描统一施加，见 entities.js；用户决议：仅杂兵+暗影猎手，不加速其它精英）
+    barrage: { cd: 3.0, count: 8, speed: 140, damage: 18 },
+    allyBuff: { radius: 180, speedMul: 1.25 },
     isElite: true, eliteWeight: 2, eliteColor: '#8e44ad',
   },
   elite_colossus: {
