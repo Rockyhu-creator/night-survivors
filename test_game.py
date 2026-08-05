@@ -107,6 +107,17 @@ with sync_playwright() as p:
     expect('D3 音效 zap/splash 方法存在', page.evaluate("() => typeof window.__game.audio.zap === 'function' && typeof window.__game.audio.splash === 'function'"))
     # Boss 精灵真被数据引用（不靠打满 180 秒实战）
     expect('A1 数据 BOSSES 各自指向 boss_* 精灵', page.evaluate("""() => window.__bosses.every(b => b.sprite.startsWith('boss_'))"""))
+    # 甲-1 回归（v4.0）：easy 难度 bossGapMul=1.5 下，最末常规 Boss overlord 原解锁 810s > 化身 720s 永不可达。
+    # 钳制后须 ≤630（化身前 90s）。用实时 BOSSES 数据复算钳制公式：clamped = END - 90 - (N-1-i)*45。
+    easy_schedule = page.evaluate("""() => {
+      const gap = 1.5;   // easy.difficulty.bossGapMul（甲-1 触发的难度）
+      const END = 720;   // ENDGAME_BOSS_TIME
+      const bosses = window.__bosses.filter(b => b.id !== 'avatar');
+      const N = bosses.length;
+      return bosses.map((b, i) => ({ id: b.id, unlockAt: Math.min(Math.round(b.unlockAt * gap), END - 90 - (N - 1 - i) * 45) }));
+    }""")
+    overlord_u = next((b['unlockAt'] for b in easy_schedule if b['id'] == 'overlord'), None)
+    expect('甲-1 easy 下 overlord 化身前可达(≤630)', overlord_u is not None and overlord_u <= 630)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')

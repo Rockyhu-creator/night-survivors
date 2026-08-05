@@ -143,6 +143,8 @@ export const TL_EXP_MUL_PER_LEVEL = 0.02;   // 经验回报 ×(1 + 0.02×TL) [�
 export const TL_HP_AMP_CAP = 2.20;          // TL 对敌人 HP 的最大放大倍数（相对同时刻 TL=0 基线）[待真机校准]
 export const TL_DMG_AMP_CAP = 1.80;         // TL 对敌人伤害的最大放大倍数 [待真机校准]
 export const TL_SPAWN_MUL_CAP = 1.60;       // spawnMul 缩放后的绝对上限，防刷怪间隔塌到地板 [待真机校准]
+export const TL_BOSS_HP_K = 0.06;            // 威胁等级对 Boss 血量的线性缩放系数：TL=10 → +60%（丙-2）
+export const TL_BOSS_HP_CAP = 1.60;         // Boss 血量受 TL 缩放的绝对上限（相对 TL=0 基线）（丙-2）
 
 // TL → 叙事称谓（design §1.2 UI 呈现表）。叙事化而非数值化：
 // 玩家投入的不是"点数"，是"与永夜的契约"——你越深入这套力量体系，永夜越认得你。

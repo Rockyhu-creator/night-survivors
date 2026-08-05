@@ -1,4 +1,4 @@
-import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN, TL_HP_AMP_CAP, TL_DMG_AMP_CAP, TL_SPAWN_MUL_CAP } from './data.js';
+import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN, TL_BOSS_HP_K, TL_BOSS_HP_CAP, TL_HP_AMP_CAP, TL_DMG_AMP_CAP, TL_SPAWN_MUL_CAP } from './data.js';
 import { sprite, drawAffixBadge } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
@@ -389,12 +389,14 @@ export class EnemyManager {
     const h = CONFIG.LOGICAL_HEIGHT;
     const angle = Math.random() * Math.PI * 2;
     const dist = Math.hypot(w, h) / 2 + 80;
+    // 丙-2：Boss 血量吃威胁等级(TL)缩放，上限 +60%（TL=10 时满额）。TL=0 时 bossTl=1，逐位等价于原公式。
+    const bossTl = Math.min(TL_BOSS_HP_CAP, 1 + TL_BOSS_HP_K * (this.game.threatLevel || 0));
     const boss = {
       type: def,
       x: cam.ox + w / 2 + Math.cos(angle) * dist,
       y: cam.oy + h / 2 + Math.sin(angle) * dist,
-      hp: def.hp * this.game.difficulty.bossHpMul,
-      maxHp: def.hp * this.game.difficulty.bossHpMul,
+      hp: def.hp * this.game.difficulty.bossHpMul * bossTl,
+      maxHp: def.hp * this.game.difficulty.bossHpMul * bossTl,
       speed: def.speed,
       damage: def.damage,
       radius: def.radius,
@@ -566,7 +568,12 @@ export class EnemyManager {
     if (t >= ENDGAME_BOSS_TIME && !this.bossSpawned.has('avatar')) {
       this.bossSpawned.add('avatar');
       for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
-        if (this.enemies[i].isBoss) this.enemies.splice(i, 1);
+        if (this.enemies[i].isBoss) {
+          const e = this.enemies[i];
+          // 甲-2：化身吞噬正在交战的 Boss，仅补经验（不补 Boss 宝箱），避免与正常击杀的双倍奖励
+          this.game.pickups.drop(e.x, e.y, e.expValue, e.type);
+          this.enemies.splice(i, 1);
+        }
       }
       this.activeBoss = null;
       // v4.0 P2 Boss 串行化：化身登场即清空积压队列，避免旧 Boss 在终局后冒出
@@ -585,9 +592,14 @@ export class EnemyManager {
         this.game.onBossSpawn?.(def);
       }
       // 检查新到点的 Boss：到点的若当前已有 Boss 存活则入队（pending），否则立即生成
-      for (const def of BOSSES) {
+      const N = BOSSES.length - 1; // 常规 Boss 数（不含终局化身）
+      for (let i = 0; i < BOSSES.length; i += 1) {
+        const def = BOSSES[i];
         if (def.id === 'avatar') continue; // 终局单独处理
-        const unlockAt = Math.round(def.unlockAt * diff.bossGapMul);
+        // 甲-1：钳制最后一波解锁时间，保证 easy（bossGapMul=1.5）下 overlord 在化身(720s)前可达。
+        // 相邻波次至少间隔 45s，最末波不得晚于化身登场前 90s；normal/hard 因 unlockAt 本就更小而不触发钳制。
+        const clamped = ENDGAME_BOSS_TIME - 90 - (N - 1 - i) * 45;
+        const unlockAt = Math.min(Math.round(def.unlockAt * diff.bossGapMul), clamped);
         if (t >= unlockAt && !this.bossSpawned.has(def.id)) {
           this.bossSpawned.add(def.id); // 标记已处理，避免重复入队
           if (!this.activeBoss && t >= this.bossReleasableAt) {
