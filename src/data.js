@@ -238,6 +238,8 @@ export const ENEMY_TYPES = {
   elite_reaver: {
     id: 'elite_reaver', name: '裂魂掠夺者', sprite: 'shadow_hunter', hp: 520, speed: 72, damage: 38, exp: 45,
     radius: 22, spriteSize: 84, knockResist: 0.85, unlockAt: 240, weight: 0,
+    // D5：冲刺字段名与 shadow_hunter 完全一致；dashCd:3.2 + dashDuration:0.45 → 周期≈4s（可预判读招，非骚扰）
+    dashRange: 320, dashCharge: 0.45, dashSpeed: 3.4, dashCd: 3.2, dashDuration: 0.45,
     isElite: true, eliteWeight: 3, eliteColor: '#e74c3c',
   },
   elite_conduit: {

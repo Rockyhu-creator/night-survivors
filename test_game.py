@@ -907,6 +907,49 @@ with sync_playwright() as p:
     expect('elite_colossus facing 朝向玩家(投影>0.9)', facingC['towardPlayer'] > 0.9)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ---- 裂魂掠夺者冲刺（P3b-3② / D5）----
+    # 复用 shadow_hunter 三态机，数据层 dashCd:3.2 → 周期≈4s 可预判读招。
+    # 关键不变量：shadow_hunter 无 dashCd（缺省 0）→ idle 门控恒开，逐字节不变；仅 reaver 配 dashCd 生效。
+    dashDecl = page.evaluate("""() => {
+      const g = window.__game;
+      const rv = window.__enemyTypes.elite_reaver, sh = window.__enemyTypes.shadow_hunter;
+      return {
+        reaver_has: !!(rv.dashRange && rv.dashSpeed && rv.dashCd > 0 && rv.dashDuration > 0),
+        reaver_cd: rv.dashCd, reaver_range: rv.dashRange, reaver_speed: rv.dashSpeed,
+        shadow_no_cd: (typeof sh.dashCd === 'undefined'),  // 缺省 0 → 逐字节不变
+      };
+    }""")
+    expect('elite_reaver 声明 dash 字段齐全(dashRange/Speed/Cd/Duration)', dashDecl['reaver_has'] is True)
+    expect('elite_reaver dashCd=3.2', dashDecl['reaver_cd'] == 3.2)
+    expect('elite_reaver dashRange=320', dashDecl['reaver_range'] == 320)
+    expect('elite_reaver dashSpeed=3.4', dashDecl['reaver_speed'] == 3.4)
+    expect('shadow_hunter 无 dashCd(缺省0,逐字节不变)', dashDecl['shadow_no_cd'] is True)
+
+    # 运行时：reaver 在玩家射程内应在数秒内至少一次进入 charging→dashing（首次 dashCd=0 立即触发）
+    # dashCd 在「dashing→idle 转换」时置为 3.2，故在观察到的第一次 dashing→idle 过渡处采样。
+    dashRun = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.elite_reaver, scale, 100, 0);
+      e.hp = e.maxHp = 100000; // 避免死亡分支污染
+      g.enemies.enemies.push(e);
+      g.player.x = 0; g.player.y = 0; // 玩家在敌人左侧，dist=100<dashRange
+      let sawCharge = false, sawDash = false, prev = null, cdAfterDash = -1;
+      for (let i = 0; i < 320; i++) { // ~5.1s，足够覆盖一个 4s 周期
+        g.enemies.update(0.016);
+        if (e.dashState === 'charging') sawCharge = true;
+        if (e.dashState === 'dashing') sawDash = true;
+        if (prev === 'dashing' && e.dashState === 'idle' && cdAfterDash < 0) cdAfterDash = e.dashCd;
+        prev = e.dashState;
+      }
+      return { sawCharge, sawDash, cdAfterDash };
+    }""")
+    expect('elite_reaver 运行时进入 charging 态', dashRun['sawCharge'] is True)
+    expect('elite_reaver 运行时进入 dashing 态', dashRun['sawDash'] is True)
+    expect('elite_reaver 冲刺结束 dashCd 置为 3.2', abs(dashRun['cdAfterDash'] - 3.2) < 0.001)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

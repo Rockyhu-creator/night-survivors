@@ -1214,6 +1214,8 @@ const behaviors = {
   gargoyle: defaultChase,
   // 暗影猎手：dashState 三态机，作为首个显式 behavior 模板
   shadow_hunter: shadowHunterBehavior,
+  // 裂魂掠夺者：复用 shadow_hunter 三态机（P3b-3② / D5）：数据层配 dashCd:3.2 → 周期≈4s 可预判读招
+  elite_reaver: shadowHunterBehavior,
   // 腐唾者：保持偏好距离 + 周期性朝玩家单发弹幕（P3a-1）
   spitter: spitterBehavior,
   // 哀嚎女妖：同质追击 + 周期性治疗友军（P3a-2）
@@ -1249,23 +1251,29 @@ function defaultChase(e, dt, mgr, ctx) {
 
 // 暗影猎手：dashState 三态机（idle | charging | dashing），作为首个显式 behavior 模板。
 // 与重构前 update() 的对应分支逐字节等价。
+// D5（P3b-3②）：idle 分支加 dashCd 门控 —— 缺省 0 保证 shadow_hunter 逐字节不变，仅 elite_reaver
+//   配 dashCd:3.2 后周期≈4s（可预判读招，非 relentless 骚扰）；dashDuration 参数化（reaver 0.45，shadow_hunter 缺省 0.35）。
 function shadowHunterBehavior(e, dt, mgr, ctx) {
   const { dx, dy, dist } = ctx;
   if (e.dashState === 'dashing') {
     e.x += e.dashVx * dt;
     e.y += e.dashVy * dt;
     e.dashTimer -= dt;
-    if (e.dashTimer <= 0) e.dashState = 'idle';
+    if (e.dashTimer <= 0) {
+      e.dashState = 'idle';
+      e.dashCd = e.type.dashCd || 0; // 冲刺结束重置冷却（仅 reaver 有值；shadow_hunter 缺省 0 → 不影响逐字节等价）
+    }
   } else if (e.dashState === 'charging') {
     e.dashTimer -= dt;
     if (e.dashTimer <= 0) {
       e.dashState = 'dashing';
-      e.dashTimer = 0.35;
+      e.dashTimer = e.type.dashDuration || 0.35; // D5：reaver 0.45 增强“必须躲”观感；shadow_hunter 缺省 0.35 不变
       e.dashVx = (dx / dist) * e.speed * e.dashSpeed;
       e.dashVy = (dy / dist) * e.speed * e.dashSpeed;
     }
   } else {
-    if (e.type.dashSpeed && dist < e.type.dashRange && dist > 1) {
+    e.dashCd = Math.max(0, (e.dashCd || 0) - dt); // 冷却仅在 idle 滴答（D5：reaver 周期≈4s）
+    if (e.type.dashSpeed && e.dashCd <= 0 && dist < e.type.dashRange && dist > 1) {
       e.dashState = 'charging';
       e.dashTimer = e.type.dashCharge;
     }
