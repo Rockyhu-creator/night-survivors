@@ -201,6 +201,10 @@ with sync_playwright() as p:
     expect('P3a-3 plague_bearer 死亡大毒池(radius>=60)', p3a3['deathPool'] is True)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
+    # 探针遗留状态清理：前面内容探针把游戏留在 playing 态并让 RAF 循环累积经验，
+    # 可能残留 levelup-screen 遮挡标题页 btn-start（经验量临界、偶发 flake）。进基础流程前彻底回到标题。
+    dismiss_upgrades(page, halt=True)
+    page.wait_for_timeout(100)
     page.click('#btn-start')
     page.wait_for_timeout(400)
     page.evaluate("""() => {
@@ -809,32 +813,60 @@ with sync_playwright() as p:
     }""")
     expect('非Boss触碰伤害封顶≤35%最大生命', cap['hpLost'] <= 200 * 0.35 + 1)
 
-    # ---- 正面装甲基线钉桩（v4.0 P3a-S）----
-    # frontalArmor 读取端已上线（entities.js:damageEnemy），bone_knight（data.js ENEMY_TYPES）
-    # 与 AFFIXES.bulwark 的配置 P2 就已存在，当前靠「敌人实例无 facingX/facingY」这一道守卫维持休眠。
-    # ⚠️ 后续单元一旦给敌人加 facing，这三条断言会变红 —— 那是【预期行为】，不是测试坏了。
-    #    变红时的正确做法是：确认伤害基线变化是有意的、显式申报它、然后更新本断言的期望值。
-    #    绝不允许直接删掉或放松这条。
-    # 三条断言的分工：facing 那条负责「一眼看出为什么红」，两条伤害负责「守住数值基线」。
+    # ---- 正面装甲激活基线（P3a-4 / D1·D2）----
+    # P3a-S 读取端（entities.js:damageEnemy）+ bone_knight 的 frontalArmor 配置（data.js）早就存在，
+    # 此前靠「敌人实例无 facingX/facingY」这第二道守卫维持休眠（提交 60ffed9 的钉桩断言 hasFacing=False）。
+    # P3a-4 给 bone_knight 加了 boneKnightBehavior（限转向速率插值 facing），激活后：
+    #   · 正面直伤（knock 来自玩家→敌人，与 facing 反向）→ dot<arcCos → ×0.30（减伤 70%）
+    #   · 零向量 AoE / DOT → 全额（设计裁决 §1.6：范围伤害无视护甲）
+    #   · 绕到背面（knock 与 facing 同向）→ dot>arcCos → 全额
+    # ⚠️ 本断言即原「休眠钉桩」的预期翻转：休眠→激活是有意的、已显式申报，绝非测试坏了。
+    #    数值基线 front=30 / aoe=100 / back=100 必须守住，不得放松（改 mul 须同步改此处）。
     fa = page.evaluate("""() => {
       const g = window.__game;
       g.state = 'playing'; g.enemies.enemies = [];
+      g.enemies.spawnTimer = 999; // 禁用刷新副作用，隔离本用例
       const scale = g.enemies.statScale(false);
       // hp 拉高：避免 100 点伤害触发死亡分支（掉落/onEnemyKilled）污染后续用例
-      const mk = () => { const e = g.enemies.createEnemy(window.__enemyTypes.bone_knight, scale, 0, 0); e.hp = e.maxHp = 100000; return e; };
-      const a = mk(); const hpA = a.hp;
-      g.enemies.damageEnemy(a, 100, 1, 0);   // 有方向直伤（唯一可能受正面护甲的来源）
-      const b = mk(); const hpB = b.hp;
-      g.enemies.damageEnemy(b, 100, 0, 0);   // 零向量 AoE（设计裁决 §1.6：恒全额）
+      const mk = (fx, fy) => { const e = g.enemies.createEnemy(window.__enemyTypes.bone_knight, scale, 0, 0); e.hp = e.maxHp = 100000; e.facingX = fx; e.facingY = fy; return e; };
+      // 正面：facing 指向玩家(-1,0)，knock 来自玩家(+1,0) → dot=-1<-0.5 → 减伤
+      const a = mk(-1, 0);
+      g.enemies.damageEnemy(a, 100, 1, 0);
+      // 零向量 AoE：恒全额
+      const b = mk(-1, 0);
+      g.enemies.damageEnemy(b, 100, 0, 0);
+      // 背面：facing 背离玩家(+1,0)，knock 同向(+1,0) → dot=+1>-0.5 → 全额
+      const c = mk(1, 0);
+      g.enemies.damageEnemy(c, 100, 1, 0);
       return {
-        dirLoss: +(hpA - a.hp).toFixed(3),
-        aoeLoss: +(hpB - b.hp).toFixed(3),
-        hasFacing: typeof a.facingX === 'number' || typeof a.facingY === 'number',
+        frontLoss: +(100000 - a.hp).toFixed(3),
+        aoeLoss: +(100000 - b.hp).toFixed(3),
+        backLoss: +(100000 - c.hp).toFixed(3),
       };
     }""")
-    expect('正面装甲仍休眠(敌人无 facingX/facingY)', fa['hasFacing'] is False)
-    expect('bone_knight 有方向直伤吃全额(100)', fa['dirLoss'] == 100)
+    expect('bone_knight 正面直伤吃减伤(100×0.30=30)', fa['frontLoss'] == 30)
     expect('bone_knight 零向量AoE吃全额(100)', fa['aoeLoss'] == 100)
+    expect('bone_knight 背面直伤吃全额(100)', fa['backLoss'] == 100)
+
+    # behavior 确实在设置 facing：否则正面装甲会静默失效，回到 D1 警告的「全能减伤」陷阱。
+    # 敌人初始无 facing，跑一帧 update 后 boneKnightBehavior 应把 facing 朝向玩家（单位向量）。
+    facingInit = page.evaluate("""() => {
+      const g = window.__game;
+      g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.bone_knight, scale, 100, 0);
+      g.enemies.enemies.push(e); // 必须入列，update 才会对该敌执行 behavior 设置 facing
+      g.player.x = 0; g.player.y = 0; // 玩家在敌人左侧 → 期望 facing≈(-1,0)
+      const before = (typeof e.facingX === 'number');
+      g.enemies.update(0.016);
+      const mag = Math.hypot(e.facingX || 0, e.facingY || 0);
+      const towardPlayer = ((e.facingX || 0) * (-1) + (e.facingY || 0) * 0); // 与(-1,0)同向投影
+      return { before, after: (typeof e.facingX === 'number'), mag: +mag.toFixed(3), towardPlayer: +towardPlayer.toFixed(3) };
+    }""")
+    expect('bone_knight 初始无 facing(before False)', facingInit['before'] is False)
+    expect('bone_knight update 后获得 facing(after True)', facingInit['after'] is True)
+    expect('bone_knight facing 为单位向量(模≈1)', abs(facingInit['mag'] - 1) < 0.05)
+    expect('bone_knight facing 朝向玩家(投影>0.9)', facingInit['towardPlayer'] > 0.9)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")  # 清理，不污染后续用例
 
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）

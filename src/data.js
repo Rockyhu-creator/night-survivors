@@ -280,6 +280,7 @@ export const ENEMY_TYPES = {
   bone_knight: {
     id: 'bone_knight', name: '骸骨骑士', sprite: 'skeleton', hp: 180, speed: 58, damage: 26, exp: 10,
     radius: 14, spriteSize: 42, knockResist: 0.3, unlockAt: 200, weight: 2,
+    turnRate: 0.7, // P3a-4 / D1：限转向速率(rad/s)，让「绕后破甲」从数学不可能变可教学 [待真机校准 0.6–1.0]
     frontalArmor: { arcCos: -0.5, mul: 0.30 }, // P3：正面 120° 减伤 70%（点积判向）
     affixBan: ['bulwark'], // 与 bulwark 同机制叠加几乎无敌（design §5.4）
   },

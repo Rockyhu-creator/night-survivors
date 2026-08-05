@@ -1099,6 +1099,29 @@ export class EnemyManager {
         drawAffixBadge(ctx, e.affix, 0, 0, 1);
         ctx.restore();
       }
+      // 正面装甲扇区弧线 + 朝向箭头（P3a-4 / D1.4：屏幕坐标、避开 facing 镜像、零 PNG）。
+      // 仅当敌人有 facing 且配置了 frontalArmor 才画；弧宽直接复用 arcCos（与判定同源，永不脱节）。
+      const faArmor = (e.type && e.type.frontalArmor) || (e.affixDef && e.affixDef.frontalArmor);
+      if (faArmor && typeof e.facingX === 'number' && typeof e.facingY === 'number') {
+        const half = Math.acos(Math.min(1, Math.max(-1, faArmor.arcCos))) / 2; // 半角（arcCos=-0.5 → 60°）
+        const baseAng = Math.atan2(e.facingY, e.facingX);
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.fillStyle = 'rgba(180,192,210,0.20)';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, e.radius + 9, baseAng - half, baseAng + half);
+        ctx.closePath();
+        ctx.fill();
+        const al = e.radius + 15; // 朝向箭头（楔形中心，强化盾面朝向）
+        ctx.strokeStyle = 'rgba(214,224,240,0.92)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(baseAng) * al, Math.sin(baseAng) * al);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
     ctx.save();  // 弹幕批量绘制：save/restore 提到循环外（逐颗 save 纯浪费）
     for (const p of this.enemyProjectiles) {
@@ -1197,6 +1220,8 @@ const behaviors = {
   siren: sirenBehavior,
   // 疫病携带者：同质追击 + 周期性脚下留毒径（P3a-3）
   plague_bearer: plagueBehavior,
+  // 骸骨骑士：同质寻路 + 限转向速率 facing 插值（P3a-4 / D1：绕后破甲教学怪）
+  bone_knight: boneKnightBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
@@ -1330,5 +1355,40 @@ function plagueBehavior(e, dt, mgr, ctx) {
     mgr.spawnHazard(e.x, e.y, e.type.trailRadius || 26, e.type.trailLife || 3, {
       dps: e.type.trailDps || 8, color: e.type.trailColor || '#7dcea0',
     });
+  }
+}
+
+// 骸骨骑士（P3a-4 / D1·D2）：同质寻路（与 defaultChase 等价）＋ 限转向速率的 facing 插值。
+// 不接 facing 时正面装甲靠「守卫②：facing 缺失」休眠；本 behavior 设置 facingX/facingY 后，
+// bone_knight 的 frontalArmor 当场生效——这是预期的 P3 玩法，伤害基线已在 test_game.py 申报。
+//   · 朝向量 = ctx(dx,dy)（敌人→玩家方向）；knock（玩家→敌人，damageEnemy 已归一化）与之反向。
+//   · 正面命中 dot(knock,facing)<arcCos → ×mul 减伤；背面 dot>arcCos → 全额；零向量/AoE/DOT 全额。
+//   · 转向限 turnRate（0.7 rad/s，[待真机校准]）：玩家贴身(d≤80px)2.5s 内可从正面绕到背面破甲，
+//     拉远(d>243px)骑士完全跟上、背面窗口关闭——把「绕后」从数学不可能变成可教学操作。
+//   注：AFFIXES.bulwark 的 frontalArmor 本版不激活（其宿主走 defaultChase 无 facing，且缺设计 turnRate，
+//   贸然激活会重现 D1 陷阱）；保持与 P3a-4 前一致的休眠态，留待后续单元按 bulwark 专属 turnRate 接入。
+function boneKnightBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  // 移动：与 defaultChase 逐字节等价（stun / slow / knockback 处理一致）
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt;
+    e.x += e.kx * dt; e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+  }
+  // 限转向速率插值 facing（D1）：每帧最多转 turnRate*dt 弧度，首次出现直接对齐玩家方向
+  const turnRate = e.type.turnRate || 0.7;
+  const tx = dx / dist, ty = dy / dist; // 敌人→玩家单位向量（ctx 已归一化方向）
+  if (typeof e.facingX !== 'number' || typeof e.facingY !== 'number') {
+    e.facingX = tx; e.facingY = ty;
+  } else {
+    let diff = Math.atan2(ty, tx) - Math.atan2(e.facingY, e.facingX);
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    const step = Math.max(-turnRate * dt, Math.min(turnRate * dt, diff));
+    const na = Math.atan2(e.facingY, e.facingX) + step;
+    e.facingX = Math.cos(na); e.facingY = Math.sin(na);
   }
 }
