@@ -1193,6 +1193,8 @@ const behaviors = {
   shadow_hunter: shadowHunterBehavior,
   // 腐唾者：保持偏好距离 + 周期性朝玩家单发弹幕（P3a-1）
   spitter: spitterBehavior,
+  // 哀嚎女妖：同质追击 + 周期性治疗友军（P3a-2）
+  siren: sirenBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
@@ -1275,5 +1277,36 @@ function spitterBehavior(e, dt, mgr, ctx) {
   if (e.spitTimer <= 0) {
     e.spitTimer = e.type.spitCd || 2.2;
     mgr._fireBarrageWave(e, 1, e.type.spitSpeed || 175, e.type.spitDamage || 10, 0, 1);
+  }
+}
+
+// 哀嚎女妖（P3a-2）：同质追击（与 defaultChase 等价）+ 周期性治疗范围内友军（不含自身）。
+// 每次治疗最多 healMax 个目标，各回 healPct×maxHp；视觉用绿色飘字（与 reaper 回收回能同色系），零 PNG。
+function sirenBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt; e.x += e.kx * dt; e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    e.x += (dx / dist) * e.speed * slowFactor * dt + e.kx * dt;
+    e.y += (dy / dist) * e.speed * slowFactor * dt + e.ky * dt;
+  }
+  e.healTimer = (e.healTimer === undefined) ? (e.type.healCd || 3) : e.healTimer - dt;
+  if (e.healTimer <= 0) {
+    e.healTimer = e.type.healCd || 3;
+    const range = e.type.healRange || 160;
+    const pct = e.type.healPct || 0.12;
+    const max = e.type.healMax || 3;
+    let healed = 0;
+    for (const a of mgr.enemies) {
+      if (a === e || a.hp >= a.maxHp) continue;
+      if (Math.hypot(a.x - e.x, a.y - e.y) <= range) {
+        const amt = a.maxHp * pct;
+        a.hp = Math.min(a.maxHp, a.hp + amt);
+        mgr.game.fx.spawnDamageNumber(a.x, a.y - 18, `+${Math.round(amt)}`, '#7dff9a');
+        healed += 1;
+        if (healed >= max) break;
+      }
+    }
   }
 }

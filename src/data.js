@@ -292,11 +292,12 @@ export const ENEMY_TYPES = {
     id: 'siren', name: '哀嚎女妖', sprite: 'skeleton', hp: 210, speed: 46, damage: 20, exp: 12,
     radius: 15, spriteSize: 46, knockResist: 0.3, unlockAt: 320, weight: 1,
     healAura: true, // P3：治疗友军 12%×3（治疗+光束渲染）
+    healCd: 3, healRange: 160, healPct: 0.12, healMax: 3, // P3a-2：治疗光环参数（周期/范围/比例/上限） [待真机校准]
   },
   revenant: {
     id: 'revenant', name: '复仇残躯', sprite: 'skeleton', hp: 240, speed: 44, damage: 24, exp: 14,
     radius: 16, spriteSize: 52, knockResist: 0.5, unlockAt: 400, weight: 1,
-    splitOnDeath: 2, // P3：死亡分裂 ×2（复用 volatile 钩子生成 revenant_shard）
+    onDeath: { type: 'split', enemyType: 'revenant_shard', count: 2 }, // P3a-2：死亡分裂 ×2（P3a-S _runOnDeath 钩子；revenant_shard 仅由此生成）
   },
   // 分裂产物：weight 0 → 永不从刷怪池出现，仅由 revenant.splitOnDeath 生成（P3）
   revenant_shard: {

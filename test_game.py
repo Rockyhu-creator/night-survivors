@@ -143,6 +143,36 @@ with sync_playwright() as p:
       return g.enemies.enemyProjectiles.length;
     }""")
     expect('P3a-1 spitter 周期性吐弹(弹幕>0)', spit_proj > 0)
+    # P3a-2 回归：revenant 须声明 onDeath.split(count=2)；siren 须有治疗参数
+    p3a2_cfg = page.evaluate("""() => {
+      const rv = window.__enemyTypes.revenant;
+      const sn = window.__enemyTypes.siren;
+      return {
+        rvSplit: !!(rv && rv.onDeath && rv.onDeath.type === 'split' && rv.onDeath.count === 2),
+        snHeal: !!(sn && sn.healCd && sn.healRange && sn.healPct && sn.healMax),
+      };
+    }""")
+    expect('P3a-2 revenant 声明 onDeath.split×2', p3a2_cfg['rvSplit'] is True)
+    expect('P3a-2 siren 治疗参数齐备', p3a2_cfg['snHeal'] is True)
+    # P3a-2 运行时：revenant 死亡分裂×2；siren 治疗贴身残血友军
+    p3a2 = page.evaluate("""() => {
+      const g = window.__game; g.state = 'playing';
+      const scale = g.enemies.statScale(false);
+      g.enemies.enemies = g.enemies.enemies.filter(e => e.type.id !== 'revenant' && e.type.id !== 'revenant_shard');
+      const rv = g.enemies.createEnemy(window.__enemyTypes.revenant, scale, 0, 0);
+      g.enemies.enemies.push(rv); rv.hp = 0;
+      g.enemies.update(0.1); // 处理 revenant 死亡 → 分裂 ×2
+      const shards = g.enemies.enemies.filter(e => e.type.id === 'revenant_shard').length;
+      const sn = g.enemies.createEnemy(window.__enemyTypes.siren, scale, 200, 200);
+      const ally = g.enemies.createEnemy(window.__enemyTypes.rat_swarm, scale, 200, 200);
+      sn.speed = 0; ally.speed = 0; // 钉住位置，隔离治疗逻辑
+      ally.hp = 1; const before = ally.hp;
+      g.enemies.enemies.push(sn); g.enemies.enemies.push(ally);
+      for (let i = 0; i < 40; i += 1) g.enemies.update(0.1); // ~4s 覆盖一个治疗周期
+      return { shards, healed: ally.hp > before };
+    }""")
+    expect('P3a-2 revenant 死亡分裂×2', p3a2['shards'] == 2)
+    expect('P3a-2 siren 治疗友军(残血回血)', p3a2['healed'] is True)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')
