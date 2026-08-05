@@ -832,6 +832,11 @@ export class EnemyManager {
         // 本刀之后没有任何 ENEMY_TYPES 条目声明 onDeath，故这整段是休眠代码。
         this._runOnDeath(e, player);
         this.game.onEnemyKilled(e);
+        // v4.0 P3b-5a：按怪种累计击杀，供图鉴弱点情报分级解锁（落盘在 gameOver/gameWin）
+        if (this.game.killsByType && e.type && e.type.id) {
+          const _kid = e.type.id;
+          this.game.killsByType[_kid] = (this.game.killsByType[_kid] || 0) + 1;
+        }
         if (e.isBoss) {
           if (this.activeBoss === e) this.activeBoss = null;
           // v4.0 P2 Boss 串行化：当前 Boss 死亡 → 15s 后释放排队的下一只要

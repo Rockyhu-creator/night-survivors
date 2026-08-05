@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, AFFIXES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite, drawAffixBadge, ensureLazy } from './assets.js';
 
@@ -22,6 +22,112 @@ const MONSTER_LORE = {
   overlord: '永夜君王,半场后狂暴',
   avatar: '终局化身,存活至 12 分钟降临,击杀即通关',
 };
+
+// 弱点情报：应对提示分级文案（design doc §6-3 ★3，按击杀数分级解锁）
+const COUNTER_HINTS = {
+  bat:            { 1: '成群直冲、单体孱弱，范围技能高效清场。' },
+  skeleton:       { 1: '基础杂兵，无特殊机制。' },
+  slime:          { 1: '缓慢厚实、成群蠕动，优先点掉或绕开。' },
+  rat_swarm:      { 1: '成簇高速，靠走位拉开单体和它们。' },
+  spitter:        { 1: '远程吐弹、保持距离，贴脸可压制其输出。' },
+  bone_knight:    { 1: '正面减伤 70%，绕至侧背可造成全额伤害；自动索敌武器持续打正面会严重刮痧。', 2: '限转向速率让它难以转身，持续绕圈走位即可稳定破甲。' },
+  plague_bearer:  { 1: '行走留毒径、死亡留大毒池，别站在它尸体上。' },
+  siren:          { 1: '治疗光束 + 头顶恒显徽标，优先击杀打断其续航。' },
+  revenant:       { 1: '死亡分裂为两枚残躯碎片，清完碎片才算真正消灭。' },
+  shadow_hunter:  { 1: '进入近距离后蓄力冲刺，读招间隙拉开距离。' },
+  gargoyle:       { 1: '免疫击退且正面减伤 75%，绕背打；厚血慢速，风筝最稳。' },
+  elite:          { 1: '血狱典狱长：高血高伤，半血会召唤 4 只蝙蝠护主，召唤前集火或备好 AOE。' },
+  elite_reaver:   { 1: '裂魂掠夺者：周期冲刺（约 4s 一读），冲刺间隙是其虚弱窗口。' },
+  elite_conduit:  { 1: '永夜导体：每 3s 发环形弹幕并加速附近友军，优先击杀断其节奏。' },
+  elite_colossus: { 1: '腐骸巨像：正面 140° 减伤 60%、免疫击退，务必绕侧背输出；极厚血，放风筝最稳。', 2: '慢速是其最大破绽——保持距离放风筝，正面硬撼代价高昂。' },
+  baron:          { 1: '首位 Boss：召唤蝙蝠 + 弹幕，注意走位躲弹。' },
+  queen:          { 1: '苍白女王：多重弹幕与位移，保持移动别站桩。' },
+  overlord:       { 1: '永夜君王：半场后狂暴，前期压血、后期控距离。' },
+  avatar:         { 1: '终局化身：存活至 12 分降临，击杀即通关，倾尽所有输出。' },
+};
+
+// 词缀图鉴文案（补全 P2 六词缀）
+const AFFIX_LORE = {
+  pack:     '「狼群」词缀：从同一方向成群包抄出现，头顶三点徽标标示，数量优势是其主要威胁。',
+  volatile: '「爆破」词缀：死亡瞬间引爆范围冲击波并重创靠近的玩家，击杀时播放明显爆炸特效，务必保持距离。',
+  shielded: '「护盾」词缀：受到伤害大幅降低，头顶盾牌徽标可快速识别，需集火或高爆发破除。',
+  swift:    '「疾行」词缀：移动速度大幅提升，更难风筝，速战速决。',
+  regen:    '「再生」词缀：每秒回复部分生命、受击后短暂停顿，持续压制输出。',
+  leech:    '「汲取」词缀：接触玩家时将其伤害的一部分回自身，拉开距离削弱其续航。',
+  bulwark:  '「壁垒」词缀：正面减伤 75%，绕侧背攻击可造成全额伤害。',
+  frost:    '「霜蚀」词缀：接触玩家时减速，保持移动避免被黏住。',
+};
+
+function getCounterHint(typeId, kills) {
+  const t = COUNTER_HINTS[typeId];
+  if (!t) return { tier: 0, text: '' };
+  if (kills >= 100 && t[2]) return { tier: 2, text: t[2] };
+  if (kills >= 20 && t[1]) return { tier: 1, text: t[1] };
+  return { tier: 0, text: '' };
+}
+
+// 弱点徽标：纯 data-driven 派生（不剧透内部常量，只用玩家可读语言）
+function buildWeaknessBadges(type) {
+  const b = [];
+  if (type.frontalArmor) {
+    const reduce = Math.round((1 - type.frontalArmor.mul) * 100);
+    b.push({ kind: 'frontal', text: `正面减伤${reduce}% · 绕侧背打全额` });
+  }
+  if (type.immuneKnockback) b.push({ kind: 'kb', text: '免疫击退 · 击退武器无效' });
+  if (typeof type.knockResist === 'number' && type.knockResist <= 0.3) b.push({ kind: 'easykb', text: '易击退' });
+  if (type.onLowHp && type.onLowHp.type === 'summon') b.push({ kind: 'summon', text: '半血召唤援军' });
+  if (type.dashRange) b.push({ kind: 'dash', text: '周期冲刺 · 间隙输出' });
+  if (type.barrage) b.push({ kind: 'barrage', text: '环形弹幕源 · 优先击杀断节奏' });
+  if (type.allyBuff) b.push({ kind: 'buff', text: '加速友军光环' });
+  return b;
+}
+
+function buildAffixBadges(a) {
+  const b = [];
+  if (a.dmgTakenMul != null) b.push({ kind: 'shield', text: `受伤×${a.dmgTakenMul} · 集火破盾` });
+  if (a.blastRadius) b.push({ kind: 'volatile', text: '死亡爆炸 · 保持距离' });
+  if (a.speedMul) b.push({ kind: 'swift', text: `移速×${a.speedMul} · 速战速决` });
+  if (a.regenPct) b.push({ kind: 'regen', text: `每秒回${Math.round(a.regenPct * 100)}% · 压制输出` });
+  if (a.leechPct) b.push({ kind: 'leech', text: '接触吸血 · 拉开距离' });
+  if (a.frontalArmor) { const r = Math.round((1 - a.frontalArmor.mul) * 100); b.push({ kind: 'frontal', text: `正面减伤${r}% · 绕侧背打全额` }); }
+  if (a.slowOnHit) b.push({ kind: 'frost', text: '命中减速你 · 速战速决' });
+  if (a.expMul) b.push({ kind: 'exp', text: `经验×${a.expMul}` });
+  return b;
+}
+
+// 图鉴分组（P3b-5a）：怪种 / 词缀 / 精英 / Boss；排除内部 weight:0 类型
+function buildCodexMonsterGroups() {
+  const species = [], elites = [], affixes = [];
+  for (const [k, t] of Object.entries(ENEMY_TYPES)) {
+    if (t.isElite) elites.push({ key: k, type: t });
+    else if (t.weight === 0) continue;            // 排除内部类型（revenant_shard 等）
+    else species.push({ key: k, type: t });
+  }
+  const bosses = BOSSES.map((t) => ({ key: t.id, type: t }));
+  for (const [k, a] of Object.entries(AFFIXES)) affixes.push({ key: k, type: a });
+  const byUnlock = (a, b) => (a.type.unlockAt || 0) - (b.type.unlockAt || 0);
+  species.sort(byUnlock);
+  elites.sort(byUnlock);
+  return [
+    { id: 'species', title: '怪种', color: 'purple', source: 'enemy', entries: species },
+    { id: 'affix', title: '词缀', color: 'cyan', source: 'affix', entries: affixes },
+    { id: 'elite', title: '精英', color: 'gold', source: 'enemy', entries: elites },
+    { id: 'boss', title: 'Boss', color: 'gold', source: 'boss', entries: bosses },
+  ];
+}
+
+// 调试钩子（?debug 下供 e2e 探针读取分组/弱点/解锁，纯函数无副作用）
+if (typeof window !== 'undefined') {
+  window.__codexDebug = {
+    groups: buildCodexMonsterGroups,
+    badges: (id) => {
+      if (ENEMY_TYPES[id] || BOSSES[id]) return buildWeaknessBadges(ENEMY_TYPES[id] || BOSSES[id]);
+      if (AFFIXES[id]) return buildAffixBadges(AFFIXES[id]);
+      return [];
+    },
+    hint: getCounterHint,
+  };
+}
 
 // 被动像素 icon（程序化 CSS，零 PNG，D5）。每项是 8×8 ASCII 像素图，
 // 字符→调色板见 PX；运行时由 spriteShadow() 转成 box-shadow 拼出像素 icon，
@@ -830,30 +936,18 @@ export class UIManager {
   }
 
   // 怪物图鉴：夜行小怪 / 永夜小怪 / Boss
+  // 怪物图鉴：怪种 / 词缀 / 精英 / Boss（P3b-5a 重组 + 弱点情报）
   renderCodexMonsters() {
     const root = document.getElementById('codex-monsters-content');
     root.innerHTML = '';
     const lore = MONSTER_LORE;
     const fmtTime = (s) => (s >= 60 ? `${Math.floor(s / 60)}分` : `${s}秒`);
-    // 特殊属性（独立条目，key 区别于 base 敌人；本体不染色，属性用光环+徽标表达）
-    const AFFIX_MONSTERS = [
-      { key: 'volatile', name: '爆破', sprite: 'slime', affixId: 'volatile', affix: '爆破', affixColor: '#e67e22',
-        hp: 90, damage: 20,
-        lore: '「爆破」词缀：死亡瞬间引爆范围冲击波并重创靠近的玩家,击杀时会播放明显爆炸特效,务必保持距离' },
-      { key: 'shielded', name: '护盾', sprite: 'skeleton', affixId: 'shielded', affix: '护盾', affixColor: '#3498db',
-        hp: 34, damage: 14,
-        lore: '「护盾」词缀：受到伤害大幅降低,头顶盾牌徽标可快速识别,需集火或高爆发破除' },
-      { key: 'pack', name: '狼群', sprite: 'bat', affixId: 'pack', affix: '狼群', affixColor: '#f1c40f',
-        hp: 30, damage: 12,
-        lore: '「狼群」词缀：从同一方向成群包抄出现,头顶三点徽标标示,数量优势是其主要威胁' },
-    ];
-    const groups = [
-      { id: 'noct', title: '夜行小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) < 540, color: 'purple', source: 'bestiary' },
-      { id: 'night', title: '永夜小怪', filter: (k, t) => !Array.isArray(t.skills) && (t.unlockAt || 0) >= 540, color: 'purple', source: 'bestiary' },
-      { id: 'boss', title: 'Boss', filter: (k, t) => Array.isArray(t.skills), color: 'gold', source: 'bestiary' },
-      { id: 'affix', title: '特殊属性', color: 'purple', source: 'affix' },
-    ];
+    const AFFIX_SPRITE = { pack: 'bat', volatile: 'slime', shielded: 'skeleton', swift: 'bat', regen: 'slime', leech: 'skeleton', bulwark: 'skeleton', frost: 'slime' };
+    const souls = loadSouls();
+    const killsOf = (id) => (souls.killsByType && souls.killsByType[id]) || 0;
+    const groups = buildCodexMonsterGroups();
     for (const g of groups) {
+      if (!g.entries.length) continue;
       const sec = document.createElement('div');
       sec.className = 'codex-section';
       const h = document.createElement('h3');
@@ -861,45 +955,76 @@ export class UIManager {
       sec.appendChild(h);
       const grid = document.createElement('div');
       grid.className = 'codex-grid';
-      const entries = g.source === 'affix'
-        ? AFFIX_MONSTERS.map((t) => [t.key, t])
-        : Object.entries({ ...ENEMY_TYPES, ...BOSSES });
-      for (const [key, t] of entries) {
-        if (g.filter && !g.filter(key, t)) continue;
+      for (const { key, type } of g.entries) {
         const isAffix = g.source === 'affix';
-        const info = isAffix ? t : (lore[key] || {});
         const card = document.createElement('div');
         card.className = `codex-card cat-${g.color}`;
-        if (isAffix) card.style.borderLeft = `4px solid ${t.affixColor}`;
         const img = document.createElement('img');
         if (isAffix) {
-          img.src = this.affixCodexDataURL(t.sprite, t.affixId, t.affixColor);
+          img.src = this.affixCodexDataURL(AFFIX_SPRITE[key] || 'skeleton', key, type.color);
+          card.style.borderLeft = `4px solid ${type.color}`;
         } else {
-          img.src = this.iconURL(t.sprite || 'icon_skull');
+          img.src = this.iconURL(type.sprite || 'icon_skull');
         }
-        img.alt = t.name || key;
+        img.alt = type.name || key;
         const name = document.createElement('p');
         name.className = 'cc-name';
-        name.textContent = t.name || key;
+        name.textContent = type.name || key;
         const stats = document.createElement('p');
         stats.className = 'cc-hint';
-        let unlock = t.unlockAt ? `首现 ${fmtTime(t.unlockAt)}` : '开局';
-        if (t.id === 'avatar') unlock = '终局 12 分降临';
+        let unlock = type.unlockAt ? `首现 ${fmtTime(type.unlockAt)}` : '开局';
+        if (key === 'avatar') unlock = '终局 12 分降临';
         if (isAffix) {
-          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · 可附着多数敌人`;
+          stats.textContent = `可附着多数敌人 · 经验×${type.expMul || 1}`;
         } else {
-          stats.textContent = `HP ${t.hp} · 伤害 ${t.damage} · ${unlock}`;
+          stats.textContent = `HP ${type.hp} · 伤害 ${type.damage} · ${unlock}`;
         }
         const desc = document.createElement('p');
         desc.className = 'cc-hint';
-        desc.textContent = isAffix ? (t.lore || '') : (typeof info === 'string' ? info : (info.desc || ''));
+        desc.textContent = isAffix ? (AFFIX_LORE[key] || '') : (typeof lore[key] === 'string' ? lore[key] : '');
         card.append(img, name, stats, desc);
+        // 弱点情报徽标（data-driven）
+        const badges = isAffix ? buildAffixBadges(type) : buildWeaknessBadges(type);
+        if (badges.length) {
+          const bw = document.createElement('div');
+          bw.className = 'codex-weakness';
+          for (const bd of badges) {
+            const tag = document.createElement('span');
+            tag.className = `cw-tag cw-${bd.kind}`;
+            tag.textContent = bd.text;
+            bw.appendChild(tag);
+          }
+          card.appendChild(bw);
+        }
+        // 击杀分级解锁应对提示（仅怪种/精英/Boss）
+        if (!isAffix) {
+          const kills = killsOf(key);
+          const hint = getCounterHint(key, kills);
+          const cw = document.createElement('div');
+          cw.className = 'codex-counter';
+          if (hint.tier > 0) {
+            const p = document.createElement('p');
+            p.className = 'cc-hint cw-hint';
+            p.textContent = `应对提示：${hint.text}`;
+            cw.appendChild(p);
+            if (hint.tier < 2) {
+              const prog = document.createElement('p');
+              prog.className = 'cc-hint cw-prog';
+              prog.textContent = `击杀 ${kills}/100 解锁进阶应对`;
+              cw.appendChild(prog);
+            }
+          } else {
+            const prog = document.createElement('p');
+            prog.className = 'cc-hint cw-prog';
+            prog.textContent = `击杀 ${kills}/20 解锁应对提示`;
+            cw.appendChild(prog);
+          }
+          card.appendChild(cw);
+        }
         grid.appendChild(card);
       }
-      if (grid.children.length) {
-        sec.appendChild(grid);
-        root.appendChild(sec);
-      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
     }
     this.hideAllScreens();
     document.getElementById('codex-monsters').classList.remove('hidden');

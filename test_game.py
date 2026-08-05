@@ -1083,6 +1083,40 @@ with sync_playwright() as p:
     expect('P3b-4 非colossus精英仍掉1宝箱(对照)', revChest == 1)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ===== P3b-5a RED：图鉴分组重构 + 弱点情报（实现前必失败）=====
+    # 依赖 window.__codexDebug（GREEN 阶段在 ui.js 暴露）：groups/badges/hint 纯函数。
+    # 当前未实现 → 返回 {ok:false} → 以下断言全部失败，构成 RED。
+    codex = page.evaluate("""() => {
+      if (!window.__codexDebug) return { ok: false };
+      const g = window.__codexDebug.groups();
+      const byId = Object.fromEntries(g.map(x => [x.id, x.entries.map(e => e.key)]));
+      return {
+        ok: true,
+        elite: byId.elite || [],
+        species: byId.species || [],
+        affix: byId.affix || [],
+        boss: byId.boss || [],
+        colBadges: window.__codexDebug.badges('elite_colossus').map(b => b.text).join('|'),
+        garBadges: window.__codexDebug.badges('gargoyle').map(b => b.text).join('|'),
+        bkBadges: window.__codexDebug.badges('bone_knight').map(b => b.text).join('|'),
+        hint0: window.__codexDebug.hint('bone_knight', 0),
+        hint20: window.__codexDebug.hint('bone_knight', 20),
+        hint100: window.__codexDebug.hint('bone_knight', 100),
+      };
+    }""")
+    expect('P3b-5a __codexDebug 已暴露', codex.get('ok') is True)
+    expect('P3b-5a 含精英分组(elite_colossus)', 'elite_colossus' in (codex.get('elite') or []))
+    expect('P3b-5a 精英不混入怪种', 'elite_colossus' not in (codex.get('species') or []))
+    expect('P3b-5a 内部weight:0类型排除(revenant_shard)', 'revenant_shard' not in (codex.get('species') or []))
+    expect('P3b-5a 词缀覆盖8条', len(codex.get('affix') or []) == 8)
+    expect('P3b-5a 巨像弱点含正面装甲', '正面' in (codex.get('colBadges') or ''))
+    expect('P3b-5a 石像鬼弱点含免疫击退', '击退' in (codex.get('garBadges') or ''))
+    expect('P3b-5a 骨骑弱点含侧背', '侧背' in (codex.get('bkBadges') or ''))
+    expect('P3b-5a 0杀应对提示未解锁(tier0)', bool(codex.get('hint0')) and codex['hint0']['tier'] == 0)
+    expect('P3b-5a ≥20杀解锁T1(tier≥1)', bool(codex.get('hint20')) and codex['hint20']['tier'] >= 1)
+    expect('P3b-5a ≥100杀解锁T2(tier≥2)', bool(codex.get('hint100')) and codex['hint100']['tier'] >= 2)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

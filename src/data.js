@@ -688,12 +688,13 @@ export function loadSouls() {
       treeResets: o?.treeResets || 0,      // 洗点次数
       achievements: o?.achievements || [], // 成就（与 G1 合并迁移）
       totalKills: o?.totalKills || 0,      // 累计击杀（前向兼容计数器）
+      killsByType: o?.killsByType || {},  // 按怪种累计击杀（P3b-5a 图鉴弱点情报分级解锁）
       version: o?.version || SOUL_SCHEMA_VERSION,
     };
     return migrateSouls(base, o?.version);
   } catch {
     return { balance: 0, spent: 0, unlocks: [], cleared: [], bloodlines: ['wanderer'],
-             selectedBloodline: 'wanderer', tree: [], treeResets: 0, achievements: [], totalKills: 0, version: 1 };
+             selectedBloodline: 'wanderer', tree: [], treeResets: 0, achievements: [], totalKills: 0, killsByType: {}, version: 1 };
   }
 }
 

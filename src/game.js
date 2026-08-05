@@ -278,6 +278,7 @@ export class Game {
     // 增益可能抬高 maxHp，同步回满血避免开局残血
     this.player.hp = this.player.maxHp;
     this.ui.startGame();
+    this.killsByType = {};   // v4.0 P3b-5a：本局击杀计数（落盘在 gameOver/gameWin）
     this.state = 'playing';
   }
 
@@ -466,8 +467,16 @@ export class Game {
     return Math.floor(reward * (this.soulGainMul || 1) * this.difficulty.soulMul * this.threatSoulMul());
   }
 
+  // v4.0 P3b-5a：把本局 killsByType 合并进持久化存档（与既有 saveSouls 调用独立，互不覆盖）
+  _persistKillsByType() {
+    const s = loadSouls();
+    s.killsByType = Object.assign({}, s.killsByType, this.killsByType || {});
+    saveSouls(s);
+  }
+
   gameOver(reason = 'defeat') {
     this.state = 'gameover';
+    this._persistKillsByType();
     const reward = this.computeSoulReward();
     addSouls(reward);
     this.runSouls = reward;
@@ -479,6 +488,7 @@ export class Game {
   // 终局通关：击杀永夜化身后结算
   gameWin() {
     this.state = 'victory';
+    this._persistKillsByType();
     const reward = this.computeSoulReward(true);
     addSouls(reward);
     this.runSouls = reward;

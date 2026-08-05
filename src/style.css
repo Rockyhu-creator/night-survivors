@@ -438,6 +438,17 @@ html, body {
 .codex-card .cc-hint { margin-top: 6px; font-size: 11px; line-height: 1.5; opacity: .7; }
 .codex-card.locked { opacity: .38; filter: grayscale(1); }
 .codex-card.hidden-item { border-color: rgba(142,68,173,.5); }
+
+/* 图鉴弱点情报（P3b-5a）：data-driven 徽标 + 击杀分级应对提示，复用既有色系不引入新 hex */
+.codex-weakness { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; justify-content: center; }
+.cw-tag { font-size: 10px; line-height: 1.4; padding: 2px 6px; border-radius: 10px; background: rgba(212,175,55,.14); border: 1px solid rgba(212,175,55,.4); color: var(--gold); }
+.cw-frontal { background: rgba(231,76,60,.14); border-color: rgba(231,76,60,.45); color: var(--blood-bright); }
+.cw-kb, .cw-easykb { background: rgba(142,68,173,.16); border-color: rgba(142,68,173,.45); color: #8e44ad; }
+.cw-summon, .cw-dash, .cw-barrage, .cw-buff { background: rgba(90,209,230,.14); border-color: rgba(90,209,230,.4); color: #5ad1e6; }
+.cw-shield, .cw-volatile, .cw-swift, .cw-regen, .cw-leech, .cw-frost, .cw-exp { background: rgba(241,196,15,.14); border-color: rgba(241,196,15,.4); color: #f1c40f; }
+.codex-counter { margin-top: 6px; }
+.cw-hint { color: var(--bone); opacity: .92; }
+.cw-prog { opacity: .55; }
 #codex-hub .gothic-btn, #codex-artifacts .gothic-btn, #codex-monsters .gothic-btn, #codex-weapons .gothic-btn, #codex-passives .gothic-btn { margin-top: 28px; }
 
 /* 游戏图鉴 一级菜单：分类卡片网格 */
