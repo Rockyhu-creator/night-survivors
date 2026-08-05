@@ -218,6 +218,8 @@ export const ENEMY_TYPES = {
   elite: {
     id: 'elite', name: '血狱典狱长', sprite: 'elite', hp: 650, speed: 42, damage: 32, exp: 40,
     radius: 26, spriteSize: 96, knockResist: 0.95, unlockAt: 150, weight: 0,
+    // P3b-3③：血量首次 < 50% 召唤 4 只 bat 护主（通用 onLowHp 钩子，once 语义由 _lowHpFired 保证）
+    onLowHp: { at: 0.5, type: 'summon', enemyType: 'bat', count: 4, once: true },
     isElite: true, eliteWeight: 3, eliteColor: '#d4af37',
   },
   // ---------- v4.0 P3 新精英（纯数据层；刷新规则与差异化行为留后续单元）----------

@@ -950,6 +950,36 @@ with sync_playwright() as p:
     expect('elite_reaver 冲刺结束 dashCd 置为 3.2', abs(dashRun['cdAfterDash'] - 3.2) < 0.001)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ---- 血狱典狱长半血召唤（P3b-3③）----
+    # 通用 onLowHp 钩子：elite 首次 hp/maxHp<=0.5 触发 bossSummon(bat,4)，once 由 _lowHpFired 保证。
+    lowDecl = page.evaluate("""() => {
+      const g = window.__game;
+      const el = window.__enemyTypes.elite;
+      return { has: !!(el.onLowHp && el.onLowHp.at === 0.5 && el.onLowHp.enemyType === 'bat' && el.onLowHp.count === 4),
+               at: el.onLowHp ? el.onLowHp.at : null, kind: el.onLowHp ? el.onLowHp.type : null };
+    }""")
+    expect('elite 声明 onLowHp(半血召唤bat×4)', lowDecl['has'] is True)
+    expect('elite onLowHp.at=0.5', lowDecl['at'] == 0.5)
+    expect('elite onLowHp.type=summon', lowDecl['kind'] == 'summon')
+
+    lowRun = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.elite, scale, 0, 0);
+      e.hp = e.maxHp * 0.4; // 跌破 50%
+      e._lowHpFired = false;
+      g.enemies.enemies.push(e);
+      const before = g.enemies.enemies.length;
+      g.enemies.update(0.016);
+      const bats = g.enemies.enemies.filter(x => x.type && x.type.id === 'bat').length;
+      return { fired: e._lowHpFired === true, added: g.enemies.enemies.length - before, bats };
+    }""")
+    expect('elite 半血触发 onLowHp(_lowHpFired=True)', lowRun['fired'] is True)
+    expect('elite 召唤 bat×4', lowRun['bats'] == 4)
+    expect('elite 召唤后 enemies 增 4', lowRun['added'] == 4)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

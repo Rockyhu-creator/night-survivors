@@ -460,6 +460,7 @@ export class EnemyManager {
     if (!type) return;
     const scale = this.statScale(false);
     for (let i = 0; i < count; i += 1) {
+      if (this.enemies.length >= CONFIG.ENEMY_CAP) break; // P3b-3③：onLowHp 召唤也受硬上限约束（既往隐患补齐）
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
       const x = e.x + Math.cos(angle) * 60;
       const y = e.y + Math.sin(angle) * 60;
@@ -681,6 +682,13 @@ export class EnemyManager {
       } else {
         const beh = behaviors[e.type.id] || defaultChase;
         beh(e, dt, this, { dx, dy, dist });
+        // 通用低血触发钩子（P3b-3③）：任何声明 onLowHp 的敌人首次跌破阈值触发一次。
+        // 可复用于未来怪；_lowHpFired 保证 once 语义。召唤走 bossSummon（内部有 ENEMY_CAP 守卫）。
+        const oll = e.type.onLowHp;
+        if (oll && !e._lowHpFired && e.hp / e.maxHp <= oll.at) {
+          e._lowHpFired = true;
+          if (oll.type === 'summon') this.bossSummon(e, oll.enemyType, oll.count);
+        }
       }
       if (e.isBoss) {
         const cdMul = this.game.difficulty.bossSkillCdMul || 1;
