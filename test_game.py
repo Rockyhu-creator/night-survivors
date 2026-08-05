@@ -126,6 +126,23 @@ with sync_playwright() as p:
     }""")
     expect('P3b-2 精英类型数=4', elite_cfg['count'] == 4)
     expect('P3b-2 全部精英 eliteWeight>0(否则刷新器不外刷)', elite_cfg['allWeighted'] is True)
+    # P3a-1 回归：spitter 须有吐弹参数（行为朝玩家单发弹幕）；rat_swarm 须 groupSize>1（成簇生成钩子）
+    p3a1_cfg = page.evaluate("""() => {
+      const sp = window.__enemyTypes.spitter;
+      const rs = window.__enemyTypes.rat_swarm;
+      return { spitOk: !!(sp && sp.spitCd && sp.spitSpeed && sp.spitDamage), ratsGroup: !!(rs && rs.groupSize > 1) };
+    }""")
+    expect('P3a-1 spitter 吐弹参数齐备', p3a1_cfg['spitOk'] is True)
+    expect('P3a-1 rat_swarm groupSize>1(成簇钩子)', p3a1_cfg['ratsGroup'] is True)
+    # P3a-1 运行时：清弹幕后生成 spitter，确定性推进 ~3s（覆盖一个吐弹周期），应吐出弹幕
+    spit_proj = page.evaluate("""() => {
+      const g = window.__game; g.state = 'playing'; g.enemies.enemyProjectiles.length = 0;
+      const scale = g.enemies.statScale(false);
+      g.enemies.spawnAt(window.__enemyTypes.spitter, scale);
+      for (let i = 0; i < 30; i += 1) g.enemies.update(0.1);
+      return g.enemies.enemyProjectiles.length;
+    }""")
+    expect('P3a-1 spitter 周期性吐弹(弹幕>0)', spit_proj > 0)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')

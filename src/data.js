@@ -269,12 +269,13 @@ export const ENEMY_TYPES = {
   rat_swarm: {
     id: 'rat_swarm', name: '尸鼠群', sprite: 'bat', hp: 6, speed: 130, damage: 5, exp: 1,
     radius: 10, spriteSize: 30, knockResist: 0, unlockAt: 20, weight: 3, lateWeight: 4,
-    cluster: 3, // P3：成簇 ×3 生成（复用 pack/cluster 机制）
+    groupSize: 3, // P3a-1：成簇 ×3 生成（复用 P3a-S spawnAt groupSize 钩子，±28px 散开）
   },
   spitter: {
     id: 'spitter', name: '腐唾者', sprite: 'slime', hp: 28, speed: 40, damage: 12, exp: 3,
     radius: 13, spriteSize: 40, knockResist: 0.1, unlockAt: 75, weight: 2,
     ranged: true, // P3：远程吐弹、保持距离（小怪单发弹幕，复用现有弹幕池）
+    spitCd: 2.2, spitSpeed: 175, spitDamage: 10, keepDist: 200, // P3a-1：吐弹节奏/弹速/弹伤/偏好距离 [待真机校准]
   },
   bone_knight: {
     id: 'bone_knight', name: '骸骨骑士', sprite: 'skeleton', hp: 180, speed: 58, damage: 26, exp: 10,

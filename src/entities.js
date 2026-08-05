@@ -1191,6 +1191,8 @@ const behaviors = {
   gargoyle: defaultChase,
   // 暗影猎手：dashState 三态机，作为首个显式 behavior 模板
   shadow_hunter: shadowHunterBehavior,
+  // 腐唾者：保持偏好距离 + 周期性朝玩家单发弹幕（P3a-1）
+  spitter: spitterBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。
@@ -1250,4 +1252,28 @@ function shadowHunterBehavior(e, dt, mgr, ctx) {
 // 注册入口：供后续内容切片（P2/P3）挂载行为，无需再改 update() 大循环。
 export function registerBehavior(typeId, fn) {
   behaviors[typeId] = fn;
+}
+
+// 腐唾者（P3a-1）：保持偏好距离（太近后退、太远靠近）+ 周期性朝玩家单发弹幕。
+// 吐弹复用 _fireBarrageWave(e, 1, ...) —— count=1 时 t=0 → 弹道正中玩家，无需另写瞄准。
+// 首次吐弹延迟一个 spitCd（避免一出生就在屏外丢弹），之后每 spitCd 一发。
+function spitterBehavior(e, dt, mgr, ctx) {
+  const { dx, dy, dist } = ctx;
+  const keep = e.type.keepDist || 200;
+  const mvx = dist < keep ? -dx : dx; // 保持距离：<keep 后退，否则靠近
+  const mvy = dist < keep ? -dy : dy;
+  const mlen = Math.hypot(mvx, mvy) || 1;
+  if (e.stunTimer > 0) {
+    e.stunTimer -= dt;
+    e.x += e.kx * dt; e.y += e.ky * dt;
+  } else {
+    const slowFactor = (e.slowTimer > 0) ? (e.slowMul || 1) : 1;
+    e.x += (mvx / mlen) * e.speed * slowFactor * dt + e.kx * dt;
+    e.y += (mvy / mlen) * e.speed * slowFactor * dt + e.ky * dt;
+  }
+  e.spitTimer = (e.spitTimer === undefined) ? (e.type.spitCd || 2.2) : e.spitTimer - dt;
+  if (e.spitTimer <= 0) {
+    e.spitTimer = e.type.spitCd || 2.2;
+    mgr._fireBarrageWave(e, 1, e.type.spitSpeed || 175, e.type.spitDamage || 10, 0, 1);
+  }
 }
