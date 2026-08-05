@@ -1222,6 +1222,9 @@ const behaviors = {
   plague_bearer: plagueBehavior,
   // 骸骨骑士：同质寻路 + 限转向速率 facing 插值（P3a-4 / D1：绕后破甲教学怪）
   bone_knight: boneKnightBehavior,
+  // 腐骸巨像：复用 bone_knight 的 facing+frontalArmor 机制（P3b-3① / D1·D2）——类型驱动，
+  //   渲染 140° 弧线自动（entities.js:1104 读 e.type.frontalArmor），turnRate 0.6 取自数据层。
+  elite_colossus: boneKnightBehavior,
 };
 
 // 默认行为：当前「未特例化」敌人的同质寻路（朝玩家移动 + 晕眩/减速/击退处理）。

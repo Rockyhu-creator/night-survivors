@@ -869,6 +869,44 @@ with sync_playwright() as p:
     expect('bone_knight facing 朝向玩家(投影>0.9)', facingInit['towardPlayer'] > 0.9)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")  # 清理，不污染后续用例
 
+    # ---- 巨像正面装甲激活基线（P3b-3① / D1·D2）----
+    # 腐骸巨像复用 bone_knight 的 boneKnightBehavior（facing+frontalArmor 机制，类型驱动），
+    # 数据层 frontalArmor {arcCos:-0.34, mul:0.40} → 正面 140° 减伤 60%。渲染弧线自动（L1104 读 e.type）。
+    # 数值基线 front=40(100×0.40) / aoe=100 / back=100，与 bone_knight 同源但 mul 不同，必须独立守住。
+    faC = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const mk = (fx, fy) => { const e = g.enemies.createEnemy(window.__enemyTypes.elite_colossus, scale, 0, 0); e.hp = e.maxHp = 100000; e.facingX = fx; e.facingY = fy; return e; };
+      const a = mk(-1, 0); g.enemies.damageEnemy(a, 100, 1, 0);       // 正面：减伤
+      const b = mk(-1, 0); g.enemies.damageEnemy(b, 100, 0, 0);       // 零向量 AoE：全额
+      const c = mk(1, 0); g.enemies.damageEnemy(c, 100, 1, 0);        // 背面：全额
+      return { frontLoss: +(100000 - a.hp).toFixed(3), aoeLoss: +(100000 - b.hp).toFixed(3), backLoss: +(100000 - c.hp).toFixed(3) };
+    }""")
+    expect('elite_colossus 正面直伤吃减伤(100×0.40=40)', faC['frontLoss'] == 40)
+    expect('elite_colossus 零向量AoE吃全额(100)', faC['aoeLoss'] == 100)
+    expect('elite_colossus 背面直伤吃全额(100)', faC['backLoss'] == 100)
+
+    # behavior 确实在设置 facing：复用 boneKnightBehavior，跑一帧 update 后应朝向玩家。
+    facingC = page.evaluate("""() => {
+      const g = window.__game;
+      g.enemies.enemies = []; g.enemies.spawnTimer = 999;
+      const scale = g.enemies.statScale(false);
+      const e = g.enemies.createEnemy(window.__enemyTypes.elite_colossus, scale, 100, 0);
+      g.enemies.enemies.push(e); // 必须入列，update 才会执行 behavior 设置 facing
+      g.player.x = 0; g.player.y = 0; // 玩家在敌人左侧 → 期望 facing≈(-1,0)
+      const before = (typeof e.facingX === 'number');
+      g.enemies.update(0.016);
+      const mag = Math.hypot(e.facingX || 0, e.facingY || 0);
+      const towardPlayer = ((e.facingX || 0) * (-1) + (e.facingY || 0) * 0);
+      return { before, after: (typeof e.facingX === 'number'), mag: +mag.toFixed(3), towardPlayer: +towardPlayer.toFixed(3) };
+    }""")
+    expect('elite_colossus 初始无 facing(before False)', facingC['before'] is False)
+    expect('elite_colossus update 后获得 facing(after True)', facingC['after'] is True)
+    expect('elite_colossus facing 为单位向量(模≈1)', abs(facingC['mag'] - 1) < 0.05)
+    expect('elite_colossus facing 朝向玩家(投影>0.9)', facingC['towardPlayer'] > 0.9)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});

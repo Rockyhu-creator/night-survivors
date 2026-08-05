@@ -248,6 +248,8 @@ export const ENEMY_TYPES = {
   elite_colossus: {
     id: 'elite_colossus', name: '腐骸巨像', sprite: 'gargoyle', hp: 1400, speed: 16, damage: 48, exp: 80,
     radius: 34, spriteSize: 118, knockResist: 1.0, unlockAt: 500, weight: 0,
+    turnRate: 0.6, // P3b-3① / D1：限转向速率（比 knight 略低，[待真机校准] 带宽 0.6–1.0）
+    frontalArmor: { arcCos: -0.34, mul: 0.40 }, // P3b-3① / D2：正面 140° 减伤 60%（复用 bone_knight 点积判向）
     isElite: true, eliteWeight: 2, eliteColor: '#6b8e23', immuneKnockback: true,
   },
   // 后期新怪（永夜阶段解锁）
