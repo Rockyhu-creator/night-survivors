@@ -118,6 +118,14 @@ with sync_playwright() as p:
     }""")
     overlord_u = next((b['unlockAt'] for b in easy_schedule if b['id'] == 'overlord'), None)
     expect('甲-1 easy 下 overlord 化身前可达(≤630)', overlord_u is not None and overlord_u <= 630)
+    # P3b-2 回归：4 精英类型必须 isElite 且 eliteWeight>0，否则刷新器 pool 过滤后为空 → 静默永不外刷精英
+    elite_cfg = page.evaluate("""() => {
+      const all = Object.values(window.__enemyTypes);
+      const elites = all.filter(e => e.isElite);
+      return { count: elites.length, allWeighted: elites.every(e => e.eliteWeight > 0) };
+    }""")
+    expect('P3b-2 精英类型数=4', elite_cfg['count'] == 4)
+    expect('P3b-2 全部精英 eliteWeight>0(否则刷新器不外刷)', elite_cfg['allWeighted'] is True)
 
     # --- 基础流程：升级三选一（用 API 直接触发，不依赖玩家击杀） ---
     page.click('#btn-start')

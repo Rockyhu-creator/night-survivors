@@ -9,6 +9,10 @@ const RECYCLE_RADIUS = 900;
 // 亡魂收割者（reaper）·收割回能初值 [PLACEHOLDER 待真机校准]：
 // 被 scythe/rend 击杀且持有 reaper 神器时，给玩家回收的 HP 量。
 const REND_HARVEST_HP = 4;
+// 精英类型集合（isElite 数据层判定）；精英刷新器(P3b-2)消费 eliteWeight 加权选种
+const ELITE_TYPES = Object.values(ENEMY_TYPES).filter((e) => e.isElite);
+// 最早精英解锁时间：刷新器门控起点（t >= 此值才开始刷精英）
+const ELITE_START_AT = ELITE_TYPES.length ? Math.min(...ELITE_TYPES.map((e) => e.unlockAt)) : Infinity;
 
 export class Player {
   constructor() { this.reset(); }
@@ -216,7 +220,7 @@ export class EnemyManager {
   reset() {
     this.enemies.length = 0;
     this.spawnTimer = 0.5;
-    this.eliteTimer = 180;
+    this.eliteTimer = 0; // P3b-2：归零→首个精英在其 unlockAt(150s) 即登场（原 180 因 decrement 仅在门控内致首刷拖到 ~330s）
     this.bossSpawned = new Set();
     this.activeBoss = null;
     this.enemyProjectiles = [];
@@ -637,11 +641,25 @@ export class EnemyManager {
         }
       }
     }
-    if (t >= ENEMY_TYPES.elite.unlockAt) {
+    // P3b-2：精英刷新规则（消费难度 eliteGapBase/eliteGapMin/maxAliveElites + 类型 eliteWeight）
+    // 与原写死「每 90s 固定刷 elite」不同：① 按 eliteWeight 加权选已解锁类型 ② 间隔随进程从 base 线性降到 min ③ 受 maxAliveElites 上限约束
+    if (t >= ELITE_START_AT) {
       this.eliteTimer -= dt;
       if (this.eliteTimer <= 0) {
-        this.eliteTimer = 90;
-        this.spawnAt(ENEMY_TYPES.elite, scale);
+        const aliveElites = this.enemies.reduce((n, e) => n + (e.type.isElite ? 1 : 0), 0);
+        if (aliveElites < diff.maxAliveElites) {
+          const pool = ELITE_TYPES.filter((e) => t >= e.unlockAt && e.eliteWeight > 0);
+          if (pool.length > 0) {
+            const total = pool.reduce((s, e) => s + e.eliteWeight, 0);
+            let r = Math.random() * total;
+            let chosen = pool[0];
+            for (const e of pool) { r -= e.eliteWeight; if (r <= 0) { chosen = e; break; } }
+            this.spawnAt(chosen, scale);
+          }
+        }
+        // 间隔随进程从 eliteGapBase 线性降到 eliteGapMin（150s→720s），保证后期精英更密集
+        const ramp = Math.max(0, Math.min(1, (t - ELITE_START_AT) / (ENDGAME_BOSS_TIME - ELITE_START_AT)));
+        this.eliteTimer = Math.max(diff.eliteGapMin, diff.eliteGapBase - (diff.eliteGapBase - diff.eliteGapMin) * ramp);
       }
     }
 
