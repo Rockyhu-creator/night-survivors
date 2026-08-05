@@ -717,6 +717,34 @@ with sync_playwright() as p:
     }""")
     expect('非Boss触碰伤害封顶≤35%最大生命', cap['hpLost'] <= 200 * 0.35 + 1)
 
+    # ---- 正面装甲基线钉桩（v4.0 P3a-S）----
+    # frontalArmor 读取端已上线（entities.js:damageEnemy），bone_knight（data.js ENEMY_TYPES）
+    # 与 AFFIXES.bulwark 的配置 P2 就已存在，当前靠「敌人实例无 facingX/facingY」这一道守卫维持休眠。
+    # ⚠️ 后续单元一旦给敌人加 facing，这三条断言会变红 —— 那是【预期行为】，不是测试坏了。
+    #    变红时的正确做法是：确认伤害基线变化是有意的、显式申报它、然后更新本断言的期望值。
+    #    绝不允许直接删掉或放松这条。
+    # 三条断言的分工：facing 那条负责「一眼看出为什么红」，两条伤害负责「守住数值基线」。
+    fa = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.enemies.enemies = [];
+      const scale = g.enemies.statScale(false);
+      // hp 拉高：避免 100 点伤害触发死亡分支（掉落/onEnemyKilled）污染后续用例
+      const mk = () => { const e = g.enemies.createEnemy(window.__enemyTypes.bone_knight, scale, 0, 0); e.hp = e.maxHp = 100000; return e; };
+      const a = mk(); const hpA = a.hp;
+      g.enemies.damageEnemy(a, 100, 1, 0);   // 有方向直伤（唯一可能受正面护甲的来源）
+      const b = mk(); const hpB = b.hp;
+      g.enemies.damageEnemy(b, 100, 0, 0);   // 零向量 AoE（设计裁决 §1.6：恒全额）
+      return {
+        dirLoss: +(hpA - a.hp).toFixed(3),
+        aoeLoss: +(hpB - b.hp).toFixed(3),
+        hasFacing: typeof a.facingX === 'number' || typeof a.facingY === 'number',
+      };
+    }""")
+    expect('正面装甲仍休眠(敌人无 facingX/facingY)', fa['hasFacing'] is False)
+    expect('bone_knight 有方向直伤吃全额(100)', fa['dirLoss'] == 100)
+    expect('bone_knight 零向量AoE吃全额(100)', fa['aoeLoss'] == 100)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")  # 清理，不污染后续用例
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});
