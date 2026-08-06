@@ -8,6 +8,7 @@
     "validate:skilltree": "node scripts/validate_skilltree.mjs",
     "test:skilltree": "/Users/a34481/.workbuddy/binaries/python/envs/default/bin/python tests/skilltree_overlap.py",
     "test:content": "/Users/a34481/.workbuddy/binaries/python/envs/default/bin/python tests/p2_content_probe.py",
+    "test:assets": "node scripts/test_assets.mjs",
     "prebuild": "node scripts/validate_skilltree.mjs",
     "build": "vite build",
     "preview": "vite preview"
