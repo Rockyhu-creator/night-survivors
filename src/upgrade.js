@@ -1,5 +1,5 @@
 import { CONFIG, WEAPONS, PASSIVES, NIGHT_START, unlockInCollection, RECIPES, ARTIFACTS, loadCollection } from './data.js';
-import { sprite } from './assets.js';
+import { sprite, safeIconURL } from './assets.js';
 import { findEvolvableRecipe } from './evolution.js';
 
 // ---------- 合成提示（方案 A+B，详见 design/plans/2026-07-26-synth-hint-design.md §5）----------
@@ -236,7 +236,8 @@ export class UpgradeSystem {
       top.className = 'uc-top';
       const img = document.createElement('img');
       const src = sprite(info.icon);
-      img.src = src instanceof HTMLCanvasElement ? src.toDataURL() : (src?.src || '/assets/gem_small.png');
+      img.src = src instanceof HTMLCanvasElement ? src.toDataURL()
+        : (src ? src.src : safeIconURL(info.icon, info.title));
       img.alt = info.title;
       top.appendChild(img);
       const body = document.createElement('div');

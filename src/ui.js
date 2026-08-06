@@ -1,6 +1,6 @@
 import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, AFFIXES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier } from './data.js';
 import { buildCollectionData } from './evolution.js';
-import { sprite, drawAffixBadge, ensureLazy } from './assets.js';
+import { sprite, drawAffixBadge, ensureLazy, safeIconURL } from './assets.js';
 
 // 构建版本号（由 vite define 注入，用于美术图 URL 缓存击穿）
 const BUILD_ID = __BUILD_ID__;
@@ -314,8 +314,9 @@ export class UIManager {
 
   iconURL(key) {
     const src = sprite(key);
-    if (!src) return '';
-    return src instanceof HTMLCanvasElement ? src.toDataURL() : src.src;
+    if (src) return src instanceof HTMLCanvasElement ? src.toDataURL() : src.src;
+    // 缺失精灵：返回带标签占位 data-URI，绝不碎图（替代空 src）
+    return safeIconURL(key, key);
   }
 
   showTitle() {

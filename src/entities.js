@@ -1,5 +1,5 @@
 import { CONFIG, ENEMY_TYPES, BOSSES, NIGHT_START, ENDGAME_BOSS_TIME, AFFIXES, CRIT_CHANCE_BASE, CRIT_MUL_BASE, CRIT_CHANCE_CAP, DODGE_CAP, SHIELD_REGEN_DELAY, SHIELD_REGEN_BASE, DAMAGE_MIN, TL_BOSS_HP_K, TL_BOSS_HP_CAP, TL_HP_AMP_CAP, TL_DMG_AMP_CAP, TL_SPAWN_MUL_CAP } from './data.js';
-import { sprite, drawAffixBadge } from './assets.js';
+import { sprite, drawAffixBadge, drawSpriteSafe } from './assets.js';
 
 // 敌方弹幕数量硬上限：Boss 弹幕(三波错峰)极端情况下可能刷爆，超限时丢弃最旧弹幕，防卡顿/崩溃
 const MAX_ENEMY_PROJECTILES = 400;
@@ -1021,7 +1021,6 @@ export class EnemyManager {
       const sx = Math.round(e.x - cam.ox);
       const sy = Math.round(e.y - cam.oy);
       if (sx < -120 || sy < -120 || sx > CONFIG.LOGICAL_WIDTH + 120 || sy > CONFIG.LOGICAL_HEIGHT + 120) continue;
-      let img = sprite(e.type.sprite);
       const wobbleY = e.type === ENEMY_TYPES.bat ? Math.sin(e.wobble) * 3 : 0;
       const size = e.spriteSize;
       // 脚下阴影
@@ -1047,14 +1046,8 @@ export class EnemyManager {
           ctx.scale(1 + Math.sin(t * 18 + ph) * 0.14, 1 + Math.cos(t * 18 + ph) * 0.08);
         }
       }
-      if (img) {
-        ctx.drawImage(img, -size / 2, -size / 2, size, size);
-      } else {
-        ctx.fillStyle = '#8e44ad';
-        ctx.beginPath();
-        ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // 统一占位：缺失精灵画带标签占位方块，替代裸紫圆兜底
+      drawSpriteSafe(ctx, e.type.sprite, -size / 2, -size / 2, size, e.type.name || e.type.sprite);
       // 词缀 / 精英标识层（不换主体 sprite，仅渲染提示）
       // v4.0 P2：放宽到任意带 affixDef 的词缀（含 5 个新词缀），统一走椭圆光环 + affixDef.color；
       // 仅 volatile 保留射线特例。对旧三词缀（pack/shielded/volatile）逐字节等价。

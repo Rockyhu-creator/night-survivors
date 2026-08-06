@@ -86,7 +86,6 @@ const files = {
   altar_menu: 'altar_menu.png',
   shadow_hunter: 'enemy_shadow_hunter.png',
   gargoyle: 'enemy_gargoyle.png',
-  boss_avatar: 'boss_avatar.png',
   gemSmall: 'gem_small.png',
   gemMedium: 'gem_medium.png',
   gemLarge: 'gem_large.png',
@@ -110,7 +109,7 @@ const LAZY_KEYS = new Set([
   'codex_artifacts', 'codex_monsters', 'codex_weapons', 'codex_book',
   'altar_hp', 'altar_spd', 'altar_dmg', 'altar_gain', 'altar_dual',
   'altar_slot_weapon', 'altar_slot_passive',
-  'boss_baron', 'boss_queen', 'boss_overlord', 'boss_avatar',
+  'boss_baron', 'boss_queen', 'boss_overlord',
   'portrait_saint', 'portrait_berserker', 'portrait_thunder',
   'portrait_bloodthirsty', 'portrait_apostle',
 ]);
@@ -290,4 +289,49 @@ export function sprite(key) {
     processed[key] = (key === 'ground') ? img : trimTransparent(img);
   }
   return processed[key];
+}
+
+// ── P5-1 统一占位工具 ───────────────────────────────────────────────
+// 缺失精灵的兜底：画带标签的占位方块，替代裸紫圆；HTML 图标返回 data-URI，绝不碎图。
+// 仅当资源真实缺失（images[key] 为假）时触发占位；已加载资源走原路径。
+
+// HTML <img> 用：缺失返回带标签 SVG data-URI，存在则返回带哈希的资源 URL。
+const _iconPH = {};
+export function safeIconURL(key, label) {
+  if (images[key]) return assetUrl(files[key]);
+  const ck = key + '|' + (label || key);
+  if (_iconPH[ck]) return _iconPH[ck];
+  const text = String(label || key).slice(0, 6);
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">' +
+    '<rect width="48" height="48" rx="6" fill="#332a45"/>' +
+    '<rect x="3" y="3" width="42" height="42" rx="4" fill="none" stroke="#8e44ad" stroke-width="2"/>' +
+    '<text x="24" y="29" font-size="9" fill="#c9b6e6" text-anchor="middle" font-family="sans-serif">' +
+    text + '</text></svg>';
+  const uri = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  _iconPH[ck] = uri;
+  return uri;
+}
+
+// Canvas 用：缺失精灵画带标签占位方块；返回 true=真实精灵 / false=占位。
+export function drawSpriteSafe(ctx, key, x, y, size, label) {
+  const img = sprite(key);
+  if (img) {
+    ctx.drawImage(img, x, y, size, size);
+    return true;
+  }
+  const px = Math.round(x), py = Math.round(y), s = Math.max(8, Math.round(size));
+  ctx.save();
+  ctx.fillStyle = '#332a45';
+  ctx.fillRect(px, py, s, s);
+  ctx.strokeStyle = '#8e44ad';
+  ctx.lineWidth = Math.max(1, Math.round(s * 0.05));
+  ctx.strokeRect(px + 1, py + 1, s - 2, s - 2);
+  ctx.fillStyle = '#c9b6e6';
+  ctx.font = Math.max(8, Math.round(s * 0.2)) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(label || key).slice(0, 6), px + s / 2, py + s / 2);
+  ctx.restore();
+  return false;
 }
