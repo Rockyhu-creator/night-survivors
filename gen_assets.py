@@ -55,6 +55,11 @@ AI_OWNED = {
     "weapon_blade.png", "weapon_holywater.png", "weapon_axe.png", "weapon_lightning.png",
     "gem_small.png", "gem_medium.png", "gem_large.png",
     "ground.png", "bg_title.png", "icon_skull.png",
+    # v4.1 P6 新增怪物贴图（AI 生图管线独占，禁止程序化生成器覆盖）
+    "boss_herald.png","boss_alchemist.png","boss_warlord.png",
+    "enemy_elite_reaver.png","enemy_elite_conduit.png","enemy_elite_colossus.png",
+    "enemy_rat_swarm.png","enemy_spitter.png","enemy_bone_knight.png",
+    "enemy_plague_bearer.png","enemy_siren.png","enemy_revenant.png",
     # 被动 icon（13 张，由 gen_passive_pixels.py 从 AI 原图像素化生成）
     "passive_boots.png", "passive_heart.png", "passive_tome.png", "passive_magnet.png",
     "passive_greed.png", "passive_guard.png", "passive_regen.png",

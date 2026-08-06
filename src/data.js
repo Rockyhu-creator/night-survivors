@@ -238,14 +238,14 @@ export const ENEMY_TYPES = {
   //   声明了没人读的字段比不声明更糟（P2 的 lateWeight 前车之鉴）。
   //   immuneKnockback 是例外——现有代码已支持（gargoyle 在用）。
   elite_reaver: {
-    id: 'elite_reaver', name: '裂魂掠夺者', sprite: 'shadow_hunter', hp: 520, speed: 72, damage: 38, exp: 45,
+    id: 'elite_reaver', name: '裂魂掠夺者', sprite: 'elite_reaver', hp: 520, speed: 72, damage: 38, exp: 45,
     radius: 22, spriteSize: 84, knockResist: 0.85, unlockAt: 240, weight: 0,
     // D5：冲刺字段名与 shadow_hunter 完全一致；dashCd:3.2 + dashDuration:0.45 → 周期≈4s（可预判读招，非骚扰）
     dashRange: 320, dashCharge: 0.45, dashSpeed: 3.4, dashCd: 3.2, dashDuration: 0.45,
     isElite: true, eliteWeight: 3, eliteColor: '#e74c3c',
   },
   elite_conduit: {
-    id: 'elite_conduit', name: '永夜导体', sprite: 'elite', hp: 700, speed: 30, damage: 30, exp: 55,
+    id: 'elite_conduit', name: '永夜导体', sprite: 'elite_conduit', hp: 700, speed: 30, damage: 30, exp: 55,
     radius: 24, spriteSize: 90, knockResist: 0.90, unlockAt: 380, weight: 0,
     // P3b-3④：每 3s 发 8 发环形弹幕（复用 P3a-S _fireRadialWave）；给 180px 内非精英友军 +25% 移速
     //   （加速光环由 update() 预扫描统一施加，见 entities.js；用户决议：仅杂兵+暗影猎手，不加速其它精英）
@@ -254,7 +254,7 @@ export const ENEMY_TYPES = {
     isElite: true, eliteWeight: 2, eliteColor: '#8e44ad',
   },
   elite_colossus: {
-    id: 'elite_colossus', name: '腐骸巨像', sprite: 'gargoyle', hp: 1400, speed: 16, damage: 48, exp: 80,
+    id: 'elite_colossus', name: '腐骸巨像', sprite: 'elite_colossus', hp: 1400, speed: 16, damage: 48, exp: 80,
     radius: 34, spriteSize: 118, knockResist: 1.0, unlockAt: 500, weight: 0,
     turnRate: 0.6, // P3b-3① / D1：限转向速率（比 knight 略低，[待真机校准] 带宽 0.6–1.0）
     frontalArmor: { arcCos: -0.34, mul: 0.40 }, // P3b-3① / D2：正面 140° 减伤 60%（复用 bone_knight 点积判向）
@@ -277,38 +277,38 @@ export const ENEMY_TYPES = {
   // frontalArmor/trail/healAura/splitOnDeath）为 P3 占位，本版 spawn 仅按 weight/unlockAt
   // 调度为默认追击；数值全部 [待真机校准]。
   rat_swarm: {
-    id: 'rat_swarm', name: '尸鼠群', sprite: 'bat', hp: 6, speed: 130, damage: 5, exp: 1,
+    id: 'rat_swarm', name: '尸鼠群', sprite: 'rat_swarm', hp: 6, speed: 130, damage: 5, exp: 1,
     radius: 10, spriteSize: 30, knockResist: 0, unlockAt: 20, weight: 3, lateWeight: 4,
     groupSize: 3, // P3a-1：成簇 ×3 生成（复用 P3a-S spawnAt groupSize 钩子，±28px 散开）
   },
   spitter: {
-    id: 'spitter', name: '腐唾者', sprite: 'slime', hp: 28, speed: 40, damage: 12, exp: 3,
+    id: 'spitter', name: '腐唾者', sprite: 'spitter', hp: 28, speed: 40, damage: 12, exp: 3,
     radius: 13, spriteSize: 40, knockResist: 0.1, unlockAt: 75, weight: 2,
     ranged: true, // P3：远程吐弹、保持距离（小怪单发弹幕，复用现有弹幕池）
     spitCd: 2.2, spitSpeed: 175, spitDamage: 10, keepDist: 200, // P3a-1：吐弹节奏/弹速/弹伤/偏好距离 [待真机校准]
   },
   bone_knight: {
-    id: 'bone_knight', name: '骸骨骑士', sprite: 'skeleton', hp: 180, speed: 58, damage: 26, exp: 10,
+    id: 'bone_knight', name: '骸骨骑士', sprite: 'bone_knight', hp: 180, speed: 58, damage: 26, exp: 10,
     radius: 14, spriteSize: 42, knockResist: 0.3, unlockAt: 200, weight: 2,
     turnRate: 0.7, // P3a-4 / D1：限转向速率(rad/s)，让「绕后破甲」从数学不可能变可教学 [待真机校准 0.6–1.0]
     frontalArmor: { arcCos: -0.5, mul: 0.30 }, // P3：正面 120° 减伤 70%（点积判向）
     affixBan: ['bulwark'], // 与 bulwark 同机制叠加几乎无敌（design §5.4）
   },
   plague_bearer: {
-    id: 'plague_bearer', name: '疫病携带者', sprite: 'slime', hp: 150, speed: 34, damage: 18, exp: 8,
+    id: 'plague_bearer', name: '疫病携带者', sprite: 'plague_bearer', hp: 150, speed: 34, damage: 18, exp: 8,
     radius: 16, spriteSize: 50, knockResist: 0.4, unlockAt: 260, weight: 1,
     trail: true, // P3：行走留毒径、死亡大池（hazards[] 池）
     trailCd: 0.6, trailRadius: 26, trailLife: 3, trailDps: 8, trailColor: '#7dcea0', // P3a-3：毒径参数 [待真机校准]
     onDeath: { type: 'hazard', radius: 60, life: 5, dps: 12, color: '#6fcf6f' }, // P3a-3：死亡大毒池
   },
   siren: {
-    id: 'siren', name: '哀嚎女妖', sprite: 'skeleton', hp: 210, speed: 46, damage: 20, exp: 12,
+    id: 'siren', name: '哀嚎女妖', sprite: 'siren', hp: 210, speed: 46, damage: 20, exp: 12,
     radius: 15, spriteSize: 46, knockResist: 0.3, unlockAt: 320, weight: 1,
     healAura: true, // P3：治疗友军 12%×3（治疗+光束渲染）
     healCd: 3, healRange: 160, healPct: 0.12, healMax: 3, // P3a-2：治疗光环参数（周期/范围/比例/上限） [待真机校准]
   },
   revenant: {
-    id: 'revenant', name: '复仇残躯', sprite: 'skeleton', hp: 240, speed: 44, damage: 24, exp: 14,
+    id: 'revenant', name: '复仇残躯', sprite: 'revenant', hp: 240, speed: 44, damage: 24, exp: 14,
     radius: 16, spriteSize: 52, knockResist: 0.5, unlockAt: 400, weight: 1,
     onDeath: { type: 'split', enemyType: 'revenant_shard', count: 2 }, // P3a-2：死亡分裂 ×2（P3a-S _runOnDeath 钩子；revenant_shard 仅由此生成）
   },
@@ -1025,7 +1025,7 @@ export const BOSSES = [
   // summon_barrage/dash_barrage/enrage，无新增 type）。全部 [待真机校准]。----------
   // ★ 血月先驱（教学型小 Boss，90s）：游戏中第一次出现弹幕，刻意"打不死你但教会你"
   {
-    id: 'herald', name: '血月先驱', sprite: 'boss_baron' /* [待美术] 复用 baron 立绘占位，P3 替换为 boss_herald（§8.2 禁新增 PNG） */, unlockAt: 90,
+    id: 'herald', name: '血月先驱', sprite: 'herald', unlockAt: 90,
     hp: 700, speed: 40, damage: 26, exp: 60,
     radius: 28, spriteSize: 104, knockResist: 0.90,
     skills: [
@@ -1044,7 +1044,7 @@ export const BOSSES = [
   },
   // ★ 腐血炼金术士（场地污染 Boss，270s）：召唤 plague_bearer 铺满毒池，打得越久场地越小
   {
-    id: 'alchemist', name: '腐血炼金术士', sprite: 'boss_queen' /* [待美术] 复用 queen 立绘占位，P3 替换为 boss_alchemist */, unlockAt: 270,
+    id: 'alchemist', name: '腐血炼金术士', sprite: 'alchemist', unlockAt: 270,
     hp: 3000, speed: 36, damage: 46, exp: 200,
     radius: 34, spriteSize: 132, knockResist: 0.98,
     skills: [
@@ -1064,7 +1064,7 @@ export const BOSSES = [
   },
   // ★ 骨戈战将（综合考试 Boss，450s）：全游戏冷却最短冲锋 + 正面减伤骸骨骑士
   {
-    id: 'warlord', name: '骨戈战将', sprite: 'boss_overlord' /* [待美术] 复用 overlord 立绘占位，P3 替换为 boss_warlord */, unlockAt: 450,
+    id: 'warlord', name: '骨戈战将', sprite: 'warlord', unlockAt: 450,
     hp: 6200, speed: 44, damage: 60, exp: 400,
     radius: 36, spriteSize: 142, knockResist: 0.98,
     skills: [
