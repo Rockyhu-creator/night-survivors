@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-01（v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-05（v4.0：P3b-3~5 精英内容(差异化行为/保底掉落/图鉴分组/HUD) + P4-1 精英悬赏 + P4-2 连杀Combo + P5-1 美术占位统一工具(带标签方块+HTML图标防碎图) + P5-2 移动端真机门禁(≤12ms软告警) + P5-3 精灵缺失断言; v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -334,6 +334,27 @@
 
 ---
 
+## 0q. v4.0 大版本（P3b-3~5 精英内容 + P4 悬赏/Combo + P5 美术占位/移动端门禁/精灵断言）
+
+**范围**：把 P3b-3~5（精英差异化行为/保底掉落/图鉴分组/HUD）、P4-1（精英悬赏）、P4-2（连杀Combo）与 P5（美术占位统一工具 / 移动端真机门禁 / 精灵缺失断言）整批随 v4.0 发布。全量本地提交、四门质量门（node --check / validate:skilltree / test:content / test_game.py）逐切片全绿，7 个基线未跟踪文件按红线从不提交。
+
+### 新增
+- **P3b-3 精英差异化行为（4 单元，依赖序逐个提交）**：腐骸巨像（复用 boneKnightBehavior + 正面装甲，`0c4a7a8`）、裂魂掠夺者（复用 shadowHunterBehavior + dash，`55d719a`）、血狱典狱长（onLowHp 召唤，`ad64ef7`）、永夜导体（环形弹幕 + 友军加速光环，`abb26c6`）。
+- **P3b-4 精英保底金宝石**：精英死亡保底掉 `gemGold(min=25)`，净经验不通胀（分支仅对 exp<25 生效）。`b5954d4`。
+- **P3b-5a 图鉴分组重构 + 弱点情报**：怪种/词缀(8 条)/精英/Boss 四分组，data-driven 弱点 badge，击杀分级解锁。`6e02edc`。
+- **P3b-5b 游戏内 HUD**：精英边缘紫色指示箭头 + 屏内头顶血条 + 侧背命中暴击级飘字。`d803086`。
+- **P4-1 精英悬赏**：精英击杀累加灵魂 `bounty=round(exp*0.5)`，结算并入 `addSouls`（零局内平衡扰动）。`90d446a`。
+- **P4-2 连杀 Combo**：`onEnemyKilled` 计数 + `COMBO_WINDOW=3s` 窗口（超时/受击断连），经验分段乘区 ≥10×1.1 / ≥25×1.25 / ≥50×1.5。`88b7614`。
+- **P5-1 美术占位统一工具**：`safeIconURL`(HTML `<img>` 缺失返带标签 SVG data-URI) + `drawSpriteSafe`(canvas 缺失画带标签占位方块，替代裸紫圆)；图鉴/升级图标与敌怪渲染缺失绝不碎图；补 `enemy_shadow_hunter.png`/`enemy_gargoyle.png` 立绘，Boss `avatar` 复用 `boss_overlord`。`56a7657`。
+- **P5-2 移动端真机门禁**：`frame()` 注入 `performance.now()` 单帧耗时 EMA → `window.__perfDebug`；触屏 ≤12ms / 桌面 ≤16.6ms 软告警（仅 console.warn，不改玩法）；e2e 加 3 条断言门禁。`115114e`。
+- **P5-3 精灵缺失断言**：`scripts/test_assets.mjs` 校验 `assets.js` 96 项清单 PNG 全部存在（缺失 exit 1），挂 `npm run test:assets`，不接 prebuild。`67e510e`。
+
+### 验证
+- 四门质量门全绿：P5-1/P5-2/P5-3 各切片 `node --check` + `validate:skilltree`(39 节点) + `test:content` + `test_game.py`(ALL PASS / 无 console error)；P5-3 另跑 `npm run test:assets`（96/96 存在，0 缺失）。
+- `grep -c '^(本次文档提交)' docs/HANDOFF.md` = **1**（本版文档提交行）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -663,7 +684,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v3.14 CHANGELOG + HANDOFF 同步(指向 ca273ef) + 回填 v3.13 文档提交哈希 ae95024(此前为占位符) + §11 新增「占位行回填」维护红线(制度化"先回填再插新行",根治461a5a5那类哈希丢失) + 补 0p 小节 | tag v3.14 指向此提交（自身哈希无法在提交内容中自引用）
+(本次文档提交) docs: v4.0 CHANGELOG + HANDOFF 同步(指向 <待填哈希>) + §0q 小节(v4.0 大版本:P3b-3~5 精英内容/P4-1 悬赏/P4-2 Combo/P5-1 美术占位统一工具/P5-2 移动端真机门禁/P5-3 精灵缺失断言) + §11 回填 v3.14 文档提交哈希 ddc31fe(此前为占位符) + 头部"最后更新"更新到 2026-08-05 v4.0 | tag v4.0 指向此提交（自身哈希无法在提交内容中自引用）
+ddc31fe docs: v3.14 CHANGELOG + HANDOFF 同步(指向 ca273ef) + 回填 v3.13 文档提交哈希 ae95024(此前为占位符) + §11 新增「占位行回填」维护红线(制度化"先回填再插新行",根治461a5a5那类哈希丢失) + 补 0p 小节 | tag v3.14 指向此提交（自身哈希无法在提交内容中自引用）
 ca273ef v3.14 .gitignore 补 vite.config.js.timestamp-* 忽略规则 | vite 每跑一次 dev/build 就生成一个新的 vite.config.js.timestamp-<epoch>-<rand>.mjs 临时产物,长期停在 git status 的 ?? 列表里持续污染工作区视图,且易在批量 git add 时被误提交;本版仅追加忽略规则,不删除磁盘上已存在的该文件(属 vite 临时产物,交由工具自行管理);验证 git check-ignore -v 命中 .gitignore:9、禁提未跟踪文件由 8 个降为 7 个;v3.13 曾评估此项但因当时改 .gitignore 属代码提交 H_A、会让已写死的 7898588 失效并连带重做 H_B 而暂缓,本版无此约束故一并清掉;未改 src/ 任何产品代码
 ae95024 docs: v3.13 CHANGELOG + HANDOFF 同步(指向 7898588) + 清除 CHANGELOG 第6行历史工具残留标记 `<arg_value:...>` + 修正 HANDOFF §0j/§11/§16 的 `__ASSET_HASHES__` define 名笔误(4cbfb61 回填哈希时全局替换误伤,HANDOFF 5 处 + CHANGELOG 1 处) | tag v3.13 指向此提交（自身哈希无法在提交内容中自引用）
 7898588 v3.13 技能树重叠常驻回归用例：tests/skilltree_overlap.py(8档:桌面3档1280×800/1600×1000/1920×1080 + 真触屏移动端5分支全遍历390×844dsf3,has_touch+is_mobile) + package.json 加 test:skilltree(刻意不接prebuild/build,依赖dev server在5173) + .gitignore 补 __pycache__//*.pyc | 起因v3.12质量门两条非阻塞建议:ROW_H=178对实测最大卡高160px仅余18px,硬编码布局常量在节点文案变长时会静默复发,故把一次性人工探针沉淀为常驻用例;抗退化设计:行距不硬编码(从卡片top网格取相邻最小正差反推实测ROW_H,改常量自动跟上)+余量<8px给WARNING不失败+移动端.touch-device失真守卫(防v3.10/v3.11那种以为测移动端实测桌面布局的漏检);移动端必遍历5分支因ui.js:1054 branchIds=isMobile?[stBranch]:Object.keys()一次只渲当前分支;实跑EXIT 0八档全PASS(桌面39节点卡高157-160实测行距178余量18,移动端war9/bly8/nfr8/eco6/utl8卡高58行距116余量58,父子纵向相交0组+可见碰撞0组);mutation负向对照175px→WARNING仍PASS、185px→FAIL检出38组父子相交+26组可见碰撞并逐对定位(war_root→war_dmg 相交7px),证明非"永远绿的假测试";未改src/任何产品代码

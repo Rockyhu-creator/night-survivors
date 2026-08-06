@@ -5,6 +5,31 @@
 
 ---
 
+## v4.0（2026-08-05 · `67e510e`）
+
+> **大版本**汇总：把 P3b-3~5（精英差异化内容）、P4-1（精英悬赏）、P4-2（连杀 Combo）与 P5（美术占位统一工具 / 移动端真机门禁 / 精灵缺失断言）整批随 v4.0 发布。全量本地提交、四门质量门（node --check / validate:skilltree / test:content / test_game.py）逐切片全绿；7 个基线未跟踪文件按红线从不提交。本版**未改动已发布的线上构建行为契约**，仅新增内容与护栏。
+
+### 新增
+- **P3b-3 精英差异化行为（4 单元）**：
+  - 腐骸巨像：复用 `boneKnightBehavior` + 正面装甲（`0c4a7a8`）。
+  - 裂魂掠夺者：复用 `shadowHunterBehavior` + dash，可预判读招（`55d719a`，`shadow_hunter` 立绘逐字节不变）。
+  - 血狱典狱长：半血 `onLowHp` 召唤 bat×4，通用钩子 + `ENEMY_CAP` 守卫（可复用，`ad64ef7`）。
+  - 永夜导体：环形弹幕 + 友军加速光环，每帧预扫描 `_speedMul`（`abb26c6`）。
+- **P3b-4 精英保底金宝石**：精英死亡保底掉 `gemGold(min=25)`，净经验不通胀（仅对 `exp<25` 生效）；巨像死掉双宝箱（`b5954d4`）。
+- **P3b-5a 图鉴分组重构 + 弱点情报**：怪种/词缀(8 条)/精英/Boss 四分组，data-driven 弱点 badge，击杀分级解锁（`6e02edc`）。
+- **P3b-5b 游戏内 HUD**：精英边缘紫色指示箭头 + 屏内头顶血条 + 侧背命中暴击级飘字（`d803086`）。
+- **P4-1 精英悬赏**：精英击杀累加灵魂 `bounty=round(exp*0.5)`，结算并入 `addSouls`（零局内平衡扰动，`90d446a`）。
+- **P4-2 连杀 Combo**：`onEnemyKilled` 计数 + `COMBO_WINDOW=3s` 窗口（超时/受击断连），经验分段乘区 ≥10×1.1 / ≥25×1.25 / ≥50×1.5，居中 HUD 白金红分级（`88b7614`）。
+- **P5-1 美术占位统一工具**：`safeIconURL`（HTML `<img>` 缺失返带标签 SVG data-URI）+ `drawSpriteSafe`（canvas 缺失画带标签占位方块，替代裸紫圆）；图鉴/升级图标与敌怪渲染缺失绝不碎图；补 `enemy_shadow_hunter.png`/`enemy_gargoyle.png` 立绘，Boss `avatar` 复用 `boss_overlord`（`56a7657`）。
+- **P5-2 移动端真机门禁**：`frame()` 注入 `performance.now()` 单帧耗时 EMA → `window.__perfDebug`；触屏 ≤12ms / 桌面 ≤16.6ms 软告警（仅 `console.warn`，不改玩法）；e2e 加 3 条断言门禁（`115114e`）。
+- **P5-3 精灵缺失断言**：`scripts/test_assets.mjs` 校验 `assets.js` 96 项清单 PNG 全部存在（缺失 exit 1），挂 `npm run test:assets`，不接 prebuild（`67e510e`）。
+
+### 验证
+- 四门质量门全绿：P5-1/P5-2/P5-3 各切片 `node --check` + `validate:skilltree`(39 节点) + `test:content` + `test_game.py`(ALL PASS / 无 console error)；P5-3 另跑 `npm run test:assets`（96/96 存在，0 缺失）。
+- 移动端门禁真实触屏模拟（Playwright `has_touch+is_mobile`）下 e2e 全 PASS、无越界。
+- 7 个基线未跟踪文件（`docs/DESIGN_PLAN.md` / `docs/architecture/` / `docs/plans/*` / `generated-images/` / `overview.md`）**未提交**，符合红线。
+- `docs/HANDOFF.md` §11 已回填 v3.14 文档提交哈希 `ddc31fe`，v4.0 文档提交行留占位符由 v4.1 回填（遵循「先回填再插新行」红线）。
+
 ## v3.14（2026-08-01 · `ca273ef`）
 
 > 纯**仓库卫生**补丁，清理 v3.13 交接时列出的两条遗留，并追加一项根治措施。本版**未改动 `src/` 下任何产品代码，无运行时回归面**，亦未动 `tests/` / `scripts/` / `package.json`——改动仅落在 `.gitignore` 与两份文档。
