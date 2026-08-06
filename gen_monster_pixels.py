@@ -42,10 +42,17 @@ SPECS = {
     # ---- 小怪（尺寸贴近各自 spriteSize，1px 块保细节）----
     'rat_swarm':      ('enemy_rat_swarm.png',     34, 34),
     'spitter':        ('enemy_spitter.png',       44, 44),
-    'bone_knight':    ('enemy_bone_knight.png',   46, 46),
+    'bone_knight':    ('enemy_bone_knight.png',   52, 52),
     'plague_bearer':  ('enemy_plague_bearer.png', 50, 50),
     'siren':          ('enemy_siren.png',         46, 46),
     'revenant':       ('enemy_revenant.png',      52, 52),
+    # ---- 血裔角色（46×46，对齐 player_* 精灵）----
+    'wanderer':       ('player_wanderer.png',        46, 46),
+    'saint':          ('player_saint.png',           46, 46),
+    'berserker':      ('player_berserker.png',       46, 46),
+    'thunder':        ('player_thunder.png',         46, 46),
+    'bloodthirsty':   ('player_bloodthirsty.png',    46, 46),
+    'apostle':        ('player_apostle.png',         46, 46),
 }
 
 
