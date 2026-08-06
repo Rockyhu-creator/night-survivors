@@ -3,8 +3,7 @@
 # 输入：.ai_monster_raw/<id>/*.png（由内置 ImageGen 生成的 1024² 原图）
 # 输出：public/assets/<目标文件名>（RGBA，1px 暗描边，compress_level=9）
 #
-# 为什么不用 gen_assets.sh：原文生图端点自 2026-07-26 起降级，新 prompt 恒返
-# 176626B 占位图（已实测复验）。故走已验证的降级路径：ImageGen 出图 + 本脚本后处理。
+# 管线：ImageGen 出 1024² 原图 → 本脚本后处理（众数色键控 / 裁 bbox / LANCZOS 缩到 GRID / NEAREST 2x / 描边）
 #
 # 与 gen_passive_pixels.py 的差异（关键）：
 #   passive icon 主体刻意只占画布一半（icon 四周留白）；怪物贴图必须**填满画布**，
@@ -30,6 +29,12 @@ SPECS = {
     'herald':         ('boss_herald.png',         64, 32),
     'alchemist':      ('boss_alchemist.png',      64, 32),
     'warlord':        ('boss_warlord.png',        64, 32),
+    # P7: 原有 3 Boss 重设计（彻底替换旧模板形象）
+    'baron':          ('boss_baron.png',           64, 32),
+    'queen':          ('boss_queen.png',           64, 32),
+    'overlord':       ('boss_overlord.png',        64, 32),
+    # P7: 终局 Boss 独立立绘（不再复用 overlord）
+    'avatar':         ('boss_avatar.png',          64, 32),
     # ---- 精英（96×96，对齐 enemy_elite/gargoyle）----
     'elite_reaver':   ('enemy_elite_reaver.png',  96, 48),
     'elite_conduit':  ('enemy_elite_conduit.png', 96, 48),

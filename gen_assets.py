@@ -57,6 +57,8 @@ AI_OWNED = {
     "ground.png", "bg_title.png", "icon_skull.png",
     # v4.1 P6 新增怪物贴图（AI 生图管线独占，禁止程序化生成器覆盖）
     "boss_herald.png","boss_alchemist.png","boss_warlord.png",
+    # v4.1 P7: 原有 3 Boss 重设计 + avatar 终局 Boss 独立立绘
+    "boss_baron.png","boss_queen.png","boss_overlord.png","boss_avatar.png",
     "enemy_elite_reaver.png","enemy_elite_conduit.png","enemy_elite_colossus.png",
     "enemy_rat_swarm.png","enemy_spitter.png","enemy_bone_knight.png",
     "enemy_plague_bearer.png","enemy_siren.png","enemy_revenant.png",

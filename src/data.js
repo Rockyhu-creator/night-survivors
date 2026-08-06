@@ -1085,7 +1085,7 @@ export const BOSSES = [
   },
   // 终局 Boss：永夜化身（12 分钟降临，击杀=通关结算）。三段变身见 GDD §3.3
   {
-    id: 'avatar', name: '永夜化身', sprite: 'boss_overlord', unlockAt: 99999,
+    id: 'avatar', name: '永夜化身', sprite: 'boss_avatar', unlockAt: 99999,
     hp: 15000, speed: 50, damage: 80, exp: 1000,
     radius: 44, spriteSize: 168, knockResist: 0.99,
     isEndgame: true,

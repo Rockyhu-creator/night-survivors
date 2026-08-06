@@ -16,6 +16,7 @@ const files = {
   boss_baron: 'boss_baron.png',
   boss_queen: 'boss_queen.png',
   boss_overlord: 'boss_overlord.png',
+  boss_avatar: 'boss_avatar.png',
   // v4.1 P6 新增怪物贴图（AI 生图 + 像素化管线）
   herald: 'boss_herald.png',
   alchemist: 'boss_alchemist.png',
@@ -122,7 +123,7 @@ const LAZY_KEYS = new Set([
   'codex_artifacts', 'codex_monsters', 'codex_weapons', 'codex_book',
   'altar_hp', 'altar_spd', 'altar_dmg', 'altar_gain', 'altar_dual',
   'altar_slot_weapon', 'altar_slot_passive',
-  'boss_baron', 'boss_queen', 'boss_overlord',
+  'boss_baron', 'boss_queen', 'boss_overlord', 'boss_avatar',
   'herald', 'alchemist', 'warlord',
   'portrait_saint', 'portrait_berserker', 'portrait_thunder',
   'portrait_bloodthirsty', 'portrait_apostle',
