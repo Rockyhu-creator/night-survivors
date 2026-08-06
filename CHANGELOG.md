@@ -17,6 +17,9 @@
 - 四门质量门全绿：`node --check` + `validate:skilltree`(39 节点) + `test:assets`(109/109) + `test:content`(PASS，新怪渲染无 console error)。
 - 12 个基线未跟踪文件（`.ai_monster_raw/` / `docs/plans/*` / `docs/architecture/` / `docs/DESIGN_PLAN.md` / `generated-images/` / `overview.md`）**未提交**，符合红线。
 
+### 修复
+- **首页操作卡片删除 + 玩法说明重写**（`index.html`）：移除 `how-to` 区块（WASD/自动攻击/拾取宝石/Boss 宝箱 四张卡片）；玩法说明弹窗全面重写——Boss 列表从 3 个补全到 **7 个**（含时间点）、武器数量修正为 **18 把**、血裔逐条描述、词缀怪合并进敌人条目、补充精英行为模式、操作合并为单条（`1107f14`）。
+
 ---
 
 ## v4.0（2026-08-05 · `67e510e`）
