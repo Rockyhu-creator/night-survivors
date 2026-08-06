@@ -293,6 +293,7 @@ export class UIManager {
     this._lootInset = 46; // 边缘箭头距屏幕边的内缩（CSS px）
     // 精英指引（v4.0 P3b-5b）：屏外边缘箭头 + 屏内头顶血条的 DOM 池（惰性创建，按索引复用）
     this.eliteBeaconsHost = document.getElementById('elite-beacons');
+    this.comboEl = document.getElementById('combo-counter'); // v4.0 P4-2 连杀计数 HUD
     this._eliteSlots = [];
     this.spawnTitleBats();
     this.guideCloseBtn.addEventListener('click', () => { this.game.audio.uiClick(); this.hideGuide(); });
@@ -439,6 +440,28 @@ export class UIManager {
     this.updateBossBar();
     this.updateLootBeacon();
     this.updateEliteBeacons();
+    this.updateCombo(); // v4.0 P4-2 连杀计数 HUD
+  }
+
+  // 连杀计数 HUD（v4.0 P4-2）：居中显示「连杀 ×N」，颜色分级 白→金→红。
+  // 至少 2 连才展示（单次击杀不叫连杀）；值/分级变化才写 DOM，避免每帧重排。
+  updateCombo() {
+    const el = this.comboEl;
+    if (!el) return;
+    const c = this.game.combo || 0;
+    if (c < 2) {
+      if (this._comboShown) { el.classList.add('hidden'); this._comboShown = false; }
+      return;
+    }
+    const tier = c >= 50 ? 'combo-red' : c >= 10 ? 'combo-gold' : 'combo-white';
+    const txt = `连杀 ×${c}`;
+    if (this._comboTxt !== txt || this._comboTier !== tier) {
+      this._comboTxt = txt; this._comboTier = tier;
+      el.textContent = txt;
+      el.className = `combo-counter ${tier}`;
+    }
+    el.classList.remove('hidden');
+    this._comboShown = true;
   }
 
   // 战利品指引：每帧定位最近的未拾取宝箱，屏外给边缘方向箭头、屏内给精确脉冲环

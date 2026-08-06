@@ -1496,3 +1496,26 @@ html, body {
 }
 .sh-buy:active { background: rgba(201, 162, 39, .32); }
 .sh-buy:disabled { opacity: .5; cursor: default; }
+
+/* 连杀计数 HUD（v4.0 P4-2）：居中顶部，颜色分级 白→金→红，每击杀弹一下 */
+.combo-counter {
+  position: absolute;
+  top: 11%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 50;
+  animation: combo-pop 0.16s ease-out;
+}
+.combo-counter.hidden { display: none; }
+.combo-white { color: #f2f2f2; }
+.combo-gold  { color: #d4af37; }
+.combo-red   { color: #ff5a3c; }
+@keyframes combo-pop {
+  from { transform: translateX(-50%) scale(1.3); }
+  to   { transform: translateX(-50%) scale(1); }
+}

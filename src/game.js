@@ -11,6 +11,17 @@ import { AudioManager } from './audio.js';
 
 const STEP = 1 / 60;
 
+// v4.0 P4-2 连杀 Combo：窗口内连续击杀累加计数，超时或受击断连；经验分段乘区
+const COMBO = {
+  WINDOW: 3, // 连杀窗口（秒）：窗口内无新击杀则断连
+  // 经验乘区，按 combo 阈值从高到低匹配（命中第一个满足的）
+  MULS: [
+    { at: 50, mul: 1.5 },
+    { at: 25, mul: 1.25 },
+    { at: 10, mul: 1.1 },
+  ],
+};
+
 // 首屏加载幕进度回调：驱动 #load-bar-fill 宽度 / #load-pct 文本 / aria-valuenow
 function setLoadingProgress(p) {
   const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
@@ -39,6 +50,8 @@ export class Game {
     this.soulGainMul = 1;
     this.runSouls = 0;
     this.totalSouls = 0;
+    this.combo = 0;          // v4.0 P4-2 连杀计数（startRun 重置）
+    this.comboTimer = 0;     // 连杀窗口倒计时（秒）
     this.difficulty = DIFFICULTIES.normal;
     this.bloodline = 'wanderer';
     // v4.0 P1 威胁等级 TL：threatAuto=局外投入折算(只读)，threatWager=玩家开局偏移(可负=下调兜底)，
@@ -280,6 +293,8 @@ export class Game {
     this.ui.startGame();
     this.killsByType = {};   // v4.0 P3b-5a：本局击杀计数（落盘在 gameOver/gameWin）
     this.runBountySouls = 0; // v4.0 P4-1：本局精英悬赏累计灵魂（结算时并入奖励）
+    this.combo = 0;          // v4.0 P4-2 连杀计数
+    this.comboTimer = 0;     // 连杀窗口倒计时（秒）
     this.state = 'playing';
   }
 
@@ -349,6 +364,11 @@ export class Game {
     this.weapons.update(dt);
     this.pickups.update(dt);
     this.fx.update(dt);
+    // v4.0 P4-2 连杀窗口倒计时：超时归零断连
+    if (this.combo > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) { this.comboTimer = 0; this.combo = 0; }
+    }
     this.processLevelUps();
     if (this.player.hp <= 0) this.gameOver();
     // 15 分钟硬上限：终局 Boss 已降临且到点仍未击败 → 超时失败
@@ -391,8 +411,18 @@ export class Game {
 
   gainExp(amount) {
     // 经验缩放：难度补偿(expMul) × 时间缩放(expScaleForTime) × 玩家 expMul(祭坛等) × TL 回报(v4.0 P1)
+    // × 连杀乘区(v4.0 P4-2：combo 越高经验越多)
     const mul = (this.player.expMul || 1) * expScaleForTime(this.time) * this.difficulty.expMul * this.threatExpMul();
-    this.player.exp += amount * mul;
+    this.player.exp += amount * mul * this.comboMul();
+  }
+
+  // v4.0 P4-2：连杀经验乘区（combo 越高，经验加成越大）
+  comboMul() {
+    const c = this.combo || 0;
+    for (const tier of COMBO.MULS) {
+      if (c >= tier.at) return tier.mul;
+    }
+    return 1;
   }
 
   onEnemyKilled(enemy) {
@@ -409,6 +439,9 @@ export class Game {
     if (!enemy.isBoss && Math.random() < 0.035) {
       this.pickups.dropPotion(enemy.x, enemy.y, 20);
     }
+    // v4.0 P4-2 连杀：每次击杀刷新窗口并累加（受击在 onPlayerHit 断连）
+    this.combo = (this.combo || 0) + 1;
+    this.comboTimer = COMBO.WINDOW;
     this.fx.spawnSparks(enemy.x, enemy.y, '#e74c3c', 6);
     this.audio.kill();
   }
@@ -453,6 +486,8 @@ export class Game {
   }
 
   onPlayerHit() {
+    this.combo = 0;          // v4.0 P4-2 受击断连
+    this.comboTimer = 0;
     this.camera.addShake(0.55);
     this.ui.flashVignette();
     this.audio.hit();

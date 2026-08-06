@@ -1224,6 +1224,74 @@ with sync_playwright() as p:
     expect('P4-1 精英头顶血条显示赏金', p4e == 20)
     page.evaluate("() => { window.__game.enemies.enemies = []; }")
 
+    # ===== P4-2 连杀 Combo (RED) =====
+    # ① 击杀累加 combo + 刷新连杀窗口（COMBO.WINDOW=3s）
+    p42a = page.evaluate("""() => {
+      const g = window.__game;
+      g.combo = 0; g.comboTimer = 0;
+      const e = g.enemies.createEnemy(window.__enemyTypes.bat, {hp:1,speed:1,damage:1}, 400, 300);
+      g.onEnemyKilled(e);
+      return { combo: g.combo, timer: g.comboTimer };
+    }""")
+    expect('P4-2 击杀累加 combo=1', p42a.get('combo') == 1)
+    expect('P4-2 击杀刷新连杀窗口=3s', abs(p42a.get('timer') - 3) < 1e-6)
+    # ② 连杀窗口超时（>3s 无新击杀）归零断连
+    p42b = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing'; g.time = 0; g.enemies.spawnTimer = 999;
+      g.combo = 5; g.comboTimer = 1.0;       // 余 1s
+      g.step(1.2);                            // 超过窗口 → 断连
+      return { combo: g.combo, timer: g.comboTimer };
+    }""")
+    expect('P4-2 窗口超时断连 combo=0', p42b.get('combo') == 0)
+    expect('P4-2 窗口超时 timer 归零', p42b.get('timer') == 0)
+    # ③ 受击断连（最严格：超时 + 受击都断）
+    p42c = page.evaluate("""() => {
+      const g = window.__game;
+      g.combo = 12; g.comboTimer = 3;
+      g.onPlayerHit();
+      return { combo: g.combo, timer: g.comboTimer };
+    }""")
+    expect('P4-2 受击断连 combo=0', p42c.get('combo') == 0)
+    # ④ 连杀经验乘区 comboMul 分段（确定性，不依赖局内增益）
+    p42d = page.evaluate("""() => {
+      const g = window.__game;
+      try {
+        const m = (c) => { g.combo = c; return (typeof g.comboMul === 'function') ? g.comboMul() : null; };
+        return { c0: m(0), c10: m(10), c25: m(25), c50: m(50) };
+      } catch(err) { return { err: String(err) }; }
+    }""")
+    expect('P4-2 comboMul 方法存在', p42d.get('c0') is not None)
+    expect('P4-2 comboMul 0连杀=×1', abs((p42d.get('c0') or 0) - 1) < 1e-9)
+    expect('P4-2 comboMul ≥10=×1.1', abs((p42d.get('c10') or 0) - 1.1) < 1e-9)
+    expect('P4-2 comboMul ≥25=×1.25', abs((p42d.get('c25') or 0) - 1.25) < 1e-9)
+    expect('P4-2 comboMul ≥50=×1.5', abs((p42d.get('c50') or 0) - 1.5) < 1e-9)
+    # ⑤ 连杀 HUD：combo≥2 显示居中计数 + 颜色分级（白→金→红）
+    p42e = page.evaluate("""() => {
+      const g = window.__game;
+      g.state = 'playing';
+      const el = document.getElementById('combo-counter');
+      if (!el) return { miss: true };
+      g.onEnemyKilled(g.enemies.createEnemy(window.__enemyTypes.bat, {hp:1,speed:1,damage:1}, 400, 300));
+      g.combo = 15; g.comboTimer = 3;
+      if (typeof g.ui.updateCombo === 'function') g.ui.updateCombo();
+      const gold = { txt: el.textContent, cls: el.className };
+      g.combo = 60;
+      if (typeof g.ui.updateCombo === 'function') g.ui.updateCombo();
+      const red = { txt: el.textContent, cls: el.className };
+      g.combo = 0; g.comboTimer = 0;
+      if (typeof g.ui.updateCombo === 'function') g.ui.updateCombo();
+      const hidden = el.classList.contains('hidden');
+      g.enemies.enemies = [];
+      return { goldTxt: gold.txt, goldCls: gold.cls, redTxt: red.txt, redCls: red.cls, hidden };
+    }""")
+    expect('P4-2 HUD combo-counter 元素存在', p42e.get('miss') is not True)
+    expect('P4-2 HUD 连杀计数显示「连杀 ×15」', '15' in (p42e.get('goldTxt') or '') and '连杀' in (p42e.get('goldTxt') or ''))
+    expect('P4-2 HUD 金色分级(combo-gold)', 'combo-gold' in (p42e.get('goldCls') or ''))
+    expect('P4-2 HUD 红色分级(combo-red)', 'combo-red' in (p42e.get('redCls') or ''))
+    expect('P4-2 HUD 断连后隐藏', p42e.get('hidden') is True)
+    page.evaluate("() => { window.__game.enemies.enemies = []; }")
+
     # 祭坛解锁：购买后余额扣减 + 永久生效（重置为干净 1000，隔离结算残留）
     page.evaluate("""() => {
       window.__souls.saveSouls({balance:1000, spent:0, unlocks:[], cleared:['normal']});
