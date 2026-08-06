@@ -38,6 +38,14 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
 
+    # --- P5-2 移动端真机门禁：单帧耗时仪表已挂载 + 预算常量正确（headless=桌面 16.6ms）---
+    page.wait_for_timeout(600)  # 累积若干帧让 EMA 稳定
+    perf = page.evaluate("() => window.__perfDebug ? {budgetMs: window.__perfDebug.budgetMs, touch: window.__perfDebug.touch, emaMs: window.__perfDebug.emaMs} : null")
+    expect('P5-2 性能仪表已挂载 window.__perfDebug', perf is not None)
+    if perf is not None:
+        expect('P5-2 桌面预算=16.6ms（headless 非触屏）', abs(perf['budgetMs'] - 16.6) < 0.01)
+        expect('P5-2 emaMs 为有效数字', isinstance(perf['emaMs'], (int, float)))
+
     # --- 运行时版本自检（v0.31）：__BUILD_ID__ 注入 + 横幅/进度条 DOM + version.json 请求 ---
     expect('运行时 __BUILD_ID__ 已注入(版本自检同源)', page.evaluate("() => typeof window.__BUILD_ID__ === 'string' && window.__BUILD_ID__.length > 0"))
     expect('页面含 #update-prompt 容器', page.evaluate("() => !!document.getElementById('update-prompt')"))

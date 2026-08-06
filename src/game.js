@@ -22,6 +22,12 @@ const COMBO = {
   ],
 };
 
+// v4.0 P5-2 移动端真机门禁：单帧主线程耗时仪表（EMA 平滑）+ 预算常量
+const PERF_BUDGET = {
+  touch: 12,    // 触屏设备：单帧预算 ≤12ms（60fps 留余量给合成/输入）
+  desktop: 16.6, // 桌面设备：单帧预算 ≤16.6ms（标准 60fps 帧时）
+};
+
 // 首屏加载幕进度回调：驱动 #load-bar-fill 宽度 / #load-pct 文本 / aria-valuenow
 function setLoadingProgress(p) {
   const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
@@ -44,6 +50,8 @@ export class Game {
     this.expQueue = 0;
     this.accumulator = 0;
     this.lastTs = 0;
+    this._perfEMA = 0;        // v4.0 P5-2 单帧耗时 EMA（ms）
+    this._perfOverWarned = false;
     this.rerollsLeft = 3;
     this.banishesLeft = 3;
     this.bossKills = 0;
@@ -300,6 +308,7 @@ export class Game {
 
   frame(ts) {
     requestAnimationFrame((t) => this.frame(t));
+    const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
     if (!this.lastTs) this.lastTs = ts;
     let dt = (ts - this.lastTs) / 1000;
     this.lastTs = ts;
@@ -318,6 +327,38 @@ export class Game {
     } else if (this.state === 'upgrading' || this.state === 'paused') {
       this.lastTs = 0; // 暂停/升级期间持续重置时间基准，恢复时 dt 从零起步，不累加快进
       this.render();
+    }
+
+    // v4.0 P5-2 单帧主线程耗时仪表：测量本帧 JS 工作量（不含 rAF 调度），
+    // EMA 平滑 + 预算软告警（不改玩法），结果挂 window.__perfDebug 供真机/QA 读取。
+    const cost = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
+    this._recordFrameCost(cost);
+  }
+
+  _recordFrameCost(cost) {
+    // EMA 平滑单帧耗时，避免单帧抖动造成误告警
+    if (this._perfEMA === 0) this._perfEMA = cost;
+    else this._perfEMA = this._perfEMA * 0.9 + cost * 0.1;
+    const touch = (typeof document !== 'undefined')
+      && document.documentElement.classList.contains('touch-device');
+    const budget = touch ? PERF_BUDGET.touch : PERF_BUDGET.desktop;
+    const over = this._perfEMA > budget;
+    if (typeof window !== 'undefined') {
+      if (!window.__perfDebug) window.__perfDebug = {};
+      const d = window.__perfDebug;
+      d.lastFrameMs = cost;
+      d.emaMs = this._perfEMA;
+      d.budgetMs = budget;
+      d.touch = touch;
+      d.overBudget = over;
+      // 软告警：仅在越界时打一次 console.warn（不计入 console error，不会让 e2e 红），
+      // 越界解除后复位；绝不影响任何玩法逻辑。
+      if (over && !this._perfOverWarned) {
+        this._perfOverWarned = true;
+        console.warn(`[perf] 单帧均值 ${this._perfEMA.toFixed(1)}ms 超预算 ${budget}ms（${touch ? '触屏' : '桌面'}）`);
+      } else if (!over) {
+        this._perfOverWarned = false;
+      }
     }
   }
 
