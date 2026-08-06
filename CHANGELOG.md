@@ -5,6 +5,20 @@
 
 ---
 
+## v4.1（2026-08-06 · `5338c51`）
+
+> **内容更新**汇总：用户真机演示反馈两类问题——① 新怪物/Boss 无动画（仅 bat/slime/skeleton 有程序化动画）；② 部分新精灵在 34~64px 下呈白团/混沌，辨识度差。本版重做 10 张精灵 + 为全部 18 个新对象补程序化动画，四门质量门全绿；12 个基线未跟踪文件按红线从不提交。
+
+### 调整
+- **10 张精灵全量重做**（ImageGen → `gen_monster_pixels.py` 像素化管线）：红旗 7 张（rat_swarm/plague_bearer/siren/herald/alchemist/overlord/avatar 原呈白团混沌）+ 黄旗 3 张（spitter/elite_colossus/warlord 轮廓偏糊）；改进核心为单一大轮廓、亮主色 + 粗轮廓、2~3 个超大特征、减少内部细节（`5338c51`）。
+- **18 个新对象程序化动画**（`src/entities.js` `render()` 动画块由 4 分支扩至 21 分支，纯 in-code scale/rotate 变换零新素材）：8 新小怪 + 7 Boss（按 `e.type.id` 区分个体）+ 3 精英，各配符合形象气质的微动（`5338c51`）。
+
+### 验证
+- 四门质量门全绿：`node --check` + `validate:skilltree`(39 节点) + `test:assets`(109/109) + `test:content`(PASS，新怪渲染无 console error)。
+- 12 个基线未跟踪文件（`.ai_monster_raw/` / `docs/plans/*` / `docs/architecture/` / `docs/DESIGN_PLAN.md` / `generated-images/` / `overview.md`）**未提交**，符合红线。
+
+---
+
 ## v4.0（2026-08-05 · `67e510e`）
 
 > **大版本**汇总：把 P3b-3~5（精英差异化内容）、P4-1（精英悬赏）、P4-2（连杀 Combo）与 P5（美术占位统一工具 / 移动端真机门禁 / 精灵缺失断言）整批随 v4.0 发布。全量本地提交、四门质量门（node --check / validate:skilltree / test:content / test_game.py）逐切片全绿；7 个基线未跟踪文件按红线从不提交。本版**未改动已发布的线上构建行为契约**，仅新增内容与护栏。

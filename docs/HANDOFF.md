@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-05（v4.0：P3b-3~5 精英内容(差异化行为/保底掉落/图鉴分组/HUD) + P4-1 精英悬赏 + P4-2 连杀Combo + P5-1 美术占位统一工具(带标签方块+HTML图标防碎图) + P5-2 移动端真机门禁(≤12ms软告警) + P5-3 精灵缺失断言; v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-06（v4.1：P3b-3~5 精英内容(差异化行为/保底掉落/图鉴分组/HUD) + P4-1 精英悬赏 + P4-2 连杀Combo + P5-1 美术占位统一工具(带标签方块+HTML图标防碎图) + P5-2 移动端真机门禁(≤12ms软告警) + P5-3 精灵缺失断言; v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -355,6 +355,20 @@
 
 ---
 
+## 0r. v4.1（P8 怪物/Boss 辨识度修复 + 程序化动画系统）
+
+**范围**：用户真机演示反馈两类问题——① 新怪物/Boss 无动画（仅 bat/slime/skeleton 有程序化动画）；② 部分新精灵在 34~64px 下呈白团/混沌，辨识度差。本版重做 10 张精灵 + 为全部 18 个新对象补程序化动画，四门质量门全绿，12 个基线未跟踪文件按红线从不提交。
+
+### 调整
+- **10 张精灵全量重做**（ImageGen → `gen_monster_pixels.py` 像素化管线）：红旗 7 张（rat_swarm/plague_bearer/siren/herald/alchemist/overlord/avatar 原呈白团混沌）+ 黄旗 3 张（spitter/elite_colossus/warlord 轮廓偏糊）。改进核心：单一大轮廓（不再画"一群小东西"）、亮主色 + 粗轮廓、2~3 个超大特征、减少内部细节；rat_swarm 改为「1 大 + 2 小紧贴」避免被 `remove_watermark` 当噪点删。`5338c51`。
+- **18 个新对象程序化动画**（`src/entities.js` `render()` 动画块由 4 分支扩至 21 分支，1035~1132 行，纯 in-code scale/rotate 变换零新素材）：8 新小怪（尸鼠群高频窜动 / 腐唾者头部脉冲 / 骸骨骑士沉重步伐 / 疫病携带者毒气脉动 / 女妖漂浮 / 残躯顿挫步 / 暗影猎手冲刺蹲伏 / 石像鬼静止）+ 7 Boss（按 `e.type.id` 区分：先驱施法 / 男爵披风呼吸 / 炼金术士沸腾 / 女王冰晶摇曳 / 战将攻击姿态 / 君王威严慢脉动 / 化身混沌扭曲）+ 3 精英（掠夺者攻击切换 / 导体奥术呼吸 / 巨像重踏）。判定顺序"具体 Boss/精英 > 通用兜底"防误拦截。`5338c51`。
+
+### 验证
+- 四门质量门全绿：`node --check`(SYNTAX_OK) + `validate:skilltree`(39 节点无断链) + `test:assets`(109/109) + `test:content`(PASS，新怪渲染无 console error)。
+- `grep -c '^(本次文档提交)' docs/HANDOFF.md` = **1**（本版文档提交行）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -684,7 +698,9 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: HANDOFF §11 索引补全 —— 回填 e30ba00(此前为占位符) + 补录漏登记的 194c4de(P6 怪物立绘,feat 提交当时未同步 §11) | 维护提交,不打版本 tag;起因:核对 §11 与 git log 发现两处索引空洞,一处是未回填占位符、一处是功能提交完全缺席,后者因无 tag 兜底一旦丢失只能靠 git log --grep 反查,故按 v3.14 制度化的「先回填再插新行」红线立即补齐,不拖到 v4.1
+(本次文档提交) docs: v4.1 CHANGELOG + HANDOFF 同步(指向 5338c51) + §0r 小节(v4.1: 怪物/Boss 辨识度修复 + 程序化动画系统) + §11 回填 2ec5d52 文档提交哈希(此前为占位符) + 补录漏登的 42ddf75(P7 Boss 重设计) + 头部"最后更新"更新到 2026-08-06 v4.1 | tag v4.1 指向此提交（自身哈希无法在提交内容中自引用）
+42ddf75 feat(P7): 4 Boss 立绘重设计(baron/queen/overlord) + avatar 终局独立立绘 + 删除已失效降级管线(gen_assets.sh/gen_icons.sh) | 发版 tag 之后独立 feat 提交,此前未登记 §11(漏登),本次 v4.1 一并补录;4 Boss 形象彻底脱离旧模板撞图,avatar 不再复用 overlord
+2ec5d52 docs: HANDOFF §11 索引补全 —— 回填 e30ba00(此前为占位符) + 补录漏登记的 194c4de(P6 怪物立绘,feat 提交当时未同步 §11) | 维护提交,不打版本 tag;起因:核对 §11 与 git log 发现两处索引空洞,一处是未回填占位符、一处是功能提交完全缺席,后者因无 tag 兜底一旦丢失只能靠 git log --grep 反查,故按 v3.14 制度化的「先回填再插新行」红线立即补齐,不拖到 v4.1
 194c4de feat(P6): 12 怪物 AI 立绘去重(Boss3+精英3+小怪6) + 图鉴自动更新 | 12 个对象(herald/alchemist/warlord 三 Boss、elite_reaver/conduit/colossus 三精英、rat_swarm/spitter/bone_knight/plague_bearer/siren/revenant 六小怪)此前共用 9 张已有贴图造成图鉴大面积撞图,本版各给专属立绘;原 gen_assets.sh 文生图端点仍降级(实测返 176626B 占位图)故走降级路径:内置 ImageGen 出 1024² 原图 → 新增 gen_monster_pixels.py 后处理(复用 gen_passive_pixels.py 的众数色键控/去水印/描边,但主体填满画布而非 icon 式留白);prompt 策略经一轮试点否决后定稿为「亮主色+粗轮廓+高对比+2~3个大特征」——v1 暗紫黑方案被众数色键控吃掉深色区域,alpha 覆盖率仅 27% 且偏粉,v2 修正到 51.5%;12 张新 PNG 已加入 gen_assets.py 的 AI_OWNED 保护集防止被程序化生成器覆盖;图鉴零 UI 改动(renderCodexMonsters 走 iconURL(type.sprite) 数据驱动,改 data.js 指向即自动更新);四门质量门全绿(node --check / validate:skilltree / test:assets 108/108 / test:content PASS);16 文件 +138/-12 行
 e30ba00 chore: 清理孤儿 PNG(boss_avatar/passive_rage/passive_swift) + 移除 gen_assets.py 对应生成函数(gen_passive_rage/gen_passive_swift/gen_boss_avatar) + HANDOFF §11 回填 v4.0 文档提交哈希 2b0e195 | 维护提交,不打版本 tag;关键点:仅 git rm 这三张 PNG 不够——gen_assets.py 每次运行会程序化重建 passive_rage/passive_swift(调用点在原 2685-2686 行),必须连生成函数+调用一并删除,gen_boss_avatar 则属从无调用的死代码;验证四道:py_compile 通过 → 重跑 gen_assets.py 确认三张不复活且其余资源逐字节不变 → test:assets 96/96 全绿 → 反向孤儿清单由 7 项降至 4 项(剩 bg_title/guide_menu/icon_skull/skilltree_menu,均 AI_OWNED 合法保留)
 2b0e195 docs: v4.0 CHANGELOG + HANDOFF 同步(指向 67e510e) + §0q 小节(v4.0 大版本:P3b-3~5 精英内容/P4-1 悬赏/P4-2 Combo/P5-1 美术占位统一工具/P5-2 移动端真机门禁/P5-3 精灵缺失断言) + §11 回填 v3.14 文档提交哈希 ddc31fe(此前为占位符) + 头部"最后更新"更新到 2026-08-05 v4.0 | tag v4.0 指向此提交（自身哈希无法在提交内容中自引用）
