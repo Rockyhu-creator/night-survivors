@@ -2221,43 +2221,6 @@ def gen_passive_magnet():  # 引力宝珠 / 财富之魂：红色 U 型磁铁 + 
     save(img, "passive_magnet.png", 2)
 
 
-def gen_passive_rage():  # 战斗狂热：交叉双刃 + 火花
-    S = 40
-    img, d = new_canvas(S)
-    metal, hi, grip, spark = (176, 186, 216, 255), (226, 236, 255, 255), (96, 60, 32, 255), (255, 120, 90, 255)
-    for off in (-1, 1):
-        for i in range(22):
-            t = i / 21
-            x = 20 + off * (t - 0.5) * 26
-            y = 20 - (t - 0.5) * 26
-            xi, yi = round(x), round(y)
-            px(d, xi, yi, hi if i % 3 == 0 else metal)
-            px(d, xi + off, yi, metal)
-        px(d, 20 + off, 19, grip); px(d, 20 + off, 20, grip)
-    px(d, 20, 10, spark); px(d, 19, 11, spark); px(d, 21, 11, spark)
-    px(d, 20, 30, spark); px(d, 19, 29, spark); px(d, 21, 29, spark)
-    save(img, "passive_rage.png", 2)
-
-
-def gen_passive_swift():  # 极速猎手：青翼 + 速度线
-    S = 40
-    img, d = new_canvas(S)
-    wing = ((40, 150, 170), (90, 210, 225), (170, 240, 250))
-    streak = (220, 240, 255, 200)
-    for side in (-1, 1):
-        for i in range(16):
-            t = i / 15
-            x = 20 + side * 4 + side * t * 14
-            y = 20 - (t - 0.5) * 10 - abs(t - 0.5) * 6
-            xi, yi = round(x), round(y)
-            px(d, xi, yi, wing[2] if i % 4 == 0 else wing[1])
-            px(d, xi, yi + 1, wing[0])
-    for y in (14, 18, 22, 26):
-        for x in range(6, 13):
-            px(d, x, y, streak)
-    save(img, "passive_swift.png", 2)
-
-
 def gen_passive_greed():  # 财富之魂：金币 + 宝石火花
     S = 40
     img, d = new_canvas(S)
@@ -2292,61 +2255,6 @@ def gen_passive_guard():  # 钢铁意志：钢盾 + 十字 + 高光
             px(d, x, y, gold)             # 横
     px(d, 13, 9, shield_l); px(d, 14, 9, shield_l)  # 盾顶高光
     save(img, "passive_guard.png", 2)
-
-
-# ---------- 怪物/Boss 形象重绘（v0.19）：独立像素精灵，非 AI_OWNED ----------
-def gen_boss_avatar():  # 永夜化身：悬浮虚空神祇（脱离 overlord 人形君王）
-    S = 72
-    img, d = new_canvas(S)
-    cx, cy = 36, 34
-    void_d, void_m, void_l = (18, 10, 34, 255), (40, 22, 70, 255), (70, 45, 120, 255)
-    soul_l = (230, 245, 255, 255)
-    star = (150, 90, 255, 255)
-    rift = (200, 60, 120, 255)
-    # 星云裙裾（无腿，向外渐隐的星点裙）
-    for y in range(46, 70):
-        half = int((y - 46) * 1.5) + 8
-        for x in range(cx - half, cx + half + 1):
-            t = (x - (cx - half)) / (half * 2 + 1)
-            col = void_l if t < 0.3 else (void_m if t < 0.7 else void_d)
-            px(d, x, y, col)
-    # 裙裾星点（渐隐）
-    for _ in range(60):
-        ang = random.random() * math.pi * 2
-        rr = random.random()
-        sx = round(cx + math.cos(ang) * rr * 30)
-        sy = round(46 + rr * 22)
-        px(d, sx, sy, (200, 170, 255, 120))
-    # 躯干（暗夜晶体拼成，带竖直能量裂痕）
-    fill_ellipse_shaded(d, cx, 34, 14, 18, (void_d, void_m, void_l))
-    for y in range(22, 50):
-        for x in range(cx - 2, cx + 2):
-            if 26 < y < 46:
-                px(d, x, y, rift)
-    # 纵向发光裂瞳（青白->紫，核心）
-    for y in range(20, 40):
-        for x in (cx - 2, cx - 1, cx, cx + 1):
-            px(d, x, y, (230, 245, 255, 200 if x == cx else 150))
-    for y in range(24, 36):
-        px(d, cx, y, soul_l)
-    # 破碎虚空光环（头顶，缺口溢光）
-    for k in range(16):
-        a = math.radians(k * 22.5)
-        if k in (3, 4, 11, 12):
-            continue
-        tx, ty = round(cx + math.cos(a) * 16), round(14 + math.sin(a) * 8)
-        px(d, tx, ty, star); px(d, tx + 1, ty, star)
-    # 星尘翼（点状星芒，非实体翼）
-    for side in (-1, 1):
-        for i in range(26):
-            ang = math.radians(120 + side * 60 * (i / 25))
-            wx = round(cx + side * 14 + math.cos(ang) * (8 + i * 0.4))
-            wy = round(28 + math.sin(ang) * (10 + i * 0.3))
-            px(d, wx, wy, (210, 170, 255, 160 if i % 2 == 0 else 90))
-    # 外溢星辉粒子
-    for (sx, sy) in ((cx + 18, 22), (cx - 16, 26), (cx + 10, 12), (cx - 12, 16), (cx + 4, 6)):
-        px(d, sx, sy, (220, 200, 255, 180))
-    save(img, "boss_avatar.png", 1)
 
 
 def gen_enemy_shadow_hunter():  # 暗影猎手：半虚影猎手剪影 + 紫能弓（脱离 bat）
@@ -2682,8 +2590,6 @@ gen_passive_boots()
 gen_passive_heart()
 gen_passive_tome()
 gen_passive_magnet()
-gen_passive_rage()
-gen_passive_swift()
 gen_passive_greed()
 gen_passive_guard()
 gen_codex_artifacts()

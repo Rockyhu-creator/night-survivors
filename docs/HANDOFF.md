@@ -684,7 +684,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v4.0 CHANGELOG + HANDOFF 同步(指向 <待填哈希>) + §0q 小节(v4.0 大版本:P3b-3~5 精英内容/P4-1 悬赏/P4-2 Combo/P5-1 美术占位统一工具/P5-2 移动端真机门禁/P5-3 精灵缺失断言) + §11 回填 v3.14 文档提交哈希 ddc31fe(此前为占位符) + 头部"最后更新"更新到 2026-08-05 v4.0 | tag v4.0 指向此提交（自身哈希无法在提交内容中自引用）
+(本次文档提交) chore: 清理孤儿 PNG(boss_avatar/passive_rage/passive_swift) + 移除 gen_assets.py 对应生成函数(gen_passive_rage/gen_passive_swift/gen_boss_avatar) + HANDOFF §11 回填 v4.0 文档提交哈希 2b0e195 | 维护提交,不打版本 tag
+2b0e195 docs: v4.0 CHANGELOG + HANDOFF 同步(指向 67e510e) + §0q 小节(v4.0 大版本:P3b-3~5 精英内容/P4-1 悬赏/P4-2 Combo/P5-1 美术占位统一工具/P5-2 移动端真机门禁/P5-3 精灵缺失断言) + §11 回填 v3.14 文档提交哈希 ddc31fe(此前为占位符) + 头部"最后更新"更新到 2026-08-05 v4.0 | tag v4.0 指向此提交（自身哈希无法在提交内容中自引用）
 ddc31fe docs: v3.14 CHANGELOG + HANDOFF 同步(指向 ca273ef) + 回填 v3.13 文档提交哈希 ae95024(此前为占位符) + §11 新增「占位行回填」维护红线(制度化"先回填再插新行",根治461a5a5那类哈希丢失) + 补 0p 小节 | tag v3.14 指向此提交（自身哈希无法在提交内容中自引用）
 ca273ef v3.14 .gitignore 补 vite.config.js.timestamp-* 忽略规则 | vite 每跑一次 dev/build 就生成一个新的 vite.config.js.timestamp-<epoch>-<rand>.mjs 临时产物,长期停在 git status 的 ?? 列表里持续污染工作区视图,且易在批量 git add 时被误提交;本版仅追加忽略规则,不删除磁盘上已存在的该文件(属 vite 临时产物,交由工具自行管理);验证 git check-ignore -v 命中 .gitignore:9、禁提未跟踪文件由 8 个降为 7 个;v3.13 曾评估此项但因当时改 .gitignore 属代码提交 H_A、会让已写死的 7898588 失效并连带重做 H_B 而暂缓,本版无此约束故一并清掉;未改 src/ 任何产品代码
 ae95024 docs: v3.13 CHANGELOG + HANDOFF 同步(指向 7898588) + 清除 CHANGELOG 第6行历史工具残留标记 `<arg_value:...>` + 修正 HANDOFF §0j/§11/§16 的 `__ASSET_HASHES__` define 名笔误(4cbfb61 回填哈希时全局替换误伤,HANDOFF 5 处 + CHANGELOG 1 处) | tag v3.13 指向此提交（自身哈希无法在提交内容中自引用）
