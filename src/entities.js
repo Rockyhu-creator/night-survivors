@@ -1032,18 +1032,102 @@ export class EnemyManager {
       ctx.translate(sx, sy + wobbleY);
       if (this.game.player.x < e.x) ctx.scale(-1, 1);
       // A3 屏幕内微动画：纯 in-code 变换，零新素材，按 type 区分
+      // 注意：更具体的类型判断必须在通用判断之前（if-else if 链顺序敏感）
       {
         const ph = e.wobble;
         const t = this.game.time;
+
+        // ── 旧小怪（保留原有动画）──
         if (e.type === ENEMY_TYPES.slime) {
           const sq = 1 + Math.sin(t * 6 + ph) * 0.12;
           ctx.scale(1 / Math.sqrt(sq), sq);
         } else if (e.type === ENEMY_TYPES.skeleton) {
           ctx.rotate(Math.sin(t * 4 + ph) * 0.06);
-        } else if (e.type.isElite || e.isBoss) {
-          ctx.scale(1, 1 + Math.sin(t * 5 + ph) * 0.03);
+
+        // ── 蝙蝠（保留原有动画）──
         } else if (e.type === ENEMY_TYPES.bat) {
           ctx.scale(1 + Math.sin(t * 18 + ph) * 0.14, 1 + Math.cos(t * 18 + ph) * 0.08);
+
+        // ════════════════════════════════════════
+        //  新小怪动画（P8）
+        // ════════════════════════════════════════
+        } else if (e.type === ENEMY_TYPES.rat_swarm) {
+          // 尸鼠群：快速窜动抖动（高频不规则 scale，模拟一群老鼠乱窜）
+          ctx.scale(1 + Math.sin(t * 22 + ph) * 0.16, 1 + Math.cos(t * 28 + ph) * 0.10);
+        } else if (e.type === ENEMY_TYPES.spitter) {
+          // 腐唾者：头部脉冲（低频 body pulse，模拟吐弹前摇的蓄力感）
+          ctx.scale(1 + Math.sin(t * 4 + ph) * 0.08, 1 + Math.sin(t * 6 + ph) * 0.06);
+        } else if (e.type === ENEMY_TYPES.bone_knight) {
+          // 骸骨骑士：沉重步伐（比 skeleton 更重更慢的垂直 bob + 微旋）
+          ctx.rotate(Math.sin(t * 2 + ph) * 0.04);
+          ctx.scale(1, 1 + Math.sin(t * 3 + ph) * 0.04);
+        } else if (e.type === ENEMY_TYPES.plague_bearer) {
+          // 疫病携带者：不规则毒气脉动（异频非对称 scale，模拟体内毒气涌动）
+          ctx.scale(1 + Math.sin(t * 3.7 + ph) * 0.07, 1 + Math.cos(t * 5.3 + ph) * 0.05);
+        } else if (e.type === ENEMY_TYPES.siren) {
+          // 哀嚎女妖：缥缈悬浮飘动（慢速正弦漂移，轻盈感）
+          const fl = Math.sin(t * 2 + ph) * 0.05;
+          ctx.scale(1 + fl, 1 - fl * 0.5);
+        } else if (e.type === ENEMY_TYPES.revenant) {
+          // 复仇残躯：僵尸顿挫步（阶梯式 scale 抖动，不连贯的僵硬感）
+          const st = Math.floor(t * 3) % 2;
+          ctx.scale(1 + (st ? 0.05 : -0.03), 1 + (st ? -0.02 : 0.04));
+        } else if (e.type === ENEMY_TYPES.shadow_hunter) {
+          // 暗影猎手：冲刺预备蹲伏（周期性压扁，蓄力冲刺前的紧绷感）
+          const crouch = Math.max(0, Math.sin(t * 1.5 + ph)) * 0.08;
+          ctx.scale(1 + crouch * 0.5, 1 - crouch);
+        } else if (e.type === ENEMY_TYPES.gargoyle) {
+          // 石像鬼：石像静止（极慢微呼吸，强调"石头"质感）
+          ctx.scale(1, 1 + Math.sin(t * 0.8 + ph) * 0.015);
+
+        // ════════════════════════════════════════
+        //  Boss 动画（P8）— 按 e.type.id 区分个体
+        //  判定顺序：具体 Boss > 精英 > 兜底
+        // ════════════════════════════════════════
+        } else if (e.isBoss && e.type.id === 'herald') {
+          // 血月先驱：召唤手势（均匀 pulse + 微旋，施法感）
+          ctx.rotate(Math.sin(t * 2 + ph) * 0.03);
+          ctx.scale(1 + Math.sin(t * 3 + ph) * 0.04, 1 + Math.cos(t * 3 + ph) * 0.04);
+        } else if (e.isBoss && e.type.id === 'baron') {
+          // 血色男爵：威严披风呼吸（垂直呼吸 + 水平披风颤）
+          ctx.scale(1 + Math.sin(t * 2 + ph) * 0.05, 1 + Math.sin(t * 2.5 + ph) * 0.03);
+        } else if (e.isBoss && e.type.id === 'alchemist') {
+          // 腐血炼金术士：炼金沸腾气泡感（不规则异频脉动）
+          ctx.scale(1 + Math.sin(t * 3.3 + ph) * 0.06, 1 + Math.sin(t * 4.7 + ph) * 0.05);
+        } else if (e.isBoss && e.type.id === 'queen') {
+          // 苍白女王：冰晶优雅摇曳（缓慢旋摆 + 翼颤）
+          ctx.rotate(Math.sin(t * 1.8 + ph) * 0.04);
+          ctx.scale(1 + Math.sin(t * 2.5 + ph) * 0.03, 1 - Math.sin(t * 2.5 + ph) * 0.02);
+        } else if (e.isBoss && e.type.id === 'warlord') {
+          // 骨戈战将：战斗就绪姿态切换（激进非对称 scale，攻击性）
+          ctx.scale(1 + Math.sin(t * 4 + ph) * 0.07, 1 - Math.sin(t * 4 + ph) * 0.04);
+        } else if (e.isBoss && e.type.id === 'overlord') {
+          // 永夜君王：暗影威严慢脉动（超慢均匀 pulse，压迫感）
+          const mp = 1 + Math.sin(t * 1.5 + ph) * 0.04;
+          ctx.scale(mp, mp);
+        } else if (e.isBoss && e.type.id === 'avatar') {
+          // 永夜化身：混沌现实扭曲（不规则扭曲 scale + 旋摆，不稳定感）
+          ctx.rotate(Math.sin(t * 2.7 + ph) * 0.05);
+          ctx.scale(1 + Math.sin(t * 3.9 + ph) * 0.06, 1 + Math.cos(t * 4.3 + ph) * 0.05);
+
+        // ════════════════════════════════════════
+        //  精英动画（P8）— 按 e.type.id 或 sprite 区分
+        // ════════════════════════════════════════
+        } else if (e.type.isElite && e.type.id === 'elite_reaver') {
+          // 裂魂掠夺者：攻击性姿态切换（快速非对称 scale，冲刺前摇感）
+          ctx.scale(1 + Math.sin(t * 5 + ph) * 0.06, 1 - Math.sin(t * 5 + ph) * 0.04);
+        } else if (e.type.isElite && e.type.id === 'elite_conduit') {
+          // 永夜导体：奥术脉动光环感（对称均匀呼吸）
+          const pu = 1 + Math.sin(t * 3 + ph) * 0.05;
+          ctx.scale(pu, pu);
+        } else if (e.type.isElite && e.type.id === 'elite_colossus') {
+          // 腐骸巨像：重型踏地（超慢挤压，落地感）
+          const stomp = Math.abs(Math.sin(t * 1.2 + ph));
+          ctx.scale(1 + stomp * 0.04, 1 - stomp * 0.06);
+
+        // ── 兜底：其他精英 / 未匹配 Boss 保持原有微呼吸 ──
+        } else if (e.type.isElite || e.isBoss) {
+          ctx.scale(1, 1 + Math.sin(t * 5 + ph) * 0.03);
         }
       }
       // 统一占位：缺失精灵画带标签占位方块，替代裸紫圆兜底
