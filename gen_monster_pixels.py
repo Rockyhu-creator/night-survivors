@@ -16,6 +16,7 @@ from PIL import Image
 from gen_passive_pixels import (
     has_real_alpha, key_bg, remove_watermark, add_outline, recenter_com, auto_brighten,
 )
+from gen_portrait_pixels import flood_key_bg  # 血裔与 portrait 卡同策略：边缘泛洪键控
 
 OUT = os.path.join(os.path.dirname(__file__), 'public', 'assets')
 RAW = os.path.join(os.path.dirname(__file__), '.ai_monster_raw')
@@ -46,13 +47,13 @@ SPECS = {
     'plague_bearer':  ('enemy_plague_bearer.png', 50, 50),
     'siren':          ('enemy_siren.png',         46, 46),
     'revenant':       ('enemy_revenant.png',      52, 52),
-    # ---- 血裔角色（46×46，对齐 player_* 精灵）----
-    'wanderer':       ('player_wanderer.png',        46, 46),
-    'saint':          ('player_saint.png',           46, 46),
-    'berserker':      ('player_berserker.png',       46, 46),
-    'thunder':        ('player_thunder.png',         46, 46),
-    'bloodthirsty':   ('player_bloodthirsty.png',    46, 46),
-    'apostle':        ('player_apostle.png',         46, 46),
+    # ---- 血裔角色（v4.3.2: 46→64 提清晰度，边缘泛洪键控统一 portrait 卡策略）----
+    'wanderer':       ('player_wanderer.png',        64, 64),
+    'saint':          ('player_saint.png',           64, 64),
+    'berserker':      ('player_berserker.png',       64, 64),
+    'thunder':        ('player_thunder.png',         64, 64),
+    'bloodthirsty':   ('player_bloodthirsty.png',    64, 64),
+    'apostle':        ('player_apostle.png',         64, 64),
 }
 
 
@@ -70,8 +71,10 @@ def process(id_):
     src = sorted(src_glob)[0]
 
     im = Image.open(src).convert('RGBA')
-    if not has_real_alpha(im):
-        im = key_bg(im)                 # 众数色键控（纯白底 -> 透明）
+    if id_ in ('wanderer', 'saint', 'berserker', 'thunder', 'bloodthirsty', 'apostle'):
+        im = flood_key_bg(im)           # 血裔与 portrait 卡同源：边缘泛洪键控（保 saint 白袍，避免众数色抠穿）
+    elif not has_real_alpha(im):
+        im = key_bg(im)                 # 其余怪物：众数色键控（纯白底 -> 透明）
     im = remove_watermark(im)           # 去 ImageGen 水印/角落噪点连通域
 
     bbox = im.getbbox()

@@ -3,7 +3,7 @@ export const CONFIG = {
   LOGICAL_HEIGHT: 540,
   TILE: 256,
   PLAYER_RADIUS: 14,
-  PLAYER_SPRITE: 46,
+  PLAYER_SPRITE: 51,  // v4.3.2: 血裔精灵渲染放大 ~10%（46→51），源分辨率同步 46→64 提清晰度
   ENEMY_CAP: 400,
   GRID_CELL: 64,
   BEST_KEY: 'night_survivors_best',
