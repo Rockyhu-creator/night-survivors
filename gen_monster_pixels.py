@@ -47,13 +47,7 @@ SPECS = {
     'plague_bearer':  ('enemy_plague_bearer.png', 50, 50),
     'siren':          ('enemy_siren.png',         46, 46),
     'revenant':       ('enemy_revenant.png',      52, 52),
-    # ---- 血裔角色（v4.3.2: 46→64 提清晰度，边缘泛洪键控统一 portrait 卡策略）----
-    'wanderer':       ('player_wanderer.png',        64, 64),
-    'saint':          ('player_saint.png',           64, 64),
-    'berserker':      ('player_berserker.png',       64, 64),
-    'thunder':        ('player_thunder.png',         64, 64),
-    'bloodthirsty':   ('player_bloodthirsty.png',    64, 64),
-    'apostle':        ('player_apostle.png',         64, 64),
+    # 注：6 血裔已迁移到 gen_bloodline_pixels.py（与选择卡片共用源图+边缘泛洪管线），此处不再生成。
 }
 
 
