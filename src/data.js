@@ -657,8 +657,8 @@ export const BLOODLINES = [
   },
   {
     id: 'apostle', name: '永夜使徒', icon: 'portrait_apostle',
-    desc: '无武器起手 · 高难高回报: 伤害+30% · 移速+25% · 冷却-25% · 生命-20%',
-    weapon: null, cost: 260, hidden: true,
+    desc: '永夜光环起手（槽外固有·不占武器槽） · 高难高回报: 伤害+30% · 移速+25% · 冷却-25% · 生命-20%',
+    weapon: 'aura', innate: true, cost: 260, hidden: true,
     apply: (g) => {
       g.player.damageMul += 0.30;
       g.player.speedMul += 0.25;
