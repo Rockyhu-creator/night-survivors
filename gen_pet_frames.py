@@ -20,30 +20,37 @@ OUT = os.path.join(ROOT, 'public', 'assets')
 FINAL_SIZE = 64
 
 
-def flood_key_bg(im, bg_min=246):
+def flood_key_bg(im, bg_min=246, spread_tol=22):
     """从画布四边泛洪，删除与边界连通的背景（纯白底）像素。
-    判定用**绝对亮度阈值**：min(r,g,b) > bg_min 才视为背景。
-    旧版用「距四角容差」会把猫身白毛（~240 距纯白 255 差值<40）一并吃掉，
-    改绝对阈值后猫白毛（<246）不会被泛洪进入，只吃轮廓处与背景的 1px 过渡。"""
+
+    两阶段判定：
+    - 种子（四边起点）：严格纯白 min(r,g,b) > bg_min(246)，避免把猫身白毛(~240)当起点。
+    - 蔓延：放宽到「距纯白≤spread_tol(22) 即亮度≥233」且 min>215。
+      这样能从纯白背景越过轮廓处那道稍暗的接缝（肚皮下背景白常落 233–246），
+      吃掉残留白边；而被深色身体包围、不连通四边的猫白毛不会被波及。"""
     im = im.convert('RGBA')
     w, h = im.size
     px = im.load()
 
-    def is_bg(p):
+    def is_seed(p):
         return p[0] > bg_min and p[1] > bg_min and p[2] > bg_min
+
+    def is_near(p):
+        return (min(p) > 215
+                and max(255 - p[0], 255 - p[1], 255 - p[2]) <= spread_tol)
 
     visited = bytearray(w * h)
     dq = deque()
     for x in range(w):
         for y in (0, h - 1):
             i = y * w + x
-            if not visited[i] and is_bg(px[x, y][:3]):
+            if not visited[i] and is_seed(px[x, y][:3]):
                 visited[i] = 1
                 dq.append((x, y))
     for y in range(h):
         for x in (0, w - 1):
             i = y * w + x
-            if not visited[i] and is_bg(px[x, y][:3]):
+            if not visited[i] and is_seed(px[x, y][:3]):
                 visited[i] = 1
                 dq.append((x, y))
     while dq:
@@ -53,7 +60,7 @@ def flood_key_bg(im, bg_min=246):
             nx, ny = x + dx, y + dy
             if 0 <= nx < w and 0 <= ny < h:
                 i = ny * w + nx
-                if not visited[i] and is_bg(px[nx, ny][:3]):
+                if not visited[i] and is_near(px[nx, ny][:3]):
                     visited[i] = 1
                     dq.append((nx, ny))
     return im
@@ -101,10 +108,10 @@ def slice_cell(sheet, row, col):
     return img.crop(box)
 
 
-def _flood_remove_connected_white(im, white_thresh=246):
-    """从已透明的背景区域出发，泛洪删除与之连通的近纯白像素（背景残留），
-    保留被猫身体包围的内部白毛（不连通背景，不会被删）。
-    阈值与 flood_key_bg 一致（min 通道 > white_thresh 才算近纯白背景）。"""
+def _flood_remove_connected_white(im, white_thresh=246, spread_tol=22):
+    """从已透明的背景区域出发，泛洪删除与之连通的近背景白残留（肚皮下/地面反光），
+    保留被猫身体包围、不连通边界的内部白毛。
+    判定与 flood_key_bg 的 is_near 一致：min>215 且距纯白≤spread_tol。"""
     px = im.load()
     w, h = im.size
     visited = bytearray(w * h)
@@ -124,7 +131,8 @@ def _flood_remove_connected_white(im, white_thresh=246):
                 if visited[i]:
                     continue
                 r, g, b, a = px[nx, ny]
-                if a > 0 and r > white_thresh and g > white_thresh and b > white_thresh:
+                if a > 0 and min(r, g, b) > 215 \
+                        and max(255 - r, 255 - g, 255 - b) <= spread_tol:
                     px[nx, ny] = (0, 0, 0, 0)
                     visited[i] = 1
                     dq.append((nx, ny))
