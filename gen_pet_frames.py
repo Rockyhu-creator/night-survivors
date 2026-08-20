@@ -20,14 +20,20 @@ OUT = os.path.join(ROOT, 'public', 'assets')
 FINAL_SIZE = 64
 
 
-def flood_key_bg(im, bg_min=246, spread_tol=22):
+def flood_key_bg(im, bg_min=246, spread_tol=22, bridge_min=120, bridge_max_depth=3):
     """从画布四边泛洪，删除与边界连通的背景（纯白底）像素。
 
     两阶段判定：
     - 种子（四边起点）：严格纯白 min(r,g,b) > bg_min(246)，避免把猫身白毛(~240)当起点。
     - 蔓延：放宽到「距纯白≤spread_tol(22) 即亮度≥233」且 min>215。
       这样能从纯白背景越过轮廓处那道稍暗的接缝（肚皮下背景白常落 233–246），
-      吃掉残留白边；而被深色身体包围、不连通四边的猫白毛不会被波及。"""
+      吃掉残留白边；而被深色身体包围、不连通四边的猫白毛不会被波及。
+
+    **背景洞穿透（bridge）**：猫腿之间的背景白常被猫腿暗色边缘围成
+    不连通四边的孤岛（连通泛洪遇暗边即断 → 漏删）。允许泛洪「借道」穿过
+    1~bridge_max_depth 层暗色桥像素（min 在 [bridge_min, 215] 的腿缘/阴影，
+    本身保留不删）到达另一侧近白背景并删除。桥接深度受限：猫身厚度远大于
+    腿缝暗边，不会被误穿到猫白毛（猫身 min<bridge_min 非桥，阻断）。"""
     im = im.convert('RGBA')
     w, h = im.size
     px = im.load()
@@ -39,8 +45,13 @@ def flood_key_bg(im, bg_min=246, spread_tol=22):
         return (min(p) > 215
                 and max(255 - p[0], 255 - p[1], 255 - p[2]) <= spread_tol)
 
+    def is_bridge(p):
+        # 暗色腿缘/阴影：不够亮算近白、但也不是猫身（猫身 min 通常 < bridge_min）
+        return (not is_near(p)) and min(p) >= bridge_min
+
     visited = bytearray(w * h)
-    dq = deque()
+    dq = deque()       # 近白背景像素（删）
+    bdq = deque()      # 借道桥像素 (x, y, depth)，不删，仅借道
     for x in range(w):
         for y in (0, h - 1):
             i = y * w + x
@@ -53,16 +64,40 @@ def flood_key_bg(im, bg_min=246, spread_tol=22):
             if not visited[i] and is_seed(px[x, y][:3]):
                 visited[i] = 1
                 dq.append((x, y))
-    while dq:
-        x, y = dq.popleft()
-        px[x, y] = (0, 0, 0, 0)
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < w and 0 <= ny < h:
-                i = ny * w + nx
-                if not visited[i] and is_near(px[nx, ny][:3]):
-                    visited[i] = 1
-                    dq.append((nx, ny))
+    NEIGH4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    NEIGH8 = NEIGH4 + ((1, 1), (1, -1), (-1, 1), (-1, -1))
+    while dq or bdq:
+        if dq:
+            x, y = dq.popleft()
+            px[x, y] = (0, 0, 0, 0)
+            for dx, dy in NEIGH4:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h:
+                    i = ny * w + nx
+                    if visited[i]:
+                        continue
+                    p = px[nx, ny][:3]
+                    if is_near(p):
+                        visited[i] = 1
+                        dq.append((nx, ny))
+                    elif is_bridge(p):
+                        visited[i] = 1
+                        bdq.append((nx, ny, 1))
+        else:
+            x, y, depth = bdq.popleft()
+            for dx, dy in NEIGH8:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h:
+                    i = ny * w + nx
+                    if visited[i]:
+                        continue
+                    p = px[nx, ny][:3]
+                    if is_near(p):
+                        visited[i] = 1
+                        dq.append((nx, ny))
+                    elif depth < bridge_max_depth and is_bridge(p):
+                        visited[i] = 1
+                        bdq.append((nx, ny, depth + 1))
     return im
 
 # ── 网格定义 ──────────────────────────────────────────────
@@ -139,11 +174,51 @@ def _flood_remove_connected_white(im, white_thresh=246, spread_tol=22):
     return im
 
 
+def _fill_white_holes(im, pure_min=250):
+    """洞填充：删除不连通四边、且纯白(min>pure_min 且距纯白≤5)的孤立块。
+    这些是被猫腿实心封死的背景白（连通泛洪进不去的『真孤岛』），亮度 250–255
+    与背景纯白一致、与猫身白毛(240–249)区分。保留猫身白毛（不在此亮度区间）。"""
+    px = im.load()
+    w, h = im.size
+
+    def is_pure(p):
+        r, g, b, a = p
+        return a > 0 and min(r, g, b) > pure_min and max(255 - r, 255 - g, 255 - b) <= 5
+
+    seen = bytearray(w * h)
+    for y in range(h):
+        for x in range(w):
+            i = y * w + x
+            if is_pure(px[x, y]) and not seen[i]:
+                comp = []
+                dq = deque([(x, y)])
+                seen[i] = 1
+                edge = False
+                while dq:
+                    cx, cy = dq.popleft()
+                    comp.append((cx, cy))
+                    if cx == 0 or cx == w - 1 or cy == 0 or cy == h - 1:
+                        edge = True
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = cx + dx, cy + dy
+                        if 0 <= nx < w and 0 <= ny < h:
+                            j = ny * w + nx
+                            if is_pure(px[nx, ny]) and not seen[j]:
+                                seen[j] = 1
+                                dq.append((nx, ny))
+                if not edge:  # 不连通四边 = 背景洞，删
+                    for (cx, cy) in comp:
+                        px[cx, cy] = (0, 0, 0, 0)
+    return im
+
+
 def remove_bg(cell):
-    """边缘泛洪键控抠白底 + 连通性白底清理（离线，保留猫身白毛）。"""
+    """边缘泛洪键控抠白底 + 连通性白底清理 + 纯白洞填充（离线，保留猫身白毛）。"""
     im = flood_key_bg(cell, bg_min=246)
     # 后清理：只删与背景连通的近纯白残留（地面阴影/反光），绝删内部白毛
-    return _flood_remove_connected_white(im, white_thresh=246)
+    im = _flood_remove_connected_white(im, white_thresh=246)
+    # 洞填充：删被猫腿封死、不连通四边的纯白背景孤岛（腿缝残留）
+    return _fill_white_holes(im, pure_min=250)
 
 
 def fit_contain(im, size):
