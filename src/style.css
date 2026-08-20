@@ -859,7 +859,7 @@ html, body {
   width: min(880px, 92vw);
   display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;
 }
-#pet-content .altar-card img { width: 64px; height: 64px; object-fit: contain; image-rendering: auto; background: rgba(0,0,0,.5); }
+#pet-content .altar-card img { width: 64px; height: 64px; object-fit: contain; image-rendering: auto; background: linear-gradient(180deg, #a59ec0 0%, #6a6488 100%); }
 .touch-device #pet-content { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .bl-wdesc { font-size: 11px; color: #b9aed0; }
 

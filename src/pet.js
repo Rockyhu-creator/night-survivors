@@ -178,6 +178,15 @@ export class Pet {
     const w = PET_DRAW, h = PET_DRAW * img.height / img.width;
     ctx.save();
     ctx.translate(this.x, this.y);
+    // 暗底可见性：柔和浅色背光，避免深色猫（如黑美短）融入黑夜背景
+    const br = w * 0.72;
+    const bg = ctx.createRadialGradient(0, 0, 0, 0, 0, br);
+    bg.addColorStop(0, 'rgba(196,188,224,0.22)');
+    bg.addColorStop(1, 'rgba(196,188,224,0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.arc(0, 0, br, 0, Math.PI * 2);
+    ctx.fill();
     if (flip < 0) ctx.scale(-1, 1);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();

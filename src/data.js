@@ -756,6 +756,8 @@ export function loadSouls() {
       cleared: o?.cleared || [],
       bloodlines: o?.bloodlines || ['wanderer'],
       selectedBloodline: o?.selectedBloodline || 'wanderer',
+      // === 宠物出战选择（v4.4）：持久化字段，漏写会导致选中后刷新即丢失 ===
+      selectedPet: o?.selectedPet ?? null,
       // === 技能树 v1 持久化地基（G1：向后兼容默认，旧档缺字段 → 安全兜底）===
       tree: o?.tree || [],                 // 已购技能树节点 id
       treeResets: o?.treeResets || 0,      // 洗点次数
