@@ -5,6 +5,26 @@
 
 ---
 
+## v4.4（2026-08-20 · `3c0112c`）
+
+### 新增
+- **宠物战斗拾取系统**（用户需求：用自家真实猫照片作宠物，跟随+拾取宝石+部分攻击）：
+  - **橘猫（urine）**：攻击向最近敌人发射抛物线尿液，落地生成黄色水洼——对范围内敌人施加 `applyDebuff('slow', 55%)` 减速 + `applyDebuff('burn', dps)` 持续灼烧。水洼为宠物系统自管实体（`PetSystem.puddles`），每 0.3s 刷新 debuff，与玩家侧 hazard 系统（仅作用于玩家）解耦。
+  - **美短（butt）**：攻击向最近敌人冲撞，调现有 `WeaponSystem.hitEnemy` 结算伤害 + 击退（`hitEnemy(e, dmg, kx, ky, '#fff')`），复用游戏既有伤害/击退/飘字链路。
+  - **帧动画**：每只猫 3 组帧（follow/pickup/attack），由真实猫照片经边缘泛洪键控抠图 → LANCZOS 平滑归一化 64×64 → 柔和投影（图鉴黑底可见）生成。共 13 张（`pet_orange_*` 6 张 / `pet_amer_*` 7 张）。跟着玩家后方弹性飘行，向左由代码水平翻转复用同一套帧。
+  - **拾取**：宠物作为第二磁吸源/拾取点挂入既有 `PickupSystem`，就近宝石被吸走、触点即入账，不碰掉落/经验逻辑。
+  - **宠物契约屏（标题界面新增「宠物」入口，镜像血裔屏）**：花**灵魂**购买（复用祭坛 `unlocks` 体系，`buyPetUnlock` 查 `PET_SHOP`、写入同一 `souls.unlocks`），已购猫可在屏内「选择」出战（单只出战，`setSelectedPet`/`getSelectedPet` 持久化，含「不带宠物」选项）。
+  - 强度随 `player.damageMul` + 游戏时间（`statScale` 简化版，540s 后轻微成长）缩放，保留「一部分贡献」定位。
+
+### 调整
+- `src/pet.js`（新增宠物核心类 Pet/PetSystem）、`src/data.js`（PET_DEFS/PET_SHOP/getSelectedPet/setSelectedPet/buyPetUnlock）、`src/ui.js`+`src/main.js`+`index.html`+`style.css`（宠物契约屏）、`src/game.js`（PetSystem 初始化/更新/渲染）、`src/systems.js`（PickupSystem 第二拾取源）、`src/assets.js`（13 帧注册入懒加载集）、`gen_pet_frames.py`（contact sheet 切片→抠图→归一化管线）。
+
+### 已知 / 待验证
+- 数值为初值（尿液 dps10/减速55%/持续3s、头撞伤害12/击退220/冷却1.4s），真机试玩后按手感微调。
+- 宠物为真实照片、非卡通化，与游戏其它精灵（像素/插画风）在风格上有差异，属用户明确指定。
+
+---
+
 ## v4.3.6（2026-08-10 · `d4981cb`）
 
 ### 修复
