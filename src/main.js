@@ -81,6 +81,9 @@ document.getElementById('btn-skilltree-back').addEventListener('click', () => ga
 document.getElementById('btn-skilltree-topback').addEventListener('click', () => game.ui.hideSkillTree());
 document.getElementById('btn-skilltree-respec').addEventListener('click', () => game.ui.respecSkillTree());
 document.getElementById('btn-bloodline-topback').addEventListener('click', () => game.ui.hideBloodline());
+document.getElementById('btn-pet').addEventListener('click', () => game.ui.showPet());
+document.getElementById('btn-pet-back').addEventListener('click', () => game.ui.hidePet());
+document.getElementById('btn-pet-topback').addEventListener('click', () => game.ui.hidePet());
 document.getElementById('btn-guide').addEventListener('click', () => game.ui.showGuide());
 // 暂停界面的"继续"按钮（桌面/移动端通用，移动端主要恢复路径）
 document.getElementById('btn-resume').addEventListener('click', () => {

@@ -46,6 +46,79 @@ export const ALTAR = [
 ];
 if (typeof window !== 'undefined') window.__altar = ALTAR;
 
+// ---------- 宠物系统（v4.4） ----------
+export const PET_DEFS = {
+  orange: {
+    id: 'orange', name: '橘猫', icon: 'pet_orange_follow_0',
+    desc: '尿液攻击：抛物线落地生成减速水洼',
+    attackType: 'urine',
+    // 帧组：每种状态对应一组帧文件名（不含前缀/后缀）
+    frames: {
+      follow:  ['pet_orange_follow_0', 'pet_orange_follow_1'],
+      pickup: ['pet_orange_pickup_0', 'pet_orange_pickup_1'],
+      attack: ['pet_orange_urine_0', 'pet_orange_urine_1'],
+    },
+    baseDps: 10,       // 尿液持续 dps
+    slowPct: 0.55,     // 减速百分比
+    hazardDuration: 3, // 水洼持续时间(秒)
+    attackCd: 1.6,     // 攻击冷却(秒)
+    magnetRadius: 80,  // 拾取磁吸半径
+    pickupRadius: 30,  // 拾取触发半径
+  },
+  amer: {
+    id: 'amer', name: '美短', icon: 'pet_amer_follow_0',
+    desc: '头撞攻击：冲撞最近敌人造成伤害+击退',
+    attackType: 'butt',
+    frames: {
+      follow: ['pet_amer_follow_0', 'pet_amer_follow_1'],
+      pickup: ['pet_amer_pickup_0', 'pet_amer_pickup_1'],
+      attack: ['pet_amer_butt_0', 'pet_amer_butt_1', 'pet_amer_butt_2'],
+    },
+    baseDamage: 12,   // 头撞基础伤害
+    knockback: 220,    // 击退力度
+    attackCd: 1.4,     // 攻击冷却(秒)
+    magnetRadius: 80,
+    pickupRadius: 30,
+  },
+};
+
+// 宠物商店：花灵魂购买，复用 isUnlocked/spendSouls/unlocks 体系
+export const PET_SHOP = [
+  { id: 'orange', name: '橘猫', icon: 'pet_orange_follow_0', cost: 120,
+    desc: '尿液减速水洼 · 帮你拾取宝石' },
+  { id: 'amer',   name: '美短', icon: 'pet_amer_follow_0',   cost: 180,
+    desc: '冲撞头击+击退 · 帮你拾取宝石' },
+];
+
+// 当前出战宠物选择（持久化），镜像血裔 getSelectedBloodline 模式
+export function getSelectedPet() {
+  const s = loadSouls();
+  const id = s.selectedPet;
+  return (id && isUnlocked(id)) ? id : null; // null = 无出战宠物
+}
+
+export function setSelectedPet(id) {
+  if (id && !isUnlocked(id)) return false; // null = 取消出战（允许）
+  const s = loadSouls();
+  s.selectedPet = id || null;
+  saveSouls(s);
+  return true;
+}
+
+// 购买宠物解锁：复用祭坛同一 unlocks 体系（isUnlocked/getSelectedPet 据此判定）
+export function buyPetUnlock(id) {
+  const def = PET_SHOP.find((p) => p.id === id);
+  if (!def) return false;
+  const s = loadSouls();
+  if (s.unlocks.includes(id)) return false;
+  if (s.balance < def.cost) return false;
+  s.balance -= def.cost;
+  s.spent += def.cost;
+  s.unlocks.push(id);
+  saveSouls(s);
+  return true;
+}
+
 // 成就枚举（G3 · v1 落地 6 项，覆盖技能树 gate 刚需）。id 即 achievements[] 存储值。
 export const ACHIEVEMENTS = {
   clear_easy: '夜行者首通',

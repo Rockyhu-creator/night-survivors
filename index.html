@@ -67,6 +67,10 @@
             <img class="menu-btn-icon" id="btn-bloodline-icon" src="/assets/portrait_wanderer.png" alt="角色" />
             <span>血裔：流浪者</span>
           </button>
+          <button id="btn-pet" class="gothic-btn ghost menu-btn">
+            <img class="menu-btn-icon" id="btn-pet-icon" src="/assets/pet_orange_follow_0.png" alt="宠物" />
+            <span>宠物：无</span>
+          </button>
           <button id="btn-altar" class="gothic-btn ghost menu-btn">
             <img class="menu-btn-icon" src="/assets/altar_menu.png" alt="祭坛" />
             <span>灵魂祭坛</span>
@@ -198,6 +202,18 @@
       <div id="bloodline-balance" class="altar-balance"></div>
       <div id="bloodline-content"></div>
       <button id="btn-bloodline-back" class="gothic-btn">返回</button>
+    </div>
+
+    <!-- v4.4 宠物界面（商店+出战选择） -->
+    <div id="pet-screen" class="screen hidden">
+      <button class="top-back" id="btn-pet-topback" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="altar-title">宠 物 契 约</p>
+      <p class="altar-sub">以灵魂换取挚友同行 · 帮你拾取宝石 · 并肩作战</p>
+      <div id="pet-balance" class="altar-balance"></div>
+      <div id="pet-content"></div>
+      <button id="btn-pet-back" class="gothic-btn">返回</button>
     </div>
 
     <!-- 技能树界面 -->

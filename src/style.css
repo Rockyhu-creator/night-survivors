@@ -853,6 +853,14 @@ html, body {
 #bloodline-content .altar-card img { width: 64px; height: 96px; object-fit: contain; image-rendering: pixelated; }
 .bl-weapon { font-size: 12px; color: var(--bone); margin: 4px 0 2px; line-height: 1.4; }
 .bl-weapon b { color: var(--purple); }
+
+/* v4.4 宠物屏：复用祭坛视觉与网格；宠物为真实照片，平滑渲染(非像素化) */
+#pet-content {
+  width: min(880px, 92vw);
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;
+}
+#pet-content .altar-card img { width: 64px; height: 64px; object-fit: contain; image-rendering: auto; background: rgba(0,0,0,.5); }
+.touch-device #pet-content { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .bl-wdesc { font-size: 11px; color: #b9aed0; }
 
 /* 技能树界面：复用祭坛视觉与网格布局，分支化着色 */

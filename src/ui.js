@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, AFFIXES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier } from './data.js';
+import { CONFIG, WEAPONS, PASSIVES, ARTIFACTS, expForLevel, loadBest, saveBest, formatTime, loadCollection, ALTAR, SKILL_TREE, BLOODLINES, ENEMY_TYPES, BOSSES, AFFIXES, loadSouls, buySkillNode, respecTree, buyUnlock, buyBloodlineUnlock, getSelectedBloodline, isBloodlineUnlocked, threatTier, PET_DEFS, PET_SHOP, buyPetUnlock, setSelectedPet, getSelectedPet, isUnlocked } from './data.js';
 import { buildCollectionData } from './evolution.js';
 import { sprite, drawAffixBadge, ensureLazy, safeIconURL } from './assets.js';
 
@@ -171,6 +171,11 @@ export class UIManager {
     this.bloodlineBtnEl = document.getElementById('btn-bloodline');
     this.bloodlineScreen = document.getElementById('bloodline-screen');
     this.bloodlineBalanceEl = document.getElementById('bloodline-balance');
+    // v4.4 宠物屏（商店+出战选择，镜像血裔）
+    this.petScreen = document.getElementById('pet-screen');
+    this.petBalanceEl = document.getElementById('pet-balance');
+    this.petContentEl = document.getElementById('pet-content');
+    this.petBtnEl = document.getElementById('btn-pet');
     // 技能树 v1 屏引用
     this.skillTreeScreen = document.getElementById('skilltree-screen');
     this.skillTreeBalanceEl = document.getElementById('skilltree-balance');
@@ -347,6 +352,19 @@ export class UIManager {
       const fn = `${bl.icon}.png`;
       const h = (typeof __ASSET_HASHES__ !== 'undefined' && __ASSET_HASHES__[fn]) ? __ASSET_HASHES__[fn] : BUILD_ID;
       if (icon) icon.src = `/assets/${fn}?v=${h}`;
+    }
+    // v4.4 宠物：标题按钮显示当前出战宠物
+    if (this.petBtnEl) {
+      const span = this.petBtnEl.querySelector('span');
+      const pid = getSelectedPet();
+      const pdef = pid ? PET_DEFS[pid] : null;
+      if (span) span.textContent = pdef ? `宠物：${pdef.name}` : '宠物：无';
+      const icon = document.getElementById('btn-pet-icon');
+      if (icon) {
+        const fn = pdef ? `${pdef.icon}.png` : 'pet_orange_follow_0.png';
+        const h2 = (typeof __ASSET_HASHES__ !== 'undefined' && __ASSET_HASHES__[fn]) ? __ASSET_HASHES__[fn] : BUILD_ID;
+        icon.src = `/assets/${fn}?v=${h2}`;
+      }
     }
     // 首启自动弹玩法说明（localStorage 记忆，仅首次）。try/catch 防隐私模式抛异常（P0）
     let guideSeen = false;
@@ -1282,6 +1300,98 @@ export class UIManager {
   hideBloodline() {
     this.bloodlineScreen.classList.add('hidden');
     this.showTitle();
+  }
+
+  // ---------- v4.4 宠物屏（商店+出战选择，镜像血裔）----------
+  showPet() {
+    ensureLazy().then(() => {
+      this.titleScreen.classList.add('hidden');
+      this.petScreen.classList.remove('hidden');
+      this.renderPet();
+    });
+  }
+
+  hidePet() {
+    this.petScreen.classList.add('hidden');
+    this.showTitle();
+  }
+
+  renderPet() {
+    const souls = loadSouls();
+    const selected = getSelectedPet();
+    this.petBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
+    this.petContentEl.innerHTML = '';
+
+    // 「无宠物」选项：取消出战
+    const noneCard = document.createElement('div');
+    noneCard.className = `altar-card ${selected === null ? 'selected' : ''}`;
+    const noneImg = document.createElement('img');
+    noneImg.src = this.iconURL('pet_orange_follow_0'); // 占位，渲染时若未加载则为空
+    noneImg.alt = '无宠物';
+    const noneName = document.createElement('h3');
+    noneName.textContent = '不带宠物';
+    const noneDesc = document.createElement('p');
+    noneDesc.className = 'ac-desc';
+    noneDesc.textContent = '独自狩猎，不携带任何宠物';
+    const noneBtn = document.createElement('button');
+    noneBtn.className = 'gothic-btn ac-buy';
+    if (selected === null) {
+      noneBtn.textContent = '使用中';
+      noneBtn.disabled = true;
+      noneBtn.classList.add('owned-btn');
+    } else {
+      noneBtn.textContent = '选择';
+      noneBtn.addEventListener('click', () => {
+        if (setSelectedPet(null)) { this.game.audio.uiClick(); this.renderPet(); }
+      });
+    }
+    noneCard.append(noneImg, noneName, noneDesc, noneBtn);
+    this.petContentEl.appendChild(noneCard);
+
+    for (const def of Object.values(PET_DEFS)) {
+      const unlocked = isUnlocked(def.id);
+      const isSelected = def.id === selected;
+      const affordable = souls.balance >= (PET_SHOP.find((p) => p.id === def.id)?.cost || 0);
+      const card = document.createElement('div');
+      card.className = `altar-card ${unlocked ? 'owned' : ''} ${isSelected ? 'selected' : ''}`;
+
+      const img = document.createElement('img');
+      img.src = this.iconURL(def.icon);
+      img.alt = def.name;
+
+      const name = document.createElement('h3');
+      name.textContent = def.name;
+
+      const desc = document.createElement('p');
+      desc.className = 'ac-desc';
+      desc.textContent = def.desc;
+
+      const btn = document.createElement('button');
+      btn.className = 'gothic-btn ac-buy';
+      if (isSelected) {
+        btn.textContent = '使用中';
+        btn.disabled = true;
+        btn.classList.add('owned-btn');
+      } else if (unlocked) {
+        btn.textContent = '选择';
+        btn.addEventListener('click', () => {
+          if (setSelectedPet(def.id)) { this.game.audio.uiClick(); this.renderPet(); }
+        });
+      } else if (affordable) {
+        const cost = PET_SHOP.find((p) => p.id === def.id)?.cost || 0;
+        btn.textContent = `👁 ${cost} 解锁`;
+        btn.addEventListener('click', () => {
+          if (buyPetUnlock(def.id)) { this.game.audio.uiClick(); this.renderPet(); }
+        });
+      } else {
+        const cost = PET_SHOP.find((p) => p.id === def.id)?.cost || 0;
+        btn.textContent = `👁 ${cost}`;
+        btn.disabled = true;
+      }
+
+      card.append(img, name, desc, btn);
+      this.petContentEl.appendChild(card);
+    }
   }
 
   // ---------- 技能树 v1（复用祭坛视觉与网格，不污染祭坛逻辑）----------

@@ -112,6 +112,10 @@ export class PickupSystem {
     const player = this.game.player;
     const magnetR = player.magnetRange;
     const magnetR2 = magnetR * magnetR;
+    // v4.4 宠物第二拾取源
+    const pet = this.game.pets?.pet;
+    const petPos = pet ? { x: pet.x, y: pet.y, r: pet.def?.pickupRadius || 30, magR: pet.def?.magnetRadius || 80 } : null;
+
     for (let i = this.gems.length - 1; i >= 0; i -= 1) {
       const g = this.gems[i];
       g.bob += dt * 4;
@@ -130,17 +134,38 @@ export class PickupSystem {
       const dx = player.x - g.x;
       const dy = player.y - g.y;
       const d2 = dx * dx + dy * dy; // 平方距离，避免每颗每帧 hypot
-      if (d2 < magnetR2) g.magnet = true;
+
+      // v4.4 磁吸目标：玩家 vs 宠物，取更近者
+      let magTargetX = player.x, magTargetY = player.y, isPetMag = false;
+      if (petPos) {
+        const dxPet = petPos.x - g.x, dyPet = petPos.y - g.y;
+        const d2Pet = dxPet * dxPet + dyPet * dyPet;
+        if (d2Pet < petPos.magR * petPos.magR && d2Pet < d2) {
+          magTargetX = petPos.x; magTargetY = petPos.y; isPetMag = true;
+        }
+      }
+      if (d2 < magnetR2 || isPetMag) g.magnet = true;
       if (g.magnet) {
-        const d = Math.sqrt(d2); // 仅磁吸中的少数宝石需要真实距离做归一化
+        const dxT = magTargetX - g.x, dyT = magTargetY - g.y;
+        const d2T = dxT * dxT + dyT * dyT;
+        const d = Math.sqrt(d2T);
         const speed = Math.min(560, 260 + (magnetR * 2 - Math.min(d, magnetR * 2)));
-        g.vx = (dx / (d || 1)) * speed;
-        g.vy = (dy / (d || 1)) * speed;
+        g.vx = (dxT / (d || 1)) * speed;
+        g.vy = (dyT / (d || 1)) * speed;
         g.x += g.vx * dt;
         g.y += g.vy * dt;
       }
+
+      // v4.4 拾取判定：玩家半径 vs 宠物拾取半径
       const pickR = player.radius + (g.chest ? 18 : 8);
-      if (d2 < pickR * pickR) {
+      let collected = false, cx = player.x, cy = player.y;
+      if (d2 < pickR * pickR) { collected = true; }
+      else if (petPos) {
+        const dxP = petPos.x - g.x, dyP = petPos.y - g.y;
+        if (dxP * dxP + dyP * dyP < petPos.r * petPos.r) { collected = true; cx = petPos.x; cy = petPos.y; }
+      }
+
+      if (collected) {
         if (g.chest) {
           this.game.onChestOpened(g);
           this.gems.splice(i, 1);
@@ -150,14 +175,14 @@ export class PickupSystem {
           const healed = Math.round(Math.min(player.maxHp, player.hp + g.heal) - player.hp);
           player.hp = Math.min(player.maxHp, player.hp + g.heal);
           this.game.audio.pickup();
-          this.game.fx.spawnSparks(player.x, player.y, '#ff6b81', 7);
-          if (healed > 0) this.game.fx.spawnDamageNumber(player.x, player.y - 18, `+${healed}`, '#7dff9a');
+          this.game.fx.spawnSparks(cx, cy, '#ff6b81', 7);
+          if (healed > 0) this.game.fx.spawnDamageNumber(cx, cy - 18, `+${healed}`, '#7dff9a');
           this.gems.splice(i, 1);
           continue;
         }
         this.game.gainExp(g.value);
         this.game.audio.pickup();
-        this.game.fx.spawnSparks(player.x, player.y, g.def.color, 3);
+        this.game.fx.spawnSparks(cx, cy, g.def.color, 3);
         this.gems.splice(i, 1);
       }
     }

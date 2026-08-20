@@ -1,9 +1,10 @@
-import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement, computeAutoThreat, threatTier, TL_SOUL_MUL_PER_LEVEL, TL_EXP_MUL_PER_LEVEL } from './data.js';
+import { CONFIG, DIFFICULTIES, expForLevel, expScaleForTime, unlockInCollection, SOUL_REWARDS, ALTAR, SKILL_TREE, BLOODLINES, ENDGAME_BOSS_TIME, GAME_HARD_CAP, loadSouls, saveSouls, addSouls, isUnlocked, getSelectedBloodline, setSelectedBloodline, isBloodlineUnlocked, grantAchievement, computeAutoThreat, threatTier, TL_SOUL_MUL_PER_LEVEL, TL_EXP_MUL_PER_LEVEL, getSelectedPet } from './data.js';
 import { loadAssets, loadAssetsLazy, sprite } from './assets.js';
 import { Input, Camera } from './engine.js';
 import { Player, EnemyManager } from './entities.js';
 import { WeaponSystem } from './weapons.js';
 import { PickupSystem, FXSystem } from './systems.js';
+import { PetSystem } from './pet.js';
 import { UpgradeSystem } from './upgrade.js';
 import { UIManager } from './ui.js';
 import { findEvolvableRecipe, performEvolution } from './evolution.js';
@@ -126,6 +127,7 @@ export class Game {
     this.weapons = new WeaponSystem(this);
     this.pickups = new PickupSystem(this);
     this.fx = new FXSystem();
+    this.pets = new PetSystem(this);  // v4.4 宠物系统
     this.upgrade = new UpgradeSystem(this);
     this.ui = new UIManager(this);
     this.audio = new AudioManager();
@@ -270,6 +272,7 @@ export class Game {
     this.weapons.reset();
     this.pickups.reset();
     this.fx.reset();
+    this.pets.reset();  // v4.4 宠物：读 getSelectedPet 初始化出战宠物
     this.upgrade.reset();
     this.camera.x = -CONFIG.LOGICAL_WIDTH / 2;
     this.camera.y = -CONFIG.LOGICAL_HEIGHT * this.cameraAnchorY;
@@ -404,6 +407,7 @@ export class Game {
     this.enemies.update(dt);
     this.weapons.update(dt);
     this.pickups.update(dt);
+    this.pets.update(dt);  // v4.4 宠物跟随+攻击状态机
     this.fx.update(dt);
     // v4.0 P4-2 连杀窗口倒计时：超时归零断连
     if (this.combo > 0) {
@@ -687,6 +691,7 @@ export class Game {
     this.weapons.render(ctx, cam);
     this.enemies.render(ctx, cam);
     this.player.render(ctx, cam);
+    this.pets.draw(ctx);  // v4.4 宠物（跟在玩家后面/旁边）
     this.fx.render(ctx, cam);
 
     // 暗夜氛围边缘暗角（离屏缓存，避免每帧 createRadialGradient）

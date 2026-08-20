@@ -112,6 +112,20 @@ const files = {
   bone: 'decal_bone.png',
   cross: 'decal_cross.png',
   potion: 'potion.png',
+  // 宠物帧动画（v4.4）
+  pet_orange_follow_0: 'pet_orange_follow_0.png',
+  pet_orange_follow_1: 'pet_orange_follow_1.png',
+  pet_orange_pickup_0: 'pet_orange_pickup_0.png',
+  pet_orange_pickup_1: 'pet_orange_pickup_1.png',
+  pet_orange_urine_0: 'pet_orange_urine_0.png',
+  pet_orange_urine_1: 'pet_orange_urine_1.png',
+  pet_amer_follow_0: 'pet_amer_follow_0.png',
+  pet_amer_follow_1: 'pet_amer_follow_1.png',
+  pet_amer_pickup_0: 'pet_amer_pickup_0.png',
+  pet_amer_pickup_1: 'pet_amer_pickup_1.png',
+  pet_amer_butt_0: 'pet_amer_butt_0.png',
+  pet_amer_butt_1: 'pet_amer_butt_1.png',
+  pet_amer_butt_2: 'pet_amer_butt_2.png',
 };
 
 const images = {};
@@ -127,6 +141,11 @@ const LAZY_KEYS = new Set([
   'herald', 'alchemist', 'warlord',
   'portrait_saint', 'portrait_berserker', 'portrait_thunder',
   'portrait_bloodthirsty', 'portrait_apostle',
+  // 宠物帧（v4.4，游戏内才需要）
+  'pet_orange_follow_0', 'pet_orange_follow_1', 'pet_orange_pickup_0', 'pet_orange_pickup_1',
+  'pet_orange_urine_0', 'pet_orange_urine_1',
+  'pet_amer_follow_0', 'pet_amer_follow_1', 'pet_amer_pickup_0', 'pet_amer_pickup_1',
+  'pet_amer_butt_0', 'pet_amer_butt_1', 'pet_amer_butt_2',
 ]);
 // 关键集 = files 中除懒加载键外的全部（含 player/passive/art/weapon/敌人/gem/ground/decal/chest/各 menu 图标 等）
 const CRITICAL_KEYS = Object.keys(files).filter((k) => !LAZY_KEYS.has(k));
