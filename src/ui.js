@@ -1322,32 +1322,6 @@ export class UIManager {
     this.petBalanceEl.textContent = `👁 灵魂  ${souls.balance}`;
     this.petContentEl.innerHTML = '';
 
-    // 「无宠物」选项：取消出战
-    const noneCard = document.createElement('div');
-    noneCard.className = `altar-card ${selected === null ? 'selected' : ''}`;
-    const noneImg = document.createElement('img');
-    noneImg.src = this.iconURL('pet_orange_follow_0'); // 占位，渲染时若未加载则为空
-    noneImg.alt = '无宠物';
-    const noneName = document.createElement('h3');
-    noneName.textContent = '不带宠物';
-    const noneDesc = document.createElement('p');
-    noneDesc.className = 'ac-desc';
-    noneDesc.textContent = '独自狩猎，不携带任何宠物';
-    const noneBtn = document.createElement('button');
-    noneBtn.className = 'gothic-btn ac-buy';
-    if (selected === null) {
-      noneBtn.textContent = '使用中';
-      noneBtn.disabled = true;
-      noneBtn.classList.add('owned-btn');
-    } else {
-      noneBtn.textContent = '选择';
-      noneBtn.addEventListener('click', () => {
-        if (setSelectedPet(null)) { this.game.audio.uiClick(); this.renderPet(); }
-      });
-    }
-    noneCard.append(noneImg, noneName, noneDesc, noneBtn);
-    this.petContentEl.appendChild(noneCard);
-
     for (const def of Object.values(PET_DEFS)) {
       const unlocked = isUnlocked(def.id);
       const isSelected = def.id === selected;

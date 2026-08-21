@@ -137,10 +137,11 @@ export class Pet {
     // ---- 状态机 ----
     this.state = desiredState;
 
-    // 触发攻击（到达敌人附近、CD 就绪、且确有敌人目标）
+    // 触发攻击（CD 就绪、且确有敌人目标）
+    // 尿液是远程抛物线喷射、头撞是冲撞结算，二者都只需敌人落在血裔 ENGAGE_RANGE 内即可发动，
+    // 不再要求宠物贴到敌人 70px（FOLLOW_LEASH 钳制下几乎不可达，会导致攻击永不触发）。
     if (this.state === STATE.ATTACK && enemy && this.actionCdTimer <= 0) {
-      const dx = enemy.x - this.x, dy = enemy.y - this.y;
-      if (dx * dx + dy * dy < 70 * 70 && this._tryAttack(enemy)) {
+      if (this._tryAttack(enemy)) {
         this.actionCdTimer = ACTION_CD; // 拾取/攻击共用 CD
       }
     }
@@ -344,10 +345,13 @@ export class PetSystem {
     }
     for (const s of this.shots) {
       ctx.save();
-      ctx.fillStyle = '#e6c230';
+      ctx.fillStyle = '#f2d94a';
+      ctx.strokeStyle = 'rgba(120,90,10,0.6)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.ellipse(s.x - ox, s.y - oy, 4, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(s.x - ox, s.y - oy, 6, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
       ctx.restore();
     }
     if (this.pet) this.pet.draw(ctx, cam);
