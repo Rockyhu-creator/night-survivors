@@ -653,6 +653,22 @@ const name = document.createElement('h3');
 
 ---
 
+## 0al. v5.11（`fa86c71` · 宠物攻击永不触发的真正根因：敌人无 `alive` 字段）
+
+**触发**：v5.10 发版后用户仍反馈「肥波还是没有看到攻击地面上黄色尿渍区域，也没看到怪物走上去扣血/减速」。连续 5 轮未解决，必须换思路彻底定位。
+
+**排查（逐环核对，最终锁定一个被隔离仿真掩盖的字段 bug）**：
+1. 抓线上 bundle：`_petExplicitChoice`/`__petDebug` 均存在、`_starterPetV57` 已消失 → v5.10 确已部署。
+2. 精读 `game.js`：`step()` 顺序 `enemies.update`(407) → `pets.update`(410) 正确；`drawPet`(694)+`drawHazards`(716) 均调用；`Camera.ox/oy` 是 getter（`engine.js:67-68`）坐标转换正确。
+3. 精读 `applyDebuff`（`entities.js:1300`）：`slow`→`slowMul=1-v`、`burn`→`burnDps`，口径正确。
+4. **决定性发现**：`pet.js` 三处（`_findNearestEnemy`/`_updatePuddles`/`_tryAttack`）用 `if (!e.alive) continue` / `!target.alive` 过滤，但 grep `entities.js` 里 `.alive` **零命中**——敌人真实判死是 `if (e.hp <= 0)`（`entities.js:816`），对象根本没有 `alive` 字段。`e.alive===undefined` → `!e.alive===true` → **所有敌人被跳过** → 肥波永不喷尿、肥强冲撞也失效。此前多轮「仿真通过」全因桩敌人误带 `alive:true` 而漏判。
+
+**改动**（`src/pet.js`）：三处 `!e.alive`/`!target.alive` 全部改为 `e.hp <= 0`/`target.hp <= 0`。
+
+**验证（忠实复刻真实敌人结构——无 `alive` 字段）**：肥波(orange)出战，5 秒生成 2 个水洼；敌人走上水洼受灼烧 `burnDps=10`、减速 `slowMul≈0.45`；远处敌人不受影响。构建通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -983,7 +999,8 @@ npm run test:skilltree
 
 ```
 bbea267 docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交)
-(本次文档提交) docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交) | 自身哈希待下一版回填
+ef0f38a docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交)
+(本次文档提交) docs: v5.11 CHANGELOG + HANDOFF 同步(§0al 宠物攻击根因:敌人无alive字段,pet.js误用!e.alive过滤致永不触发) + §11 回填 ef0f38a(v5.10 文档提交) | 自身哈希待下一版回填
 fa66a30 docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | tag v5.8 指向 ba2155a
 fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1

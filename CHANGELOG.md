@@ -5,6 +5,13 @@
 
 ---
 
+## v5.11（2026-08-21 · `fa86c71`）
+
+### 修复
+- **肥波尿液攻击彻底失效的根因（v5.6~v5.10 均未触及）**：`pet.js` 的 `_findNearestEnemy`、`_updatePuddles`、`_tryAttack` 三处用 `if (!e.alive) continue` / `!target.alive` 过滤，但**敌人对象根本没有 `alive` 字段**（真实敌人用 `hp` 判断生死，`entities.js:816` 的 `if (e.hp <= 0)`）。`e.alive` 恒为 `undefined`、`!undefined` 恒为 `true` → 所有敌人被跳过 → 肥波永远找不到目标、从不喷尿、从不生成水洼、水洼也从不施加减速/灼烧；肥强冲撞同理失效。此前多轮「仿真通过」均因桩敌人带 `alive:true` 而漏判。改为 `e.hp <= 0` 判死。忠实复刻真实敌人结构（无 `alive` 字段）的仿真：肥波 5 秒生成 2 个水洼、敌人走上水洼受灼烧 burnDps=10 + 减速 slowMul≈0.45、远处敌人不受影响。
+
+---
+
 ## v5.10（2026-08-21 · `0e7f4dd`）
 
 ### 修复
