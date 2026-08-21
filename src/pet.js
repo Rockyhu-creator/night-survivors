@@ -224,7 +224,7 @@ export class Pet {
     return 1 + D * 0.03; // 轻微成长，保持「一部分」贡献
   }
 
-  draw(ctx) {
+  draw(ctx, cam) {
     const frames = this.frameKeys[this.state] || this.frameKeys.follow;
     const key = frames?.[this.frameIndex];
     if (!key || !hasImage(key)) return;
@@ -232,8 +232,11 @@ export class Pet {
     if (!img) return;
     const flip = (this.game.player?.vx || 0) < 0 ? -1 : 1;
     const w = PET_DRAW, h = PET_DRAW * img.height / img.width;
+    // 世界坐标 → 屏幕坐标（与其他实体一致：x - cam.ox / y - cam.oy）
+    const sx = this.x - (cam?.ox || 0);
+    const sy = this.y - (cam?.oy || 0);
     ctx.save();
-    ctx.translate(this.x, this.y);
+    ctx.translate(sx, sy);
     // 暗底可见性：柔和浅色背光，避免深色猫（如黑美短）融入黑夜背景
     const br = w * 0.72;
     const bg = ctx.createRadialGradient(0, 0, 0, 0, 0, br);
@@ -325,15 +328,17 @@ export class PetSystem {
     }
   }
 
-  draw(ctx) {
-    // 先画水洼与飞溅（地面层），再画宠物（贴身层）
+  draw(ctx, cam) {
+    const ox = cam?.ox || 0;
+    const oy = cam?.oy || 0;
+    // 先画水洼与飞溅（地面层），再画宠物（贴身层）——世界坐标转屏幕坐标
     for (const hz of this.puddles) {
       const a = 0.30 * Math.max(0.2, hz.life / hz.maxLife);
       ctx.save();
       ctx.globalAlpha = a;
       ctx.fillStyle = '#e6c230';
       ctx.beginPath();
-      ctx.ellipse(hz.x, hz.y, PUDDLE_R, PUDDLE_R * 0.55, 0, 0, Math.PI * 2);
+      ctx.ellipse(hz.x - ox, hz.y - oy, PUDDLE_R, PUDDLE_R * 0.55, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -341,10 +346,10 @@ export class PetSystem {
       ctx.save();
       ctx.fillStyle = '#e6c230';
       ctx.beginPath();
-      ctx.ellipse(s.x, s.y, 4, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(s.x - ox, s.y - oy, 4, 3, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
-    if (this.pet) this.pet.draw(ctx);
+    if (this.pet) this.pet.draw(ctx, cam);
   }
 }
