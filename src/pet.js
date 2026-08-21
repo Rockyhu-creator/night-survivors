@@ -202,7 +202,7 @@ export class Pet {
     const maxR2 = maxR * maxR;
     let best = null, bestD2 = Infinity;
     for (const e of enemyList) {
-      if (!e.alive) continue;
+      if (e.hp <= 0) continue;
       const dx = e.x - p.x, dy = e.y - p.y;
       const d2 = dx * dx + dy * dy;
       if (d2 < maxR2 && d2 < bestD2) { bestD2 = d2; best = e; }
@@ -212,7 +212,7 @@ export class Pet {
 
   _tryAttack(target) {
     // target 由 update() 通过 _findNearestEnemy 锁定（血裔 ENGAGE_RANGE 内最近敌人）
-    if (!target || !target.alive) return false;
+    if (!target || target.hp <= 0) return false;
     if (this.def.attackType === 'urine') this._fireUrine(target);
     else if (this.def.attackType === 'butt') this._fireButt(target);
     return true;
@@ -358,7 +358,7 @@ export class PetSystem {
       if (!enemyList) continue;
       const r2 = PUDDLE_R * PUDDLE_R;
       for (const e of enemyList) {
-        if (!e.alive) continue;
+        if (e.hp <= 0) continue;
         const dx = e.x - hz.x, dy = e.y - hz.y;
         if (dx * dx + dy * dy > r2) continue;
         this.game.enemies.applyDebuff(e, { type: 'slow', value: hz.slowPct, duration: 0.4 });
