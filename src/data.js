@@ -104,6 +104,7 @@ export function setSelectedPet(id) {
   if (id && !isUnlocked(id)) return false; // null = 取消出战（允许）
   const s = loadSouls();
   s.selectedPet = id || null;
+  s._petExplicitChoice = true; // 用户主动在契约界面选择，迁移不再强制肥波
   saveSouls(s);
   return true;
 }
@@ -762,8 +763,8 @@ export function loadSouls() {
       selectedBloodline: o?.selectedBloodline || 'wanderer',
       // === 宠物出战选择（v4.4）：持久化字段，漏写会导致选中后刷新即丢失 ===
       selectedPet: o?.selectedPet ?? null,
-      // v5.7 迁移标志：肥波设为初始自带宠物后，是否已把老存档的肥强出战改回肥波
-      _starterPetV57: o?._starterPetV57 || false,
+      // v5.10：用户是否在契约界面主动选过宠物（选过则尊重其选择，否则强制出战初始肥波）
+      _petExplicitChoice: o?._petExplicitChoice || false,
       // === 技能树 v1 持久化地基（G1：向后兼容默认，旧档缺字段 → 安全兜底）===
       tree: o?.tree || [],                 // 已购技能树节点 id
       treeResets: o?.treeResets || 0,      // 洗点次数
@@ -782,15 +783,16 @@ export function loadSouls() {
 // 版本驱动迁移：未来 schema 升级唯一入口（v1 仅占位留口，禁止在 loadSouls 散点判断）
 function migrateSouls(s, fromVersion) {
   const v = fromVersion || 1;
-  let mutated = false;
-  // v5.7 迁移：肥波(orange)设为初始自带宠物。老存档若在 v5.5 强制选宠时选了肥强(amer)，
-  // 此处改回肥波作为初始出战（贴合用户「初始宠物携带肥波」意图）；标志置位后用户仍可在契约界面手动切回肥强。
-  if (PET_DEFS.orange?.starter && s.selectedPet && s.selectedPet !== 'orange' && !s._starterPetV57) {
+  void v; // 当前 schema 版本单一，迁移条件不依赖 fromVersion
+  let changed = false;
+  // v5.10 修正 v5.9 缺陷：旧逻辑用一次性标志 _starterPetV57，用户一旦在契约界面选过肥强便永久卡住，
+  // 导致再也看不到肥波尿液。改为：用户未在契约界面主动选过宠物(_petExplicitChoice)前，强制出战初始肥波(orange)；
+  //         用户主动选过任意宠物后，尊重其选择（可随时在契约界面切回肥波）。
+  if (PET_DEFS.orange?.starter && !s._petExplicitChoice && s.selectedPet !== 'orange') {
     s.selectedPet = 'orange';
-    s._starterPetV57 = true;
-    mutated = true;
+    changed = true;
   }
-  if (mutated) saveSouls(s);
+  if (changed) saveSouls(s);
   return s;
 }
 

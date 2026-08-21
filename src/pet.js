@@ -314,6 +314,15 @@ export class PetSystem {
     if (this.pet) this.pet.update(dt);
     this._updateShots(dt);
     this._updatePuddles(dt);
+    // 调试探针：便于真机排查当前出战宠物与尿液生成情况（仅写入全局，无性能/逻辑影响）
+    if (typeof window !== 'undefined') {
+      window.__petDebug = {
+        active: this.activeDefId,
+        shots: this.shots.length,
+        puddles: this.puddles.length,
+        cd: this.pet ? +this.pet.actionCdTimer.toFixed(1) : null,
+      };
+    }
   }
 
   _updateShots(dt) {
