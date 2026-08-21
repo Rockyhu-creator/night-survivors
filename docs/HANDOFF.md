@@ -619,6 +619,20 @@ const name = document.createElement('h3');
 
 ---
 
+## 0aj. v5.9（`3534f70` · 老存档迁移：曾选肥强→改回初始肥波出战）
+
+**触发**：用户反馈「还是没看到肥波尿液攻击，好像只有冲撞，是否攻击模式和肥强搞混了」。
+
+**排查（先证伪部署假说）**：抓取线上 `night-survivors.pages.dev` 当前 JS bundle，确认含 `初始自带`/`#ffe066`/`#e8c21e`/`drawHazards` 等 v5.6+ 特征，旧弱渲染色 `#f2d94a`/`#e6c230` 计数 0 → **部署未卡旧版本**，攻击模式代码未搞混（orange=urine、amer=butt 分发正确）。
+
+**根因**：出战宠物实为 **肥强(amer)** 而非肥波(orange)。v5.7 把肥波设为初始自带时，`getSelectedPet()` 仅在「从未选过宠物」时默认肥波；用户在 v5.5 强制选宠时若选了肥强，`selectedPet='amer'` 为真不会被覆盖 → 一直带肥强、只见冲撞，被误认「肥波尿液与肥强冲撞搞混」。
+
+**改动**：`migrateSouls` 加一次性迁移——肥波 starter 且老存档 `selectedPet` 为非 orange 值时改回 `orange`，置 `_starterPetV57` 持久化标志；迁移后用户仍可在契约界面手动切回肥强，不会被二次覆盖。`base` 同步加 `_starterPetV57` 字段。
+
+**验证（Node 仿真 stub localStorage，7 场景全过）**：① 老档 selectedPet=amer→迁移 orange 且标志置位；② 新档默认 orange；③ 迁移后手动选 amer→重开保持 amer（不被二次迁移）；④ 已选 orange 的老档不触发迁移。构建通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -948,7 +962,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | 自身哈希待下一版回填
+(本次文档提交) docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交) | 自身哈希待下一版回填
+fa66a30 docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | tag v5.8 指向 ba2155a
 fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1
 a71661c docs: v5.5 CHANGELOG + HANDOFF 同步(肥波尿液攻击修复:攻击触发去掉70px贴身死锁改ENGAGE_RANGE内即发动+尿液飞溅放大6x5;宠物商店删「无宠物」卡;§0ac-0af补小节,指向 a71661c) + §11 回填 5d2a1d5(v5.4 文档提交) | tag v5.5 指向此提交（自身哈希无法在提交内容中自引用）
