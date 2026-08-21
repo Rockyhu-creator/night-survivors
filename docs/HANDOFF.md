@@ -633,6 +633,26 @@ const name = document.createElement('h3');
 
 ---
 
+## 0ak. v5.10（`0e7f4dd` · 宠物选择逻辑修正：去掉一次性迁移标志，根治「卡在肥强只见冲撞」）
+
+**触发**：v5.9 发版后用户仍反馈「肥波仍旧没有看到黄色尿液攻击，地上也没看到黄色尿渍，也没看到攻击抛物线」——与 v5.9 声称修复的现象完全一致。
+
+**排查（不再靠猜，端到端定位）**：
+1. 抓线上 bundle 复核：含 v5.9 迁移标记 `_starterPetV57` 与 v5.6+ 全部尿液特征 → **部署是最新的、代码逻辑也对**。
+2. 精读 `game.js` 渲染全序（688–717）：`drawPet`(694) + `drawHazards`(716，暗角之后) 均被调用；`_findNearestEnemy` 依赖 `enemies.enemies`（`entities.js:203` 真实数组）与 `applyDebuff`（`entities.js:1300`）均存在 → **两种宠物攻击触发路径都有效**。
+3. 决定性推论：肥强(`_fireButt`)与肥波(`_fireUrine`)共用同一 `_findNearestEnemy`；若 `enemies.enemies` 取不到敌人，两种宠物都不会攻击。用户「看到冲撞」= 肥强攻击确实触发 = `enemies.enemies` 正常 = **若肥波出战则尿液必然也会生成并绘制**。故「只看到冲撞、看不到尿液」唯一合理解释是**当前出战的是肥强，不是肥波**。
+4. 锁定 v5.9 缺陷：`migrateSouls` 用**一次性标志 `_starterPetV57`**，用户一旦在某次加载后于契约界面选过肥强（或该标志已被某次加载置位），迁移便**永久不再覆盖**，`selectedPet` 卡死在 `amer`。
+
+**改动**（`src/data.js`）：
+- 去掉一次性标志。新增 `_petExplicitChoice` 字段（默认 false）。
+- `migrateSouls`：改为「`PET_DEFS.orange.starter` 且 `!_petExplicitChoice` 且 `selectedPet!=='orange'` 时，强制 `selectedPet='orange'`」。即**用户未在契约界面主动选过宠物前，强制出战初始肥波；主动选过任意宠物后尊重其选择（可随时切回肥波）**。
+- `setSelectedPet(id)`：写入时置 `s._petExplicitChoice=true`（契约界面点击「选择」是唯一 UI 写路径；`buyPetUnlock` 只解锁不写 selectedPet，已确认）。
+- `src/pet.js`：`PetSystem.update` 末尾加 `window.__petDebug={active,shots,puddles,cd}` 运行时探针，便于真机排查。
+
+**验证（Node 仿真真实 data.js，8 场景全过）**：① 老档卡 amer+旧 `_starterPetV57` 置位 → 强制 orange（正是用户卡住态）；② 老档已 orange→保持；③ 新档默认 orange；④ 主动选 amer→尊重且重载保持；⑤ 主动选 orange→保持；⑥ `isUnlocked(amer/orange)` 均 true。构建通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -962,7 +982,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交) | 自身哈希待下一版回填
+bbea267 docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交)
+(本次文档提交) docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交) | 自身哈希待下一版回填
 fa66a30 docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | tag v5.8 指向 ba2155a
 fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1
