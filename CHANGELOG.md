@@ -5,6 +5,20 @@
 
 ---
 
+## v5.3（2026-08-21 · `0963e92`）
+
+### 修复
+- **宠物拾取/攻击看似未生效**：根因是 `pet.js` 的 `_hasNearbyGem` 误用 `this.game.pickupSystem?.gems`，而 game.js 中实例名是 **`this.pickups`**（`new PickupSystem(this)`，128 行）→ `pickupSystem` 恒 `undefined` → 拾取检测从未触发。修复：改为 `this.game.pickups?.gems`。
+- **宠物跟随算法重写（任务②）**：原算法把目标点钉在玩家身上、与状态机脱节，且状态由「计时器」驱动易抖动。重写为：
+  - **默认贴身跟随血裔**（`_followAnchor`：跟在血裔身后 `facing` 反侧 46px、略偏下 23px）；
+  - **仅当血裔 180px（`ENGAGE_RANGE`）内有宝石/敌人时才短暂偏离**，偏离目标 = 该宝石/敌人位置；
+  - **偏离距离钳制在血裔 240px（`FOLLOW_LEASH`）内**，保证「不远离血裔」；
+  - **拾取/攻击共用行为 CD（`ACTION_CD=2.0s`）**，避免频繁来回远离血裔；
+  - 攻击在宠物贴近敌人 70px 内触发，拾取在宠物贴近宝石 `pickupRadius`(52px) 内触发。
+  - 检测目标均以**血裔**为圆心（`_findNearestGem/Enemy` 用 `p.x/p.y`），配合 `FOLLOW_LEASH` 钳制，宠物磁吸 170px 足以覆盖拾取范围 → 拾取/攻击均生效。
+
+---
+
 ## v5.2（2026-08-21 · `4f0cdf1`）
 
 ### 新增
