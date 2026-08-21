@@ -13,6 +13,29 @@ const GRAVITY = 900;          // 尿液抛物线重力 px/s²
 const PET_DRAW = 40;          // 宠物世界绘制尺寸(px)
 const PUDDLE_TICK = 0.3;      // 水洼每 0.3s 刷新一次 debuff
 const PUDDLE_R = 42;          // 尿液水洼半径
+
+// 不规则尿渍：生成一圈随机半径顶点（落地时一次性生成，避免逐帧抖动）
+function makeBlobVerts(n) {
+  const verts = [];
+  for (let i = 0; i < n; i += 1) {
+    verts.push({ ang: (i / n) * Math.PI * 2, rad: 0.62 + Math.random() * 0.42 });
+  }
+  return verts;
+}
+// 卫星小滴：主斑周围几滴飞溅
+function makeDrops(m) {
+  const drops = [];
+  for (let i = 0; i < m; i += 1) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = PUDDLE_R * (0.6 + Math.random() * 0.6);
+    drops.push({
+      dx: Math.cos(ang) * dist,
+      dy: Math.sin(ang) * dist * 0.62,
+      r: 4 + Math.random() * 6,
+    });
+  }
+  return drops;
+}
 // 任务② 跟随算法：贴身跟随血裔为主，仅拾取/攻击时短暂偏离
 const FOLLOW_LEASH = 240;     // 宠物偏离血裔的最大距离(px)
 const ENGAGE_RANGE = 180;     // 触发拾取/攻击的目标需在血裔此范围内
@@ -204,7 +227,9 @@ export class Pet {
     // 解抛物线：y(t)=y0+vy*t+0.5*g*t²，令 t=flight 时 y≈target.y
     const vy = (dy - 0.5 * GRAVITY * flight * flight) / flight;
     const burnDps = this.def.baseDps * (this.game.player?.damageMul || 1) * this._statScale();
-    this.game.pets.spawnUrineShot(this.x, this.y, vx, vy, flight, burnDps, this.def.slowPct, this.def.hazardDuration);
+    // 从猫的侧前方「喷」出（朝血裔朝向偏移），更显侧身射击姿态
+    const f = this.game.player?.facing || 1;
+    this.game.pets.spawnUrineShot(this.x + f * 10, this.y - 8, vx, vy, flight, burnDps, this.def.slowPct, this.def.hazardDuration);
   }
 
   _fireButt(target) {
@@ -282,7 +307,7 @@ export class PetSystem {
   }
 
   spawnUrineShot(x, y, vx, vy, life, burnDps, slowPct, dur) {
-    this.shots.push({ x, y, vx, vy, life, burnDps, slowPct, dur });
+    this.shots.push({ x, y, vx, vy, life, burnDps, slowPct, dur, trail: [] });
   }
 
   update(dt) {
@@ -298,10 +323,14 @@ export class PetSystem {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       s.life -= dt;
+      // 记录轨迹（用于绘制抛物线拖尾）
+      s.trail.push({ x: s.x, y: s.y });
+      if (s.trail.length > 16) s.trail.shift();
       if (s.life <= 0) {
         this.puddles.push({
           x: s.x, y: s.y, life: s.dur, maxLife: s.dur,
           burnDps: s.burnDps, slowPct: s.slowPct, tick: 0,
+          verts: makeBlobVerts(12), drops: makeDrops(3 + Math.floor(Math.random() * 3)),
         });
         this.shots.splice(i, 1);
       }
@@ -329,31 +358,90 @@ export class PetSystem {
     }
   }
 
-  draw(ctx, cam) {
+  // 猫本体（保持在暗角渐变之前绘制——猫通常贴着血裔在屏幕中部，几乎不被压暗）
+  drawPet(ctx, cam) {
+    if (this.pet) this.pet.draw(ctx, cam);
+  }
+
+  // 尿液危害层（飞溅抛物线 + 落地不规则尿渍），放在暗角渐变之后绘制，保证始终清晰可见
+  drawHazards(ctx, cam) {
     const ox = cam?.ox || 0;
     const oy = cam?.oy || 0;
-    // 先画水洼与飞溅（地面层），再画宠物（贴身层）——世界坐标转屏幕坐标
+    // —— 落地不规则黄色尿渍（地面层）——
     for (const hz of this.puddles) {
-      const a = 0.30 * Math.max(0.2, hz.life / hz.maxLife);
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.fillStyle = '#e6c230';
-      ctx.beginPath();
-      ctx.ellipse(hz.x - ox, hz.y - oy, PUDDLE_R, PUDDLE_R * 0.55, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      const a = 0.62 * Math.max(0.25, hz.life / hz.maxLife);
+      this._drawPuddle(ctx, hz.x - ox, hz.y - oy, hz, a);
     }
+    // —— 飞行尿液抛物线（带拖尾 + 发光弹体）——
     for (const s of this.shots) {
+      // 抛物线拖尾
+      for (let i = 1; i < s.trail.length; i += 1) {
+        const t = i / s.trail.length;
+        const p0 = s.trail[i - 1], p1 = s.trail[i];
+        ctx.save();
+        ctx.globalAlpha = t * 0.55;
+        ctx.strokeStyle = '#ffe066';
+        ctx.lineWidth = 3.2 * t;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p0.x - ox, p0.y - oy);
+        ctx.lineTo(p1.x - ox, p1.y - oy);
+        ctx.stroke();
+        ctx.restore();
+      }
+      // 发光弹体
       ctx.save();
-      ctx.fillStyle = '#f2d94a';
-      ctx.strokeStyle = 'rgba(120,90,10,0.6)';
-      ctx.lineWidth = 1;
+      const g = ctx.createRadialGradient(s.x - ox, s.y - oy, 0, s.x - ox, s.y - oy, 12);
+      g.addColorStop(0, 'rgba(255,238,130,0.95)');
+      g.addColorStop(1, 'rgba(240,200,40,0)');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.ellipse(s.x - ox, s.y - oy, 6, 5, 0, 0, Math.PI * 2);
+      ctx.arc(s.x - ox, s.y - oy, 12, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
+      ctx.fillStyle = '#f4dc4a';
+      ctx.beginPath();
+      ctx.arc(s.x - ox, s.y - oy, 6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
-    if (this.pet) this.pet.draw(ctx, cam);
+  }
+
+  // 不规则尿渍：主斑(随机顶点压扁成地贴) + 暗边 + 湿润高光 + 卫星小滴
+  _drawPuddle(ctx, cx, cy, hz, alpha) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    // 主斑
+    this._blobPath(ctx, hz.verts, PUDDLE_R);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#e8c21e';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(150,110,10,0.75)';
+    ctx.stroke();
+    // 湿润高光
+    ctx.globalAlpha = alpha * 0.5;
+    this._blobPath(ctx, hz.verts, PUDDLE_R * 0.55);
+    ctx.fillStyle = 'rgba(255,242,150,0.85)';
+    ctx.fill();
+    // 卫星小滴
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillStyle = '#e8c21e';
+    for (const d of hz.drops) {
+      ctx.beginPath();
+      ctx.ellipse(d.dx, d.dy, d.r, d.r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  _blobPath(ctx, verts, baseR) {
+    ctx.beginPath();
+    for (let i = 0; i < verts.length; i += 1) {
+      const v = verts[i];
+      const x = Math.cos(v.ang) * v.rad * baseR;
+      const y = Math.sin(v.ang) * v.rad * baseR * 0.62; // 压扁，呈地面泼洒感
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
   }
 }

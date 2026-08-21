@@ -691,7 +691,7 @@ export class Game {
     this.weapons.render(ctx, cam);
     this.enemies.render(ctx, cam);
     this.player.render(ctx, cam);
-    this.pets.draw(ctx, cam);  // v4.4 宠物（跟在玩家后面/旁边，需 cam 转屏幕坐标）
+    this.pets.drawPet(ctx, cam);  // v4.4 宠物猫本体（暗角之前）
     this.fx.render(ctx, cam);
 
     // 暗夜氛围边缘暗角（离屏缓存，避免每帧 createRadialGradient）
@@ -711,5 +711,8 @@ export class Game {
       this._vignetteCanvas = vc;
     }
     ctx.drawImage(this._vignetteCanvas, 0, 0);
+
+    // v5.6 尿液危害层：放在暗角之后，确保飞行抛物线与地面不规则尿渍始终清晰可见
+    this.pets.drawHazards(ctx, cam);
   }
 }
