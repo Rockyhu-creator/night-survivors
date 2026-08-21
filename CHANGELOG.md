@@ -5,6 +5,20 @@
 
 ---
 
+## v5.2（2026-08-21 · `4f0cdf1`）
+
+### 新增
+- **宠物改名**：橘猫 → **肥波**，美短 → **肥强**（`PET_DEFS` 与 `PET_SHOP` 同步改名）。
+
+### 调整
+- **宠物吸附范围扩大**：肥波/肥强的拾取磁吸半径 `magnetRadius` 80 → **170**、拾取触发半径 `pickupRadius` 30 → **52**（任务②：宠物拾取宝石/经验时有更大道具吸附范围）。
+- **宠物限制在屏幕范围内**：`pet.js` `update()` 中按相机视口钳制宠物位置（留 28px 边距，`cam.x/y` 平滑目标、不含震屏抖动），避免真机试玩时宠物飘出屏幕（任务①）。
+
+### 修复
+- **永夜使徒初始光环不生效**：根因是 `weapons.js` 渲染层只查 `player.weapons.find(w=>w.id==='aura')`，**漏掉 `innateWeapons`** → 使徒的「槽外固有·永夜光环」伤害结算循环本已含 innate（`update()` 357 行遍历 `[...weapons, ...innateWeapons]`，伤害一直生效），但**光环视觉完全无反馈**，玩家看不到。修复：渲染查找同时覆盖 `player.weapons + player.innateWeapons`；并使徒的固有光环用**永夜紫配色**（重构 `drawRedAuraRing` → 通用 `drawAuraRingColored(fill,stroke,sigil)`，红环委托之），与普通亡灵光环区分（任务③）。
+
+---
+
 ## v5.1（2026-08-20 · 待填）
 
 ### 修复
