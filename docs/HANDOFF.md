@@ -563,6 +563,26 @@
 
 ---
 
+## 0ag. v5.6（`d3347e1` · 肥波尿液可见性：抛物线拖尾 + 不规则尿渍 + 危害层移至暗角后）
+
+**触发**：v5.5 修完触发后用户真机仍看不到肥波「侧身射出的黄色抛物线尿液」和「地上的不规则黄色尿液标记」。
+
+**根因**：v5.5 只修了「触发」，但渲染太弱且被暗角渐变压暗：
+- 飞溅弹体只是 `6×5` 小黄点（看不出抛物线轨迹）；
+- 地面水洼是 `alpha 0.30` 的规整椭圆，且 `pets.draw` 在 vignette 之前绘制 → 被暗角进一步压暗，几乎不可见；
+- 形状是椭圆，不符合「不规则」诉求。
+
+**修复**：
+- `pet.js` `_fireUrine`：尿液从猫侧前方喷出（`player.facing` 偏移 10px），更显侧身射击姿态；
+- `pet.js` `spawnUrineShot` 加 `trail:[]`；`_updateShots` 每帧记录轨迹（最多 16 点）；
+- `pet.js` `PetSystem.draw` 拆为 `drawPet`（猫本体，vignette 前）+ `drawHazards`（尿液层，vignette 后）：
+  - 飞行尿液：轨迹渐隐黄线 + 径向光晕发光弹体（实心黄核）；
+  - 地面尿渍：`makeBlobVerts(12)` 一次性生成随机顶点主斑（压扁成地贴）、暗边描边、湿润高光、3–5 颗 `makeDrops` 卫星小滴；alpha 提到 `0.62`；
+- `game.js` `render()`：`this.pets.drawPet(ctx,cam)` 保留原位，`ctx.drawImage(vignette)` 之后新增 `this.pets.drawHazards(ctx,cam)`；
+- 验证：`npx vite build --outDir .ns-build-2x` 通过（18 模块），无 `pets.draw(` 残留引用。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
