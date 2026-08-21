@@ -762,6 +762,8 @@ export function loadSouls() {
       selectedBloodline: o?.selectedBloodline || 'wanderer',
       // === 宠物出战选择（v4.4）：持久化字段，漏写会导致选中后刷新即丢失 ===
       selectedPet: o?.selectedPet ?? null,
+      // v5.7 迁移标志：肥波设为初始自带宠物后，是否已把老存档的肥强出战改回肥波
+      _starterPetV57: o?._starterPetV57 || false,
       // === 技能树 v1 持久化地基（G1：向后兼容默认，旧档缺字段 → 安全兜底）===
       tree: o?.tree || [],                 // 已购技能树节点 id
       treeResets: o?.treeResets || 0,      // 洗点次数
@@ -780,7 +782,15 @@ export function loadSouls() {
 // 版本驱动迁移：未来 schema 升级唯一入口（v1 仅占位留口，禁止在 loadSouls 散点判断）
 function migrateSouls(s, fromVersion) {
   const v = fromVersion || 1;
-  // 未来示例：if (v < 2) { s.xxx = []; s.version = 2; }
+  let mutated = false;
+  // v5.7 迁移：肥波(orange)设为初始自带宠物。老存档若在 v5.5 强制选宠时选了肥强(amer)，
+  // 此处改回肥波作为初始出战（贴合用户「初始宠物携带肥波」意图）；标志置位后用户仍可在契约界面手动切回肥强。
+  if (PET_DEFS.orange?.starter && s.selectedPet && s.selectedPet !== 'orange' && !s._starterPetV57) {
+    s.selectedPet = 'orange';
+    s._starterPetV57 = true;
+    mutated = true;
+  }
+  if (mutated) saveSouls(s);
   return s;
 }
 
