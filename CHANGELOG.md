@@ -5,6 +5,13 @@
 
 ---
 
+## v5.8（2026-08-21 · `ba2155a`）
+
+### 修复
+- **宠物契约界面空白（无宠物卡片/购买）**：根因是 v5.7 把「初始自带」徽标逻辑写在了 `const name = document.createElement('h3')` **声明之前**，循环首个宠物(肥波)即触发 `ReferenceError: Cannot access 'name' before initialization`（TDZ），导致整个 `renderPet()` 抛错、宠物契约界面全空。修复：将 `def.starter` 徽标块移回 `name` 声明之后（`src/ui.js`）。运行时 stub-DOM 验证：正常渲染 2 张卡片（肥波=已解锁/选择，肥强=👁180 解锁）。
+
+---
+
 ## v5.7（2026-08-21 · `cd52bf5`）
 
 ### 调整

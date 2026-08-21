@@ -602,6 +602,23 @@
 
 ---
 
+## 0ai. v5.8（`ba2155a` · 修复宠物契约界面空白 TDZ）
+
+**触发**：用户反馈「宠物契约那里没有宠物选择和购买了」——界面整片空白。
+
+**根因**：v5.7 把 `renderPet` 的 `def.starter` 徽标逻辑写在了 `const name = document.createElement('h3')` **声明之前**：
+```js
+if (def.starter) { /* ... */ name.appendChild(badge); }   // ← name 此时处于 TDZ
+const name = document.createElement('h3');
+```
+循环首个宠物(肥波)即抛 `ReferenceError: Cannot access 'name' before initialization`，整个 `renderPet()` 中断，`pet-content` 始终为空，选宠/购买按钮全无。
+
+**改动**：将 `def.starter` 徽标块移回 `name` 声明**之后**（`src/ui.js` `renderPet`）。
+
+**验证（stub-DOM 运行时仿真，抽真实 renderPet 方法体跑）**：正常渲染 2 张卡片——肥波(`altar-card owned`，按钮「选择/使用中」)、肥强(`altar-card`，按钮「👁 180 解锁」)；无 TDZ 报错。构建通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -931,7 +948,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | 自身哈希待下一版回填
+(本次文档提交) docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | 自身哈希待下一版回填
+fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1
 a71661c docs: v5.5 CHANGELOG + HANDOFF 同步(肥波尿液攻击修复:攻击触发去掉70px贴身死锁改ENGAGE_RANGE内即发动+尿液飞溅放大6x5;宠物商店删「无宠物」卡;§0ac-0af补小节,指向 a71661c) + §11 回填 5d2a1d5(v5.4 文档提交) | tag v5.5 指向此提交（自身哈希无法在提交内容中自引用）
 5d2a1d5 docs: v5.4 CHANGELOG + HANDOFF 同步(宠物渲染坐标修复:世界坐标未转屏幕坐标漏传cam→画屏幕外不可见,指向 3651162) + §11 回填 4399b08(v5.3 文档提交) | tag v5.4 指向此提交（自身哈希无法在提交内容中自引用）
