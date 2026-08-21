@@ -1326,6 +1326,12 @@ export class UIManager {
       const unlocked = isUnlocked(def.id);
       const isSelected = def.id === selected;
       const affordable = souls.balance >= (PET_SHOP.find((p) => p.id === def.id)?.cost || 0);
+      if (def.starter) {
+        const badge = document.createElement('span');
+        badge.className = 'ac-badge starter-badge';
+        badge.textContent = '初始自带';
+        name.appendChild(badge);
+      }
       const card = document.createElement('div');
       card.className = `altar-card ${unlocked ? 'owned' : ''} ${isSelected ? 'selected' : ''}`;
 

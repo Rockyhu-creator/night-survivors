@@ -51,6 +51,7 @@ export const PET_DEFS = {
   orange: {
     id: 'orange', name: '肥波', icon: 'pet_orange_follow_0',
     desc: '尿液攻击：抛物线落地生成减速水洼',
+    starter: true,   // 初始自带宠物：免购买、永久解锁、默认出战
     attackType: 'urine',
     // 帧组：每种状态对应一组帧文件名（不含前缀/后缀）
     frames: {
@@ -83,9 +84,8 @@ export const PET_DEFS = {
 };
 
 // 宠物商店：花灵魂购买，复用 isUnlocked/spendSouls/unlocks 体系
+// 注：肥波(orange)为初始自带宠物（starter），不在商店出售，永久免费解锁。
 export const PET_SHOP = [
-  { id: 'orange', name: '肥波', icon: 'pet_orange_follow_0', cost: 120,
-    desc: '尿液减速水洼 · 帮你拾取宝石' },
   { id: 'amer',   name: '肥强', icon: 'pet_amer_follow_0',   cost: 180,
     desc: '冲撞头击+击退 · 帮你拾取宝石' },
 ];
@@ -94,7 +94,10 @@ export const PET_SHOP = [
 export function getSelectedPet() {
   const s = loadSouls();
   const id = s.selectedPet;
-  return (id && isUnlocked(id)) ? id : null; // null = 无出战宠物
+  if (id && isUnlocked(id)) return id;
+  // 初始自带肥波：未显式选择宠物时，默认出战肥波（starter 永久解锁）
+  if (!s.selectedPet && isUnlocked('orange')) return 'orange';
+  return null; // null = 无出战宠物
 }
 
 export function setSelectedPet(id) {
@@ -107,6 +110,7 @@ export function setSelectedPet(id) {
 
 // 购买宠物解锁：复用祭坛同一 unlocks 体系（isUnlocked/getSelectedPet 据此判定）
 export function buyPetUnlock(id) {
+  if (PET_DEFS[id]?.starter) return false; // 初始自带宠物不可购买
   const def = PET_SHOP.find((p) => p.id === id);
   if (!def) return false;
   const s = loadSouls();
@@ -961,6 +965,7 @@ export function spendSouls(n) {
 }
 
 export function isUnlocked(id) {
+  if (PET_DEFS[id]?.starter) return true; // 初始自带宠物永久解锁（免购买）
   return loadSouls().unlocks.includes(id);
 }
 
