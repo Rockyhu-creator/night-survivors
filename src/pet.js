@@ -13,6 +13,10 @@ const GRAVITY = 900;          // 尿液抛物线重力 px/s²
 const PET_DRAW = 40;          // 宠物世界绘制尺寸(px)
 const PUDDLE_TICK = 0.3;      // 水洼每 0.3s 刷新一次 debuff
 const PUDDLE_R = 42;          // 尿液水洼半径
+// 任务② 跟随算法：贴身跟随血裔为主，仅拾取/攻击时短暂偏离
+const FOLLOW_LEASH = 240;     // 宠物偏离血裔的最大距离(px)
+const ENGAGE_RANGE = 180;     // 触发拾取/攻击的目标需在血裔此范围内
+const ACTION_CD = 2.0;        // 拾取/攻击共用 CD(秒)，避免频繁远离血裔
 
 export class Pet {
   constructor(def, game) {
@@ -34,6 +38,8 @@ export class Pet {
     this._attackStartTime = 0;
     // 攻击冷却
     this.attackCdTimer = 0;
+    // 拾取/攻击共用行为 CD（任务②：避免频繁远离血裔）
+    this.actionCdTimer = 0;
     // 拾取状态
     this.pickupTimer = 0;
     // 帧图片 key（绘制时由 sprite() 解析）
@@ -61,55 +67,88 @@ export class Pet {
     this._attackStartTime = 0;
   }
 
+  // 就近找一个「可拾取的宝石」（chest/potion/经验宝石均可）
+  _findNearestGem(maxR) {
+    const gems = this.game.pickups?.gems; // 修复①：pickupSystem→pickups（game.js 实例名是 this.pickups）
+    if (!gems || !gems.length) return null;
+    const p = this.game.player;
+    const maxR2 = maxR * maxR;
+    let best = null, bestD2 = Infinity;
+    for (const g of gems) {
+      const dx = g.x - p.x, dy = g.y - p.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < maxR2 && d2 < bestD2) { bestD2 = d2; best = g; }
+    }
+    return best;
+  }
+
+  _hasNearbyGem() {
+    return this._findNearestGem(this.def.magnetRadius) != null;
+  }
+
   update(dt) {
     const p = this.game.player;
-    // ---- 弹性跟随（玩家后方偏移）----
-    const ang = p.facing != null ? p.facing : this.offsetAngle;
-    const targetX = p.x + Math.cos(ang) * this.offsetDist;
-    const targetY = p.y + Math.sin(ang) * this.offsetDist;
-    const lerp = 1 - Math.pow(0.02, dt); // ~每秒追 98% 距离
-    this.smoothX += (targetX - this.smoothX) * lerp;
-    this.smoothY += (targetY - this.smoothY) * lerp;
+    // 行为 CD（拾取/攻击共用，避免频繁远离血裔）
+    if (this.actionCdTimer > 0) this.actionCdTimer -= dt;
 
-    // 任务①：钳制宠物不超出屏幕可视范围（按相机视口，留边距）
+    // ---- 感知：血裔附近是否有可拾取宝石 / 可攻击敌人 ----
+    const gem = this.actionCdTimer <= 0 ? this._findNearestGem(ENGAGE_RANGE) : null;
+    const enemy = this.actionCdTimer <= 0 ? this._findNearestEnemy(ENGAGE_RANGE) : null;
+
+    // ---- 决定期望位置：默认贴身跟随血裔；仅在有目标且 CD 就绪时短暂偏离 ----
+    const anchor = this._followAnchor(p); // 贴身锚点（血裔身后）
+    let desiredX = anchor.x, desiredY = anchor.y, desiredState = STATE.FOLLOW;
+
+    if (this.state === STATE.ATTACK && enemy) {
+      desiredX = enemy.x; desiredY = enemy.y; desiredState = STATE.ATTACK;
+    } else if (this.state === STATE.PICKUP && gem) {
+      desiredX = gem.x; desiredY = gem.y; desiredState = STATE.PICKUP;
+    } else if (enemy) {
+      desiredX = enemy.x; desiredY = enemy.y; desiredState = STATE.ATTACK;
+    } else if (gem) {
+      desiredX = gem.x; desiredY = gem.y; desiredState = STATE.PICKUP;
+    }
+
+    // 偏离血裔距离钳制：永远不超出 FOLLOW_LEASH，保证「不远离血裔」
+    {
+      const dx = desiredX - p.x, dy = desiredY - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > FOLLOW_LEASH) {
+        desiredX = p.x + (dx / d) * FOLLOW_LEASH;
+        desiredY = p.y + (dy / d) * FOLLOW_LEASH;
+      }
+    }
+
+    // ---- 弹性趋近期望位置 ----
+    const lerp = 1 - Math.pow(0.02, dt); // ~每秒追 98% 距离
+    this.smoothX += (desiredX - this.smoothX) * lerp;
+    this.smoothY += (desiredY - this.smoothY) * lerp;
+
+    // 钳制宠物不超出屏幕可视范围（按相机视口，留边距）
     const cam = this.game.camera;
     if (cam) {
-      const M = 28; // 距屏幕边缘边距(px)
-      const minX = cam.x + M;
-      const maxX = cam.x + CONFIG.LOGICAL_WIDTH - M;
-      const minY = cam.y + M;
-      const maxY = cam.y + CONFIG.LOGICAL_HEIGHT - M;
-      this.smoothX = Math.max(minX, Math.min(maxX, this.smoothX));
-      this.smoothY = Math.max(minY, Math.min(maxY, this.smoothY));
+      const M = 28;
+      this.smoothX = Math.max(cam.x + M, Math.min(cam.x + CONFIG.LOGICAL_WIDTH - M, this.smoothX));
+      this.smoothY = Math.max(cam.y + M, Math.min(cam.y + CONFIG.LOGICAL_HEIGHT - M, this.smoothY));
     }
     this.x = this.smoothX;
     this.y = this.smoothY;
 
     // ---- 状态机 ----
-    const nearGem = this._hasNearbyGem();
-    if (nearGem && this.state !== STATE.ATTACK) {
-      this.state = STATE.PICKUP;
-      this.pickupTimer = 0.5;
-    }
-    if (this.state === STATE.PICKUP) {
-      this.pickupTimer -= dt;
-      if (this.pickupTimer <= 0) this.state = STATE.FOLLOW;
-    }
+    this.state = desiredState;
 
-    if (this.attackCdTimer > 0) this.attackCdTimer -= dt;
-
-    if (this.attackCdTimer <= 0 && this._tryAttack()) {
-      this.state = STATE.ATTACK;
-      this.attackCdTimer = this.def.attackCd;
-      this._attackStartTime = this.game.time;
+    // 触发攻击（到达敌人附近、CD 就绪、且确有敌人目标）
+    if (this.state === STATE.ATTACK && enemy && this.actionCdTimer <= 0) {
+      const dx = enemy.x - this.x, dy = enemy.y - this.y;
+      if (dx * dx + dy * dy < 70 * 70 && this._tryAttack(enemy)) {
+        this.actionCdTimer = ACTION_CD; // 拾取/攻击共用 CD
+      }
     }
-
-    if (this.state === STATE.ATTACK) {
-      const attackFrames = this.frameKeys.attack?.length || 2;
-      const attackDur = attackFrames / this.attackFrameRate;
-      if ((this.game.time - this._attackStartTime) >= attackDur) {
-        this.state = STATE.FOLLOW;
-        this._attackStartTime = 0;
+    // 触发拾取（到达宝石附近、CD 就绪）
+    if (this.state === STATE.PICKUP && gem && this.actionCdTimer <= 0) {
+      const dx = gem.x - this.x, dy = gem.y - this.y;
+      if (dx * dx + dy * dy < this.def.pickupRadius * this.def.pickupRadius) {
+        this.actionCdTimer = ACTION_CD;
       }
     }
 
@@ -123,30 +162,35 @@ export class Pet {
     }
   }
 
-  _hasNearbyGem() {
-    const gems = this.game.pickupSystem?.gems;
-    if (!gems || !gems.length) return false;
-    const r2 = this.def.magnetRadius * this.def.magnetRadius;
-    for (const g of gems) {
-      const dx = g.x - this.x, dy = g.y - this.y;
-      if (dx * dx + dy * dy < r2) return true;
-    }
-    return false;
+  // 贴身跟随锚点：血裔身后偏一侧，用 facing(±1) 决定左右
+  _followAnchor(p) {
+    const side = p.facing != null ? -p.facing : 1; // 跟在血裔背后
+    return {
+      x: p.x + side * this.offsetDist,
+      y: p.y + this.offsetDist * 0.5,
+    };
   }
 
-  _tryAttack() {
+  _findNearestEnemy(maxR) {
     const enemyList = this.game.enemies?.enemies;
-    if (!enemyList || !enemyList.length) return false;
-    let nearest = null, nearD2 = Infinity;
+    if (!enemyList || !enemyList.length) return null;
+    const p = this.game.player;
+    const maxR2 = maxR * maxR;
+    let best = null, bestD2 = Infinity;
     for (const e of enemyList) {
       if (!e.alive) continue;
-      const dx = e.x - this.x, dy = e.y - this.y;
+      const dx = e.x - p.x, dy = e.y - p.y;
       const d2 = dx * dx + dy * dy;
-      if (d2 < nearD2) { nearD2 = d2; nearest = e; }
+      if (d2 < maxR2 && d2 < bestD2) { bestD2 = d2; best = e; }
     }
-    if (!nearest || nearD2 > 180 * 180) return false; // 攻击范围 180px
-    if (this.def.attackType === 'urine') this._fireUrine(nearest);
-    else if (this.def.attackType === 'butt') this._fireButt(nearest);
+    return best;
+  }
+
+  _tryAttack(target) {
+    // target 由 update() 通过 _findNearestEnemy 锁定（血裔 ENGAGE_RANGE 内最近敌人）
+    if (!target || !target.alive) return false;
+    if (this.def.attackType === 'urine') this._fireUrine(target);
+    else if (this.def.attackType === 'butt') this._fireButt(target);
     return true;
   }
 
