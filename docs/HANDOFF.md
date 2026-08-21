@@ -583,6 +583,25 @@
 
 ---
 
+## 0ah. v5.7（`cd52bf5` · 肥波设为初始自带宠物：免购买 + 永久解锁 + 默认出战）
+
+**触发**：用户要求「初始宠物携带肥波，不需要购买」。
+
+**根因与改动**：原宠物走 `PET_SHOP` 花灵魂购买、`s.unlocks` 记录解锁、`isUnlocked(id)` 判定、`getSelectedPet()` 返回已选宠物（无选则 `null`=无宠物）。改为初始自带：
+- `PET_DEFS.orange` 加 `starter: true`；
+- `isUnlocked(id)`：`if (PET_DEFS[id]?.starter) return true;`（**新/老存档均永久免解锁**——老存档 `unlocks` 为空也直接 true）；
+- `PET_SHOP` 移除 orange 项（肥强 amer 仍保留 👁180 出售）；
+- `buyPetUnlock(id)`：`if (PET_DEFS[id]?.starter) return false;`（防误买免费宠）；
+- `getSelectedPet()`：`if (!s.selectedPet && isUnlocked('orange')) return 'orange';`——**未显式选择时默认出战肥波**（开局即带）；已选肥强等保留；
+- `ui.js` `renderPet`：starter 宠物的卡加「初始自带」金色徽标（`.ac-badge.starter-badge` 样式，`style.css`）。
+
+**验证（Node 仿真，stub localStorage/assets）**：
+- 新档 `isUnlocked('orange')=true`、`getSelectedPet()='orange'`、`buyPetUnlock('orange')=false`、`PET_SHOP.length=1`；
+- 老存档 `selectedPet=null` → `getSelectedPet()='orange'`（初始自带默认出战）；已选 `amer` → 保留 `amer`。
+- 构建 `npx vite build --outDir .ns-build-2x` 通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -912,7 +931,8 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-(本次文档提交) docs: v5.6 CHANGELOG + HANDOFF 同步(...) + §11 回填 a71661c(v5.5 文档提交) | 自身哈希待下一版回填
+(本次文档提交) docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | 自身哈希待下一版回填
+945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1
 a71661c docs: v5.5 CHANGELOG + HANDOFF 同步(肥波尿液攻击修复:攻击触发去掉70px贴身死锁改ENGAGE_RANGE内即发动+尿液飞溅放大6x5;宠物商店删「无宠物」卡;§0ac-0af补小节,指向 a71661c) + §11 回填 5d2a1d5(v5.4 文档提交) | tag v5.5 指向此提交（自身哈希无法在提交内容中自引用）
 5d2a1d5 docs: v5.4 CHANGELOG + HANDOFF 同步(宠物渲染坐标修复:世界坐标未转屏幕坐标漏传cam→画屏幕外不可见,指向 3651162) + §11 回填 4399b08(v5.3 文档提交) | tag v5.4 指向此提交（自身哈希无法在提交内容中自引用）
 4399b08 docs: v5.3 CHANGELOG + HANDOFF 同步(宠物拾取引用修复 pickupSystem→pickups + 跟随算法重写,指向 0963e92) + §11 回填 a023c0b(v5.2 文档提交) | tag v5.3 指向此提交（自身哈希无法在提交内容中自引用）

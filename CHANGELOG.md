@@ -5,6 +5,13 @@
 
 ---
 
+## v5.7（2026-08-21 · `cd52bf5`）
+
+### 调整
+- **肥波改为初始自带宠物（免购买）**：肥波(orange)新增 `starter: true` 标记——`isUnlocked('orange')` 永久返回 `true`（新/老存档均免解锁），从 `PET_SHOP` 移除（不再花灵魂购买），`buyPetUnlock('orange')` 直接返回 `false` 防误买；`getSelectedPet()` 在玩家未显式选择宠物时默认返回 `orange`，即**开局即出战肥波**。`renderPet` 卡片加「初始自带」金色徽标。肥强(amer)仍保留 `PET_SHOP` 出售（👁180 解锁）。
+
+---
+
 ## v5.6（2026-08-21 · `d3347e1`）
 
 ### 修复
