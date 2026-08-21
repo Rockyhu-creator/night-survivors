@@ -1029,24 +1029,25 @@ export class WeaponSystem {
   }
 
   // 红环（脉冲）+ 缓慢旋转六芒星：亡灵光环 / 寂灭结界共用，统一视觉语言
-  drawRedAuraRing(ctx, sx, sy, r, time, alphaMul = 1) {
+  // 通用彩色光环环（fill 底色 / stroke 描边 / sigil 六芒星色），供亡灵光环(红)与永夜使徒固有光环(紫)复用。
+  drawAuraRingColored(ctx, sx, sy, r, time, fill, stroke, sigil, alphaMul = 1) {
     const pulse = 0.85 + Math.sin(time * 4) * 0.1;
     const rot = time * 0.6;
     ctx.save();
     ctx.translate(sx, sy);
     ctx.globalAlpha = 0.30 * alphaMul;
-    ctx.fillStyle = '#c0202a';
+    ctx.fillStyle = fill;
     ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 0.85 * alphaMul;
-    ctx.strokeStyle = '#e23b3b';
+    ctx.strokeStyle = stroke;
     ctx.lineWidth = 2.5;
-    ctx.shadowColor = 'rgba(226,59,59,0.8)';
+    ctx.shadowColor = stroke;
     ctx.shadowBlur = 8;
     ctx.beginPath(); ctx.arc(0, 0, r * pulse, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.rotate(rot);
     ctx.globalAlpha = 0.55 * alphaMul;
-    ctx.strokeStyle = '#ff7a85';
+    ctx.strokeStyle = sigil;
     ctx.lineWidth = 2;
     const R = r * 0.55;
     for (let tri = 0; tri < 2; tri += 1) {
@@ -1060,6 +1061,10 @@ export class WeaponSystem {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  drawRedAuraRing(ctx, sx, sy, r, time, alphaMul = 1) {
+    this.drawAuraRingColored(ctx, sx, sy, r, time, '#c0202a', '#e23b3b', '#ff7a85', alphaMul);
   }
 
   // ===== v2.0 新武器 / 新神器 运行时实现 =====
@@ -1494,13 +1499,20 @@ export class WeaponSystem {
     }
 
     // 亡灵光环 + 长鞭横扫 + 寂灭结界（武器丰富化新增视觉）
-    const auraW = this.game.player.weapons.find((w) => w.id === 'aura' && !w.artifact);
+    // 任务③修复：原仅查 player.weapons，漏掉 innateWeapons → 永夜使徒的槽外固有光环无视觉反馈。
+    const auraW = [...this.game.player.weapons, ...this.game.player.innateWeapons]
+      .find((w) => w.id === 'aura' && !w.artifact);
     if (auraW) {
       const st = this.stats(auraW);
       const r = st.radius * (this.game.player.areaMul || 1);
       const sx = this.game.player.x - cam.ox;
       const sy = this.game.player.y - cam.oy;
-      this.drawRedAuraRing(ctx, sx, sy, r, this.game.time);
+      if (auraW.innate) {
+        // 永夜使徒槽外固有光环：永夜紫配色，与普通亡灵光环区分（高难高回报的视觉身份）
+        this.drawAuraRingColored(ctx, sx, sy, r, this.game.time, '#6a2f8f', '#9b4fc9', '#c77bff');
+      } else {
+        this.drawRedAuraRing(ctx, sx, sy, r, this.game.time);
+      }
     }
     // 寂灭结界：与亡灵光环统一的红环 + 六芒星
     if (this.hasArtifact('sepulcher')) {

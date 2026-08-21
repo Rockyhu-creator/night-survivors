@@ -49,7 +49,7 @@ if (typeof window !== 'undefined') window.__altar = ALTAR;
 // ---------- 宠物系统（v4.4） ----------
 export const PET_DEFS = {
   orange: {
-    id: 'orange', name: '橘猫', icon: 'pet_orange_follow_0',
+    id: 'orange', name: '肥波', icon: 'pet_orange_follow_0',
     desc: '尿液攻击：抛物线落地生成减速水洼',
     attackType: 'urine',
     // 帧组：每种状态对应一组帧文件名（不含前缀/后缀）
@@ -62,11 +62,11 @@ export const PET_DEFS = {
     slowPct: 0.55,     // 减速百分比
     hazardDuration: 3, // 水洼持续时间(秒)
     attackCd: 1.6,     // 攻击冷却(秒)
-    magnetRadius: 80,  // 拾取磁吸半径
-    pickupRadius: 30,  // 拾取触发半径
+    magnetRadius: 170, // 拾取磁吸半径（任务②：扩大吸附范围）
+    pickupRadius: 52,  // 拾取触发半径
   },
   amer: {
-    id: 'amer', name: '美短', icon: 'pet_amer_follow_0',
+    id: 'amer', name: '肥强', icon: 'pet_amer_follow_0',
     desc: '头撞攻击：冲撞最近敌人造成伤害+击退',
     attackType: 'butt',
     frames: {
@@ -77,16 +77,16 @@ export const PET_DEFS = {
     baseDamage: 12,   // 头撞基础伤害
     knockback: 220,    // 击退力度
     attackCd: 1.4,     // 攻击冷却(秒)
-    magnetRadius: 80,
-    pickupRadius: 30,
+    magnetRadius: 170,
+    pickupRadius: 52,
   },
 };
 
 // 宠物商店：花灵魂购买，复用 isUnlocked/spendSouls/unlocks 体系
 export const PET_SHOP = [
-  { id: 'orange', name: '橘猫', icon: 'pet_orange_follow_0', cost: 120,
+  { id: 'orange', name: '肥波', icon: 'pet_orange_follow_0', cost: 120,
     desc: '尿液减速水洼 · 帮你拾取宝石' },
-  { id: 'amer',   name: '美短', icon: 'pet_amer_follow_0',   cost: 180,
+  { id: 'amer',   name: '肥强', icon: 'pet_amer_follow_0',   cost: 180,
     desc: '冲撞头击+击退 · 帮你拾取宝石' },
 ];
 

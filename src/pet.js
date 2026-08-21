@@ -5,7 +5,7 @@
 //   2) 帧动画（follow/pickup/attack 三组帧，按状态切换）
 //   3) 攻击状态机（橘猫 urine 抛物线→落地水洼 applyDebuff；美短 butt 冲撞→hitEnemy）
 //   4) 拾取辅助（作为第二磁吸源/拾取点，由 PickupSystem.update 调用）
-import { PET_DEFS, getSelectedPet } from './data.js';
+import { PET_DEFS, getSelectedPet, CONFIG } from './data.js';
 import { sprite, hasImage } from './assets.js';
 
 const STATE = { FOLLOW: 'follow', PICKUP: 'pickup', ATTACK: 'attack' };
@@ -70,6 +70,18 @@ export class Pet {
     const lerp = 1 - Math.pow(0.02, dt); // ~每秒追 98% 距离
     this.smoothX += (targetX - this.smoothX) * lerp;
     this.smoothY += (targetY - this.smoothY) * lerp;
+
+    // 任务①：钳制宠物不超出屏幕可视范围（按相机视口，留边距）
+    const cam = this.game.camera;
+    if (cam) {
+      const M = 28; // 距屏幕边缘边距(px)
+      const minX = cam.x + M;
+      const maxX = cam.x + CONFIG.LOGICAL_WIDTH - M;
+      const minY = cam.y + M;
+      const maxY = cam.y + CONFIG.LOGICAL_HEIGHT - M;
+      this.smoothX = Math.max(minX, Math.min(maxX, this.smoothX));
+      this.smoothY = Math.max(minY, Math.min(maxY, this.smoothY));
+    }
     this.x = this.smoothX;
     this.y = this.smoothY;
 
