@@ -669,6 +669,19 @@ const name = document.createElement('h3');
 
 ---
 
+## 0am. v5.12（`3086a38` · 宠物放大一倍 + 肥波尿渍区域放大三倍）
+
+**触发**：用户要求「把宠物放大一倍、肥波的尿渍区域也放大三倍」。
+
+**改动**（`src/pet.js`，纯常量调整，引用点均按比例自动同步）：
+- `PET_DRAW` 40→80：宠物游戏内绘制尺寸翻倍（帧为 64×64 归一化精灵，放大后 80×80）。
+- `PUDDLE_R` 42→126：尿渍主斑 / 湿润高光(0.55×) / 卫星小滴距离 / 伤害·减速判定半径(`r2`) 全部随常量放大三倍（直径 84→252px）。
+- 配套：屏幕钳制边距 `M` 28→40（对齐放大后宠物半宽），避免放大后宠物重新超出屏幕（v5.2 已修过的问题，不调会回退 12px 超出）。
+
+**验证**：构建通过（18 模块）。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
@@ -1000,7 +1013,8 @@ npm run test:skilltree
 ```
 bbea267 docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交)
 ef0f38a docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交)
-(本次文档提交) docs: v5.11 CHANGELOG + HANDOFF 同步(§0al 宠物攻击根因:敌人无alive字段,pet.js误用!e.alive过滤致永不触发) + §11 回填 ef0f38a(v5.10 文档提交) | 自身哈希待下一版回填
+60c5c24 docs: v5.11 CHANGELOG + HANDOFF 同步(§0al 宠物攻击根因:敌人无alive字段,pet.js误用!e.alive过滤致永不触发) + §11 回填 ef0f38a(v5.10 文档提交)
+(本次文档提交) docs: v5.12 CHANGELOG + HANDOFF 同步(§0am 宠物放大一倍+尿渍放大三倍) + §11 回填 60c5c24(v5.11 文档提交) | 自身哈希待下一版回填
 fa66a30 docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | tag v5.8 指向 ba2155a
 fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1
