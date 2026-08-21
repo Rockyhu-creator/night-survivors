@@ -10,9 +10,9 @@ import { sprite, hasImage } from './assets.js';
 
 const STATE = { FOLLOW: 'follow', PICKUP: 'pickup', ATTACK: 'attack' };
 const GRAVITY = 900;          // 尿液抛物线重力 px/s²
-const PET_DRAW = 40;          // 宠物世界绘制尺寸(px)
+const PET_DRAW = 80;          // 宠物世界绘制尺寸(px)，v5.12 放大一倍（40→80）
 const PUDDLE_TICK = 0.3;      // 水洼每 0.3s 刷新一次 debuff
-const PUDDLE_R = 42;          // 尿液水洼半径
+const PUDDLE_R = 126;         // 尿液水洼半径，v5.12 放大三倍（42→126）
 
 // 不规则尿渍：生成一圈随机半径顶点（落地时一次性生成，避免逐帧抖动）
 function makeBlobVerts(n) {
@@ -150,7 +150,7 @@ export class Pet {
     // 钳制宠物不超出屏幕可视范围（按相机视口，留边距）
     const cam = this.game.camera;
     if (cam) {
-      const M = 28;
+      const M = 40; // v5.12 宠物放大一倍(80px)后同步增大钳制边距，避免宠物重新超出屏幕
       this.smoothX = Math.max(cam.x + M, Math.min(cam.x + CONFIG.LOGICAL_WIDTH - M, this.smoothX));
       this.smoothY = Math.max(cam.y + M, Math.min(cam.y + CONFIG.LOGICAL_HEIGHT - M, this.smoothY));
     }
