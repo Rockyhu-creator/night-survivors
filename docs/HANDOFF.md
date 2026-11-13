@@ -1,6 +1,6 @@
 # 夜裔幸存者 · 项目 Handoff 文档
 
-> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-08-21（v5.5：肥波尿液攻击修复(攻击触发去掉70px贴身死锁改ENGAGE_RANGE内即发动,尿液飞溅放大6x5+描边)+宠物商店删「无宠物」卡; v5.4：宠物完全不可见修复(渲染坐标未转屏幕坐标:PetSystem.draw/Pet.draw漏传cam,世界坐标直接画到已平移ctx→屏幕外;改 x-cam.ox/y-cam.oy+水洼飞溅同步); v5.3：宠物拾取不生效修复(_hasNearbyGem误用this.game.pickupSystem应为this.game.pickups)+跟随算法重写(贴身跟随血裔为主/拾取攻击短暂偏离/FOLLOW_LEASH=240钳制/共用行为CD=2.0s); v5.2：宠物屏幕钳制+吸附范围扩大(magnetRadius 80→170/pickupRadius 30→52)+永夜使徒初始光环修复(渲染层漏 innateWeapons,重构 drawAuraRingColored 支持紫配色)+宠物改名肥波/肥强; v5.1：宠物选中失效修复+美短图标暗底可见性+微信域名验证; v5.0：宠物战斗拾取系统; v4.3.6：永夜使徒无初始武器死锁修复(槽外固有永夜光环起手); v4.3.5：永夜化身boss重绘；v4.3.4：apostle portrait 彩色重绘；v4.3：P9 遗漏补漏 portrait 选择卡片立绘同步；v4.2：P9 白色系精灵暗底重绘 + 血裔角色差异化立绘；P3b-3~5 精英内容(差异化行为/保底掉落/图鉴分组/HUD) + P4-1 精英悬赏 + P4-2 连杀Combo + P5-1 美术占位统一工具(带标签方块+HTML图标防碎图) + P5-2 移动端真机门禁(≤12ms软告警) + P5-3 精灵缺失断言; v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
+> 供新会话窗口快速接手项目的上下文文档。最后更新：2026-11-13（v5.13：云存档系统(自建Python账号密码API+防刷四层:全局40/时·单IP5个/天·连错5次锁15分钟·scrypt信号量闸门 + 前端60s定时/卸载兜底同步 + 顶部独立入口登录后显示用户名 + 云端存档导入前本地备份保3份) + 腾讯云HTTPS部署沉淀(ns.aiskillsedu.online,deploy.sh四模式+EXTRA_DOMAINS/tls_proxy.py绕SSH-DPI); 神器特效全局巡检8件(断罪改thrust直线锋线根治tint字段不匹配致strokeStyle=undefined、镇魂赦令拆出白金圣钟+反向六芒圣环+上升光尘、永恒壁垒六边纹加旋转脉动); v5.6~v5.12 宠物系统连续迭代详见 §0ag~§0am; v5.5：肥波尿液攻击修复(攻击触发去掉70px贴身死锁改ENGAGE_RANGE内即发动,尿液飞溅放大6x5+描边)+宠物商店删「无宠物」卡; v5.4：宠物完全不可见修复(渲染坐标未转屏幕坐标:PetSystem.draw/Pet.draw漏传cam,世界坐标直接画到已平移ctx→屏幕外;改 x-cam.ox/y-cam.oy+水洼飞溅同步); v5.3：宠物拾取不生效修复(_hasNearbyGem误用this.game.pickupSystem应为this.game.pickups)+跟随算法重写(贴身跟随血裔为主/拾取攻击短暂偏离/FOLLOW_LEASH=240钳制/共用行为CD=2.0s); v5.2：宠物屏幕钳制+吸附范围扩大(magnetRadius 80→170/pickupRadius 30→52)+永夜使徒初始光环修复(渲染层漏 innateWeapons,重构 drawAuraRingColored 支持紫配色)+宠物改名肥波/肥强; v5.1：宠物选中失效修复+美短图标暗底可见性+微信域名验证; v5.0：宠物战斗拾取系统; v4.3.6：永夜使徒无初始武器死锁修复(槽外固有永夜光环起手); v4.3.5：永夜化身boss重绘；v4.3.4：apostle portrait 彩色重绘；v4.3：P9 遗漏补漏 portrait 选择卡片立绘同步；v4.2：P9 白色系精灵暗底重绘 + 血裔角色差异化立绘；P3b-3~5 精英内容(差异化行为/保底掉落/图鉴分组/HUD) + P4-1 精英悬赏 + P4-2 连杀Combo + P5-1 美术占位统一工具(带标签方块+HTML图标防碎图) + P5-2 移动端真机门禁(≤12ms软告警) + P5-3 精灵缺失断言; v3.14 仓库卫生：.gitignore 补 vite.config.js.timestamp-* 忽略规则(vite每次dev/build生成新临时产物持续污染git status)+§11 回填 v3.13 文档提交哈希 ae95024 并新增「占位行回填」维护红线(制度化先回填再插新行,根治461a5a5那类哈希丢失),未改 src/ 无运行时回归面;v3.13 技能树重叠常驻回归用例(tests/skilltree_overlap.py 8档:桌面3档+真触屏移动端5分支全遍历)+test:skilltree脚本(依赖dev server,刻意不接prebuild);v3.12 桌面技能树布局常量校正(CARD_H 104→160/ROW_H 126→178)消除父子纵向重叠;v3.11 移动端技能树同层重叠修复(renderSkillTree列分配重写:首前置父严格树消菱形坍缩+汇聚节点取双亲中点+按深度层量化列号兜底);v3.10 技能树校验护栏(validate_skilltree.mjs+prebuild钩子)；v3.9 移动端技能树交互重构：顶部分段控件切分支+单分支竖向链+底部抽屉+最小缩放0.6+命中区修复；v3.8 资源加载优化：内容哈希精准缓存+分级懒加载；v3.7 重置弹窗暗黑风+移动端长按复制屏蔽+技能树二叉化重构+前置审计）
 
 ---
 
@@ -682,11 +682,56 @@ const name = document.createElement('h3');
 
 ---
 
+## 0an. v5.13（`a6ff3b7` · 云存档系统 + 腾讯云 HTTPS 部署 + 神器特效区分巡检）
+
+**触发**：① 用户「依靠微信存档，换个浏览器缓存就重置，进度全丢」→ 要做云存档，选定账号密码体系；② 后续追加「云存档入口别和图鉴放一起，放顶部、图标走美术管线」「登录后显示用户名」「有人疯狂注册会不会搞崩，加个限制」；③ 用户在腾讯云上把站点部署为 HTTPS；④ 用户「检查所有神器，最终特效和对应普通技能基本一致无法区分，优化一下」。
+
+### A. 云存档（三层：前端同步层 / 自建 API / Nginx 反代）
+
+- **API（`server/save_api.py`，新建，部署为 `/opt/ns-save-api/server.py` + systemd `ns-save-api.service`，监听 `127.0.0.1:8787`）**：纯 Python 标准库零依赖（`http.server` + `sqlite3` + `hashlib.scrypt`），6 端点 `POST /api/auth/register|login|logout` + `GET /api/auth/me` + `GET /api/save` + `POST /api/save`。密码 `scrypt(N=16384, r=8, p=1)` + 16 字节随机盐；会话表存 `secrets.token_hex(32)` Bearer token、TTL 30 天；每用户仅保留最近 4 个会话（第 5 次登录挤掉最老的）。
+- **前端同步层（`src/cloudSave.js`，新建，自装配模块）**：`SAVE_KEYS = { best, souls, collection }` 对应 `night_survivors_best` / `_souls` / `_collection`；变更检测走 JSON 比对（`blobJson()`），有差异才推；**60s 定时推**（`setInterval`）+ **`beforeunload` 兜底推**（`fetch` 带 `keepalive:true`，仅在 `POST /api/save` 时启用）+ 手动上/下载按钮。登录时若云端已有存档且与本地不同 → `window.confirm` 询问是否导入；**导入前先 `backupLocalBlob()` 备份**（`night_survivors_cloud_backup_<ts>`，按 key 排序只保留最新 3 份）。
+- **UI**：`index.html` title-screen 顶部新增 `#btn-cloud`（`#cloud-entry-label` 文本节点 + 40px `cloud_menu.png` 图标）与 `cloud-screen` 弹窗；`src/style.css` 追加 `.cloud-card` / `.cloud-input` / `.cloud-entry` 系列，`.cloud-entry.logged-in` 为暖金描边态。**登录后入口 label 直接替换为用户名**（`renderCloudUI()` 同时写 `title` 属性，移动端窄屏也读得到）。弹窗登录/注册两个 tab **共用一组输入框**，切 tab 只改 placeholder 与按钮文案——此前写成两套独立 input 时 id 重复，`getElementById` 恒取到第一个，注册/登录会读到空值。
+- **图标资产**：`gen_cloud_menu.py`（新建）+ `public/assets/cloud_menu.png`（80×80）。复用 `gen_passive_pixels.py` 的 `key_bg` / `add_outline` / `recenter_com`；**画布必须按 `GRID(40)` 生成再 2x**（直接 80×80 出图覆盖率仅 12.5%，像素块对不齐）；`CONTENT_RATIO=0.88` 内边距 + 自写 `ensure_margin(im, margin=2)`（位移取偶数，保 2px 块对齐），修 `recenter_com` 贴边被裁的问题。成品 alpha 覆盖率 32.4%。
+
+### B. 注册/登录防刷（四层，均在应用层，Nginx 侧再加双 zone 限流）
+
+| 层 | 规则 | 实现 |
+|---|---|---|
+| ① 全局注册闸门 | 40 次/小时 | `_reg_global_ts` 滑窗 deque，防换 IP 刷库；NAT 场景可调 |
+| ② 单 IP 每日上限 | 5 个/天 | `users.reg_ip` 列（`ALTER TABLE` 平滑迁移老库）+ `_reg_ip_ts: ip -> deque` 滑窗 24h |
+| ③ 登录爆破锁定 | 连错 5 次锁 15 分钟 | `_login_fail` 计数 + `until` 时间戳 |
+| ④ CPU 闸门 | 同时 2 个 scrypt，排队 5s 超时返 429 | `threading.BoundedSemaphore(2)`，防大量注册把 CPU 打满拖死整站 |
+
+- **Nginx**：`limit_req_zone` 两条（`/api/auth/` 10r/m、`/api/` 20r/s），`/api/` 反代到 `127.0.0.1:8787`，分 `stage1`（HTTP-only）与 `stage2`（HTTPS）两段配置。
+- **踩坑（已修）**：锁定计数重置条件原写 `if until < time.time()`，把「从未锁定」（`until=0`）误判成「锁定已过期」，每次登录都把 `cnt` 重置为 1 → **锁 15 分钟永不生效**。改为 `if 0 < until < time.time()`。模块 import 单测抓出。
+
+### C. 腾讯云 HTTPS 部署（`docs/deploy/`）
+
+- **上线地址**：`https://ns.aiskillsedu.online/`（子域名，主域名留给其他游戏）+ `https://aiskillsedu.online/`（HTTP 301 → HTTPS）。证书 SAN 含三域名，有效期至 2027-02-10，`certbot renew --dry-run` 通过（服务器本地验证成功；隧道里跑长命令会因随机延迟被掐断，属假警报）。每日 04:00 SQLite 备份 cron（`backup.py`，保 14 天）。
+- **`deploy.sh`** 四模式（`--init` / `--http-only` / `--https` / 无参数日常发版）+ `EXTRA_DOMAINS` 环境变量（追加 `server_name` 与 certbot `-d`）；`render_nginx_conf` 重构为 `CONTENT` 变量拼接；证书存在性检查统一 `${REMOTE_SUDO} test -f`（`/etc/letsencrypt/live` 权限 700，非 sudo 读不到会误判证书缺失）。
+- **`tls_proxy.py`（新建沉淀）**：本机网络对 SSH 协议做 DPI 注入 RST（22/2222/443 全试过，与端口无关；对照组 `github.com:22` 可通证明探测可信）。服务器侧 stunnel 9443 → `127.0.0.1:2222`（`foreground = yes` 必须，否则 systemd `start-limit-hit` 死循环），本机 Python `ssl` 双线程转发 `127.0.0.1:12222` → TLS → 9443。**`openssl s_client` 做 ProxyCommand 扛不住批量数据（256KB 即断），Python 代理 3MB 实测 PASS**。
+- **Ubuntu 24.04+ 改 SSH 端口**：必须改 `ssh.socket` drop-in 且显式写 `ListenStream=0.0.0.0:<port>` 与 `ListenStream=[::]:<port>` 两条（只写 IPv6 会导致 IPv4 被内核 RST），改后 `systemctl restart ssh.service ssh.socket`。
+
+### D. 神器特效区分巡检（8 件，`src/weapons.js`）
+
+- **断罪之锋**：原 `fireThrust` 复用 `applyWhip` 的锥形曲线横扫，且传的 `tint` 是 `{dmg, trail, spark, sparkHot}`、渲染层却读 `tint.body/edge/tip` → `strokeStyle` 落 `undefined`，视觉上与噬魂长鞭几乎一致。改：`applyWhip` 增加 `slashKind` / `slashLife` / `slashBow` 可选覆盖（默认值不变，长鞭零回归），断罪传 `slashKind:'thrust'` + `slashLife:0.16` + `slashBow:0` + 合规 `slashTint`；渲染层新增 thrust 分支——上下两条向尖端收窄的血红刃缘 + 白炽核心贯穿线 + 出鞘末端十字锋芒闪。
+- **镇魂赦令（absolution）**：原与基础「镇魂钟鸣」（`resolve`）**共用同一渲染分支**，外观完全一致。改：拆成两支——absolution 走白金圣钟（`#f7ecc8` 钟体 / `#d8b96a` 钟裙 / 白炽钟舌）+ 反向旋转六芒圣环（`ARTIFACT_TINT.absolution`，与外层 `rotate(t*0.8)` 形成双速层次）+ 3 粒 additive 上升光尘；resolve 保留原血色红钟。
+- **永恒壁垒（bastion）**：觉醒六边结界纹原为静态描边（`R=19` 固定、alpha 0.85），不显眼。改为 `hexR = 19 + sin(t*3)*2` 脉动 + `rotate(t*0.7)` 自转 + alpha `0.55 ± 0.3` 呼吸（包 `save/translate/rotate/restore`）。
+- 其余 6 件（comet / ghost / bloodheart / ward / eyebolt 弹体形状、cataclysm 红锯齿环）复核确认已有可辨识差异，未改动。
+
+### 验证
+
+- `npm run validate:skilltree`：39 节点，无断链/重复/越界/不可达。
+- `npx vite build --outDir .ns-build-2x`：19 模块通过（v5.12 为 18，新增 `src/cloudSave.js`）。
+- 线上 bundle 复核（release `20261113-100315`）：absolution 圣钟分支 `#f7ecc8`=1、`ARTIFACT_TINT` `#f3e8c0`=1、bastion 描边 `#a9e6ff`=1 且其前后为 `19+sin(time*3)*2` 脉动 + `rotate(time*0.7)`；`hexR` 计数为 0 是 esbuild 压缩改名（局部变量被改为 `d`），非缺码。
+
+---
+
 ## 1. 项目概览
 
 **项目名称**：夜裔幸存者（Night Survivors）
 **类型**：网页类吸血鬼幸存者游戏
-**线上地址**：https://night-survivors.pages.dev
+**线上地址**：https://ns.aiskillsedu.online （腾讯云主站，v5.13 起）；https://aiskillsedu.online （主域名，301 跳 HTTPS，留给其他游戏）；https://night-survivors.pages.dev （Cloudflare Pages 旧站，仍可用）
 **仓库**：https://github.com/Rockyhu-creator/night-survivors
 **本地路径**：`/Users/a34481/Documents/Trae_game`
 **分支**：`main`（已合并 feature/night-survivors，所有开发在 main 上进行）
@@ -1011,10 +1056,11 @@ npm run test:skilltree
 > ⚠️ **必须带 `^` 锚定**：本节正文（以及 §0p）为讲清这条规则，会在散文里多次提到 `(本次文档提交)` 这个字符串，不加锚定的 `grep -c '(本次文档提交)'` 会把这些说明文字一并计入，**数值随文档措辞增删而漂移、恒 > 1**，永远不等于 1。占位符的真实语义是**代码块里一行提交记录的行首前缀**，只有行首锚定才对应这个语义。
 
 ```
-bbea267 docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交)
-ef0f38a docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交)
+(本次文档提交) docs: v5.13 CHANGELOG + HANDOFF 同步(§0an 云存档系统+防刷四层+腾讯云HTTPS部署沉淀+神器特效区分巡检8件,指向 a6ff3b7) + §11 回填 920c03a(v5.12 文档提交) | 自身哈希待下一版回填
+920c03a docs: v5.12 CHANGELOG + HANDOFF 同步(§0am 宠物放大一倍+尿渍放大三倍) + §11 回填 60c5c24(v5.11 文档提交)
 60c5c24 docs: v5.11 CHANGELOG + HANDOFF 同步(§0al 宠物攻击根因:敌人无alive字段,pet.js误用!e.alive过滤致永不触发) + §11 回填 ef0f38a(v5.10 文档提交)
-(本次文档提交) docs: v5.12 CHANGELOG + HANDOFF 同步(§0am 宠物放大一倍+尿渍放大三倍) + §11 回填 60c5c24(v5.11 文档提交) | 自身哈希待下一版回填
+ef0f38a docs: v5.10 CHANGELOG + HANDOFF 同步(§0ak 宠物选择修正:去掉一次性迁移标志,根治卡肥强只见冲撞) + §11 回填 bbea267(v5.9 文档提交)
+bbea267 docs: v5.9 CHANGELOG + HANDOFF 同步(§0aj 老存档迁移肥强→肥波出战) + §11 回填 fa66a30(v5.8 文档提交)
 fa66a30 docs: v5.8 CHANGELOG + HANDOFF 同步(§0ai 宠物契约TDZ空白修复) + §11 回填 fac1e54(v5.7 文档提交) | tag v5.8 指向 ba2155a
 fac1e54 docs: v5.7 CHANGELOG + HANDOFF 同步(初始宠物肥波免购买+永久解锁+默认出战) + §11 回填 945ed72(v5.6 文档提交) | tag v5.7 指向 cd52bf5
 945ed72 docs: v5.6 CHANGELOG + HANDOFF 同步(肥波尿液可见性:抛物线拖尾+发光弹体+不规则尿渍,危害层移至暗角后绘制) + §11 回填 a71661c(v5.5 文档提交) | tag v5.6 指向 d3347e1

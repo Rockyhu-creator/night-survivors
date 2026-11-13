@@ -5,6 +5,33 @@
 
 ---
 
+## v5.13（2026-11-13 · `a6ff3b7`）
+
+### 新增
+- **云存档系统（账号密码体系）**：解决「换浏览器/换设备缓存重置、进度全丢」的根本问题。自建 Python 零依赖 API（`server/save_api.py`：`http.server` + `sqlite3` + `scrypt(N=16384)`，部署为 `ns-save-api.service` 监听 `127.0.0.1:8787`），6 个端点：注册 / 登录 / 登出 / me / 存 / 取，Bearer token 有效期 30 天。
+- **前端同步层（`src/cloudSave.js`，新建）**：监听 `night_survivors_best` / `_souls` / `_collection` 三个 key 的变更 → 60s 定时推送 + `beforeunload` 兜底推送 + 手动上/下载；登录时若云端已有存档则询问是否导入，导入前先本地备份（`night_survivors_cloud_backup_*` 保 3 份）。
+- **云存档 UI 入口**：独立置于标题界面**顶部**（`#btn-cloud` + `#cloud-entry-label`），不与图鉴/祭坛/宠物等菜单按钮同排；登录后入口直接显示用户名（`.logged-in` 暖金描边样式 + `title` 提示），登出显示「云存档」。弹窗 `cloud-screen` 含登录/注册双 tab（共享输入框，切 tab 只改 placeholder，避免重复 DOM id）。
+- **云存档图标**：`public/assets/cloud_menu.png`（80×80），经美术管线新脚本 `gen_cloud_menu.py` 产出（复用 `gen_passive_pixels.py` 的键控/描边/居中，覆盖率 32.4%）。
+- **注册/登录防刷四层**（针对「有人疯狂注册把服务搞崩」的风险）：① 全局注册闸门 40 次/小时；② 单 IP 5 个/天（`users.reg_ip` 列 + `ALTER TABLE` 平滑迁移）；③ 同一账号登录连错 5 次锁 15 分钟；④ `scrypt` 计算用 `BoundedSemaphore(2)` 闸门 + 5s 超时返回 429，防 CPU 打满。Nginx 侧再加双 zone 限流（`/api/auth/` 10r/m、`/api/` 20r/s）。
+- **腾讯云部署管线沉淀**：`docs/deploy/deploy.sh`（`--init` / `--http-only` / `--https` / 无参数日常发版四模式 + `EXTRA_DOMAINS` 多域名）、`docs/deploy/nginx-night-survivors.conf`（含 `/api/` 反代与限流 zone）、`docs/deploy/tls_proxy.py`（TLS 隧道代理，绕开本机网络对 SSH 协议的 DPI 封锁）、`docs/deploy/tencent-lighthouse-deploy.md`。
+
+### 调整
+- **神器特效全局巡检（8 件，消除与普通技能「长得一样」的问题）**：
+  - **断罪之锋（`src/weapons.js` `fireThrust`）**：不再复用噬魂长鞭的锥形曲线横扫，改走专属 `slashKind: 'thrust'` 渲染——上下两条向尖端收窄的血红刃缘 + 白炽贯穿核心线 + 出鞘瞬间末端十字锋芒闪（呼应断罪终焉的十字爆裂觉醒）。寿命 0.16s、拉直 `bow:0`。
+  - **镇魂赦令（absolution）**：从与基础「镇魂钟鸣」(`resolve`) 共用的同一渲染分支中拆出——白金圣钟（`#f7ecc8` 钟体 + `#d8b96a` 钟裙 + 白炽钟舌）+ 反向旋转的六芒圣环（`ARTIFACT_TINT.absolution`，与外层旋转形成双速层次）+ 3 粒 additive 上升光尘。基础 resolve 保留原血色红钟。
+  - **永恒壁垒（bastion）**：觉醒六边结界纹由静态描边改为动画——半径 `19 + sin(t*3)*2` 脉动、`t*0.7` 缓慢自转、alpha `0.55 ± 0.3` 呼吸，哨卫模式下一眼可辨。
+  - 其余 6 件（comet / ghost / bloodheart / ward / eyebolt 弹体形状、cataclysm 红锯齿环）复核确认已有可辨识差异，未改动。
+
+### 修复
+- **断罪系 slashes 的 tint 字段格式不匹配**：`applyWhip` 的渲染层读 `tint.body/edge/tip`，而断罪传的是 `{dmg, trail, spark, sparkHot}`，导致 `strokeStyle` 落 `undefined`、锋线退化成默认色——这正是「断罪之锋看起来和噬魂长鞭一样」的直接原因。现已按渲染层契约补 `{body, edge, tip, trail}`，并把 `slashLife` / `slashBow` / `slashKind` 做成 `applyWhip` 可选覆盖参数（默认值不变，长鞭无回归）。
+- **登录锁定计数永不生效**：`if until < time.time()` 把「从未锁定」（`until=0`）误判为「锁定已过期」，每次登录都把失败计数重置为 1，锁 15 分钟形同虚设。改为 `if 0 < until < time.time()`。
+
+### 优化
+- `.gitignore` 增 `.ns-build-2x/`（构建产物目录，每次构建重生成，避免污染 `git status`）。
+- `docs/deploy/deploy.sh` 的 `render_nginx_conf` 重构为 `CONTENT` 变量拼接，证书存在性检查统一走 `${REMOTE_SUDO} test -f`（`/etc/letsencrypt/live` 权限 700，非 sudo 读不到会误判证书缺失）。
+
+---
+
 ## v5.12（2026-08-21 · `3086a38`）
 
 ### 调整
