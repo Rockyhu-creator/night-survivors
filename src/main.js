@@ -1,5 +1,6 @@
 import { Game } from './game.js';
 import { initVersionCheck } from './version-check.js';
+import { initCloudSave } from './cloudSave.js';
 import { DIFFICULTIES, loadSouls, saveSouls, addSouls, buyUnlock, isUnlocked, grantAchievement, hasAchievement, BLOODLINES, buyBloodlineUnlock, isBloodlineUnlocked, getSelectedBloodline, setSelectedBloodline } from './data.js';
 import { MobileControls } from './mobile-controls.js';
 
@@ -16,6 +17,7 @@ if (isTouchDevice) {
 }
 
 initVersionCheck();              // 运行时版本自检：game.init 之前非阻断发起
+initCloudSave();                 // 云存档同步层（自装配 UI，非阻断）
 const game = new Game();
 game.init();
 

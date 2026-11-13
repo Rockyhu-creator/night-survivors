@@ -751,7 +751,14 @@ export class WeaponSystem {
         }
       }
     }
-    this.slashes.push({ x: player.x, y: player.y, ang, len, width: s.width || 44, life: 0.22, maxLife: 0.22, bow: (Math.random() < 0.5 ? -1 : 1), tint: s.tint || null });
+    this.slashes.push({
+      x: player.x, y: player.y, ang, len,
+      width: s.width || 44,
+      life: s.slashLife || 0.22, maxLife: s.slashLife || 0.22,
+      bow: (s.slashBow !== undefined) ? s.slashBow : (Math.random() < 0.5 ? -1 : 1),
+      tint: s.tint || null,
+      kind: s.slashKind || 'whip',   // 'whip'=锥形曲线横扫（长鞭系）；'thrust'=直线贯穿锋线（断罪系）
+    });
   }
 
   pickTarget(offset = 0) {
@@ -1113,7 +1120,14 @@ export class WeaponSystem {
     const ang = target ? Math.atan2(target.y - player.y, target.x - player.x) : (player.facing >= 0 ? 0 : Math.PI);
     const tint = { dmg: pr.color, trail: pr.color, spark: pr.color, sparkHot: '#ffffff' };
     const onHit = (awakened && this._awakened(weapon)) ? (e, x, y, isCrit) => this._retributionAwaken(e, x, y, isCrit) : null;
-    this.applyWhip(player, ang, { damage: s.damage, length: s.length, width: s.width, tint }, new Set(), null, onHit);
+    // v5.13 视觉区分：断罪系用专属「直线贯穿锋线」渲染（slashKind:'thrust'），
+    // 不再复用长鞭的锥形曲线横扫——此前连 tint 字段格式都对不上（缺 body/edge/tip），
+    // 渲染时 strokeStyle 落 undefined，视觉上和噬魂长鞭几乎无法区分。
+    const slashTint = { body: '#ffecec', edge: pr.color, tip: '#ffffff', trail: pr.glowColor };
+    this.applyWhip(player, ang, {
+      damage: s.damage, length: s.length, width: s.width,
+      tint, slashKind: 'thrust', slashLife: 0.16, slashBow: 0, tint: slashTint,
+    }, new Set(), null, onHit);
   }
 
   fireSplitting(weapon, s, awakened) {
@@ -1552,6 +1566,46 @@ export class WeaponSystem {
       ctx.translate(sl.x - cam.ox, sl.y - cam.oy);
       ctx.rotate(sl.ang);
       const tipX = sl.len * grow;
+
+      // ---------- 断罪系·直线贯穿锋线（v5.13，与长鞭的锥形曲线横扫做视觉区分）----------
+      if (sl.kind === 'thrust') {
+        const w0 = sl.width * 0.5;
+        ctx.lineCap = 'butt';
+        // 上下两条血红刃缘（向尖端收窄，模拟出鞘的楔形锋）
+        for (const side of [-1, 1]) {
+          ctx.globalAlpha = fade * 0.85;
+          ctx.strokeStyle = (sl.tint && sl.tint.edge) || '#ff5a5a';
+          ctx.lineWidth = Math.max(1.5, w0 * (1 - t * 0.55) * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(0, side * w0 * (1 - t * 0.3) * 0.55);
+          ctx.lineTo(tipX, side * w0 * 0.12);
+          ctx.stroke();
+        }
+        // 白炽核心（贯穿线）
+        ctx.globalAlpha = fade;
+        ctx.strokeStyle = (sl.tint && sl.tint.body) || '#ffecec';
+        ctx.lineWidth = Math.max(2, w0 * 0.34 * (1 - t * 0.5));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(tipX, 0);
+        ctx.stroke();
+        // 出鞘瞬间：末端十字锋芒闪（呼应断罪终焉的十字爆裂觉醒）
+        if (grow >= 0.96 && t < 0.5) {
+          const cr = 4 + (1 - fade) * 10;
+          ctx.globalAlpha = fade * 0.95;
+          ctx.strokeStyle = (sl.tint && sl.tint.tip) || '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(tipX - cr, 0);
+          ctx.lineTo(tipX + cr, 0);
+          ctx.moveTo(tipX, -cr);
+          ctx.lineTo(tipX, cr);
+          ctx.stroke();
+        }
+        ctx.restore();
+        continue;
+      }
+
       const bow = Math.sin(t * Math.PI) * sl.width * 0.55 * (sl.bow || 1);
       ctx.lineCap = 'round';
       const N = 16;
@@ -1817,13 +1871,18 @@ export class WeaponSystem {
       const img = sprite('weapon_aegis');
       if (img) ctx.drawImage(img, sx - 16, sy - 16, 32, 32);
       else { ctx.fillStyle = sn.color; ctx.beginPath(); ctx.arc(sx, sy, 12, 0, Math.PI * 2); ctx.fill(); }
-      // 永恒壁垒(觉醒)：六边结界纹叠加，区别于基础哨卫
+      // 永恒壁垒(觉醒)：旋转脉动六边结界纹，区别于基础哨卫（v5.13 加动画，原为静态描边不显眼）
       if (sn.awaken === 'bastion') {
-        ctx.globalAlpha = 0.85; ctx.strokeStyle = '#a9e6ff'; ctx.lineWidth = 2;
-        const R = 19;
+        const hexR = 19 + Math.sin(this.game.time * 3) * 2;
+        ctx.globalAlpha = 0.55 + Math.sin(this.game.time * 3) * 0.3;
+        ctx.strokeStyle = '#a9e6ff'; ctx.lineWidth = 2;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(this.game.time * 0.7);
         ctx.beginPath();
-        for (let i = 0; i < 6; i += 1) { const ang = (i / 6) * Math.PI * 2 - Math.PI / 2; const x = sx + Math.cos(ang) * R, y = sy + Math.sin(ang) * R; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+        for (let i = 0; i < 6; i += 1) { const ang = (i / 6) * Math.PI * 2 - Math.PI / 2; const x = Math.cos(ang) * hexR, y = Math.sin(ang) * hexR; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
         ctx.closePath(); ctx.stroke();
+        ctx.restore();
         ctx.globalAlpha = 1;
       }
       ctx.restore();
@@ -1872,8 +1931,49 @@ export class WeaponSystem {
       const sx = rn.x - cam.ox, sy = rn.y - cam.oy, a = Math.max(0, rn.life / rn.maxLife);
       ctx.save();
       ctx.translate(sx, sy); ctx.rotate(this.game.time * 0.8);
-      if (rn.awaken === 'absolution' || rn.awaken === 'resolve') {
-        // 镇魂钟鸣家族（基础 resolve + 觉醒 absolution）：红色圆环内嵌血色红钟（替换原光晕圈）
+      if (rn.awaken === 'absolution') {
+        // 镇魂赦令(觉醒)：白金圣钟 + 旋转六芒圣环 + 上升光尘
+        // （此前与基础 resolve 共用同一渲染分支、外观完全一致无法区分——2026-11-13 拆分）
+        const R = rn.burstRadius;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.38 * a;
+        ctx.drawImage(getGlowSprite('absolution', R * 2, 'rgba(243,232,192,0.95)'), -R, -R, R * 2, R * 2);
+        ctx.globalCompositeOperation = 'source-over';
+        // 旋转六芒圣环（外环 + 内接六芒，反向缓转，与外层 rotate 形成双速旋转层次）
+        ctx.globalAlpha = 0.9 * a;
+        ctx.strokeStyle = ARTIFACT_TINT.absolution;
+        ctx.lineWidth = 2.5;
+        ctx.save();
+        ctx.rotate(-this.game.time * 0.5);
+        ctx.beginPath(); ctx.arc(0, 0, R * 0.78, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath();
+        for (let i = 0; i < 6; i += 1) {
+          const ang = (i / 6) * Math.PI * 2;
+          const x = Math.cos(ang) * R * 0.6, y = Math.sin(ang) * R * 0.6;
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.closePath(); ctx.stroke();
+        ctx.restore();
+        // 白金圣钟（钟形轮廓同族，但配色圣白金，与血色红钟一眼区分）
+        ctx.globalAlpha = 0.95 * a;
+        const bs = R * 0.92;
+        ctx.fillStyle = '#f7ecc8';
+        ctx.beginPath(); ctx.arc(0, -bs * 0.08, bs * 0.28, Math.PI, 0); ctx.lineTo(bs * 0.34, bs * 0.42); ctx.lineTo(-bs * 0.34, bs * 0.42); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#d8b96a';
+        ctx.beginPath(); ctx.moveTo(-bs * 0.30, bs * 0.08); ctx.lineTo(bs * 0.30, bs * 0.08); ctx.lineTo(bs * 0.22, bs * 0.46); ctx.lineTo(-bs * 0.22, bs * 0.46); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, bs * 0.54, bs * 0.06, 0, Math.PI * 2); ctx.fill();
+        // 上升光尘（3 粒循环上飘，additive）
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = 'rgba(255,236,180,0.9)';
+        for (let i = 0; i < 3; i += 1) {
+          const ph = (this.game.time * 0.35 + i * 0.33) % 1;
+          const mx = Math.sin(this.game.time * 1.7 + i * 2.1) * R * 0.3;
+          const my = R * 0.5 * (1 - ph);
+          ctx.globalAlpha = a * (1 - ph) * 0.9;
+          ctx.beginPath(); ctx.arc(mx, my, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (rn.awaken === 'resolve') {
+        // 镇魂钟鸣（基础 resolve）：红色圆环内嵌血色红钟
         ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4 * a;
         ctx.drawImage(getGlowSprite('absolution', rn.burstRadius * 2, 'rgba(255,59,92,0.9)'), -rn.burstRadius, -rn.burstRadius, rn.burstRadius * 2, rn.burstRadius * 2);
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.9 * a;

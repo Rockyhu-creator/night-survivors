@@ -33,6 +33,11 @@
     <!-- 开始界面 -->
     <div id="title-screen" class="screen">
       <div id="bat-layer"></div>
+      <!-- 云存档入口（v5.13）：独立置于顶部，不与图鉴/祭坛等菜单按钮同排 -->
+      <button id="btn-cloud" class="gothic-btn ghost cloud-entry" type="button" aria-label="云存档">
+        <img class="cloud-entry-icon" src="/assets/cloud_menu.png" alt="" />
+        <span class="cloud-entry-label" id="cloud-entry-label">云存档</span>
+      </button>
       <div class="title-inner">
         <p class="title-sub">DARK GOTHIC SURVIVAL</p>
         <h1 class="game-title">夜裔<br/>幸存者</h1>
@@ -243,6 +248,33 @@
     </div>
 
     <!-- 玩法说明（首启自动弹） -->
+    <div id="cloud-screen" class="screen cloud-screen hidden">
+      <div class="cloud-card">
+        <h2 class="cloud-title">云存档 · 跨设备同步</h2>
+        <div id="cloud-form" class="hidden">
+          <div class="cloud-tabs">
+            <button id="cloud-tab-login" class="cloud-tab active" type="button">登录</button>
+            <button id="cloud-tab-register" class="cloud-tab" type="button">注册</button>
+          </div>
+          <div>
+            <input id="cloud-input-user" class="cloud-input" type="text" maxlength="16" placeholder="用户名（2-16位）" autocomplete="username" />
+            <input id="cloud-input-pass" class="cloud-input" type="password" maxlength="64" placeholder="密码（至少6位）" autocomplete="current-password" />
+          </div>
+          <button id="cloud-btn-submit" class="gothic-btn">确定</button>
+        </div>
+        <div id="cloud-session" class="hidden">
+          <p class="cloud-line">当前账号：<b id="cloud-username"></b></p>
+          <div class="cloud-btn-row">
+            <button id="cloud-btn-upload" class="gothic-btn ghost">上传到云端</button>
+            <button id="cloud-btn-download" class="gothic-btn ghost">从云端导入</button>
+          </div>
+          <button id="cloud-btn-logout" class="gothic-btn ghost cloud-logout">退出登录</button>
+        </div>
+        <p id="cloud-status" class="cloud-status"></p>
+        <button id="btn-cloud-close" class="gothic-btn">返回</button>
+      </div>
+    </div>
+
     <div id="guide-screen" class="screen guide-screen hidden">
       <div class="guide-card">
         <h2 class="guide-title">活到黎明 · 玩法说明</h2>
